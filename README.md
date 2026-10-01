@@ -1,5 +1,8 @@
 # [Classifast.com](https://classifast.com)
 
+TypeScript rewrite of [Classifast](https://github.com/DmitryMatv/classifast),
+originally built with Python/FastAPI.
+
 ## Accurate classifier of UNSPSC, NAICS, HS/CN/HTS codes, NACE, EMDN, ETIM and more
 
 ### Get the right category codes from the most widely used classification standards.
