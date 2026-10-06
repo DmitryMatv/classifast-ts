@@ -189,7 +189,7 @@ def initialize_openrouter_reranker() -> OpenRouterReranker | None:
 
     try:
         model_name = (
-            os.getenv("OPENROUTER_RERANK_MODEL", "").strip() or "voyageai/rerank-2.5"
+            os.getenv("OPENROUTER_RERANK_MODEL", "").strip() or "voyageai/rerank-3"
         )
         timeout_seconds = float(os.getenv("OPENROUTER_RERANK_TIMEOUT_SECONDS", "30"))
         if timeout_seconds <= 0:
@@ -558,19 +558,6 @@ class CachedStaticFiles(StaticFiles):
         response = await super().get_response(path, scope)
         if isinstance(response, Response):
             response.headers.update(build_cache_headers(get_static_cache_profile(path)))
-
-            # ETag for conditional requests (CF uses this for revalidation)
-            try:
-                if self.directory:
-                    file_path = Path(self.directory) / path
-                    file_stat = file_path.stat()
-                    response.headers["ETag"] = (
-                        f'"{int(file_stat.st_mtime)}-{file_stat.st_size}"'
-                    )
-                else:
-                    response.headers["ETag"] = f'"{hash(path)}"'
-            except (OSError, FileNotFoundError):
-                response.headers["ETag"] = f'"{hash(path)}"'
 
             # Let CF handle compression and vary cache by encoding
             response.headers["Vary"] = "Accept-Encoding"

@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import redis.asyncio as redis
 from fastapi import FastAPI, HTTPException
-from polar_sdk._webhooks import WebhookVerificationError
+from polar.v2026_10.webhooks import PolarWebhookVerificationError
 
 from app import payments
 from app.clerk_auth import ClerkAuthenticationError, ClerkInfrastructureError
@@ -18,7 +18,10 @@ def _build_test_app() -> FastAPI:
     app = FastAPI()
     app.include_router(payments.router, prefix="/api")
     redis_client = AsyncMock()
-    redis_client.incr.return_value = 1
+    pipeline = MagicMock()
+    pipeline.__aenter__.return_value = pipeline
+    pipeline.execute = AsyncMock(return_value=[1, True])
+    redis_client.pipeline = MagicMock(return_value=pipeline)
     app.state.redis_client = redis_client
     return app
 
@@ -119,7 +122,7 @@ class CheckoutRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(user_id, "user_123")
         self.assertEqual(response["url"], "https://polar.example/checkout")
         self.assertEqual(
-            polar_instance.checkouts.create.call_args.kwargs["request"]["success_url"],
+            polar_instance.checkouts.create.call_args.kwargs["success_url"],
             "http://testserver/NAICS/?checkout=success",
         )
         request.app.state.redis_client.setex.assert_not_called()
@@ -226,7 +229,7 @@ class CheckoutRouteTests(unittest.IsolatedAsyncioTestCase):
             response = await payments.create_checkout(request, user_id="user_123")
 
         self.assertEqual(response["url"], "https://polar.example/checkout")
-        request_payload = polar_instance.checkouts.create.call_args.kwargs["request"]
+        request_payload = polar_instance.checkouts.create.call_args.kwargs
         self.assertEqual(request_payload["products"], ["configured-pro-product"])
         self.assertEqual(request_payload["metadata"]["user_id"], "user_123")
 
@@ -300,7 +303,7 @@ class CheckoutRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["url"], "https://polar.example/checkout")
         polar_instance.checkouts.create.assert_called_once()
-        request_payload = polar_instance.checkouts.create.call_args.kwargs["request"]
+        request_payload = polar_instance.checkouts.create.call_args.kwargs
         self.assertEqual(request_payload["products"], [product.polar_product_id])
         self.assertEqual(request_payload["metadata"]["mapping_slug"], product.slug)
         self.assertEqual(
@@ -357,7 +360,8 @@ class CheckoutRateLimitTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_mapping_checkout_is_rate_limited_per_ip(self) -> None:
         app = _build_test_app()
-        app.state.redis_client.incr.side_effect = [1, 2, 3]
+        pipeline = app.state.redis_client.pipeline.return_value
+        pipeline.execute.side_effect = [[1, True], [2, False], [3, False]]
         product = next(iter(MAPPING_PRODUCTS.values()))
         polar_instance = MagicMock()
         polar_instance.checkouts.create.return_value = SimpleNamespace(
@@ -379,7 +383,7 @@ class CheckoutRateLimitTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(first.status_code, 200)
         self.assertEqual(second.status_code, 200)
         self.assertEqual(third.status_code, 429)
-        app.state.redis_client.expire.assert_awaited_once()
+        self.assertEqual(polar_instance.checkouts.create.call_count, 2)
 
     async def test_checkout_rate_limit_fails_closed_without_redis(self) -> None:
         app = _build_test_app()
@@ -393,7 +397,8 @@ class CheckoutRateLimitTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_checkout_rate_limit_fails_closed_on_redis_error(self) -> None:
         app = _build_test_app()
-        app.state.redis_client.incr.side_effect = redis.RedisError("down")
+        pipeline = app.state.redis_client.pipeline.return_value
+        pipeline.execute.side_effect = redis.RedisError("down")
 
         response = await self._post_mapping_checkout(
             app, next(iter(MAPPING_PRODUCTS.values())).slug
@@ -424,7 +429,7 @@ class WebhookRouteTests(unittest.IsolatedAsyncioTestCase):
             patch("app.payments.POLAR_WEBHOOK_SECRET", "secret"),
             patch(
                 "app.payments.validate_event",
-                side_effect=WebhookVerificationError("invalid signature"),
+                side_effect=PolarWebhookVerificationError("invalid signature"),
             ),
         ):
             response = await self._post_webhook()
@@ -436,7 +441,7 @@ class WebhookRouteTests(unittest.IsolatedAsyncioTestCase):
         self,
     ) -> None:
         class DummyUpdatedPayload:
-            TYPE = "subscription.updated"
+            type = "subscription.updated"
 
             def __init__(self, status: str, product_id: str | None) -> None:
                 self.data = SimpleNamespace(
@@ -476,7 +481,7 @@ class WebhookRouteTests(unittest.IsolatedAsyncioTestCase):
         self,
     ) -> None:
         class DummyUpdatedPayload:
-            TYPE = "subscription.updated"
+            type = "subscription.updated"
 
             def __init__(self, status: str) -> None:
                 self.data = SimpleNamespace(
@@ -515,7 +520,7 @@ class WebhookRouteTests(unittest.IsolatedAsyncioTestCase):
         self,
     ) -> None:
         class DummyUpdatedPayload:
-            TYPE = "subscription.updated"
+            type = "subscription.updated"
 
             def __init__(self, status: str) -> None:
                 self.data = SimpleNamespace(
@@ -552,7 +557,7 @@ class WebhookRouteTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_non_allowlisted_subscription_update_is_ignored(self) -> None:
         class DummyUpdatedPayload:
-            TYPE = "subscription.updated"
+            type = "subscription.updated"
 
             def __init__(self, status: str, product_id: str | None) -> None:
                 self.data = SimpleNamespace(
@@ -587,7 +592,7 @@ class WebhookRouteTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_missing_configured_product_id_returns_server_error(self) -> None:
         class DummyUpdatedPayload:
-            TYPE = "subscription.updated"
+            type = "subscription.updated"
 
             def __init__(self, status: str, product_id: str | None) -> None:
                 self.data = SimpleNamespace(
@@ -625,7 +630,7 @@ class WebhookRouteTests(unittest.IsolatedAsyncioTestCase):
         self,
     ) -> None:
         class DummyUpdatedPayload:
-            TYPE = "subscription.updated"
+            type = "subscription.updated"
 
             def __init__(self, status: str) -> None:
                 self.data = SimpleNamespace(status=status, metadata={"user_id": "u1"})
@@ -659,7 +664,7 @@ class WebhookRouteTests(unittest.IsolatedAsyncioTestCase):
         self,
     ) -> None:
         class DummyCanceledPayload:
-            TYPE = "subscription.canceled"
+            type = "subscription.canceled"
 
             def __init__(self, product_id: str | None) -> None:
                 self.data = SimpleNamespace(
@@ -696,7 +701,7 @@ class WebhookRouteTests(unittest.IsolatedAsyncioTestCase):
         self,
     ) -> None:
         class DummyRevokedPayload:
-            TYPE = "subscription.revoked"
+            type = "subscription.revoked"
 
             def __init__(self, product_id: str | None) -> None:
                 self.data = SimpleNamespace(
@@ -733,7 +738,7 @@ class WebhookRouteTests(unittest.IsolatedAsyncioTestCase):
         self,
     ) -> None:
         class DummyUpdatedPayload:
-            TYPE = "subscription.updated"
+            type = "subscription.updated"
 
             def __init__(self, status: str) -> None:
                 self.data = SimpleNamespace(status=status, metadata={"user_id": "u1"})
@@ -766,7 +771,7 @@ class WebhookRouteTests(unittest.IsolatedAsyncioTestCase):
         self,
     ) -> None:
         class DummyUpdatedPayload:
-            TYPE = "subscription.updated"
+            type = "subscription.updated"
 
             def __init__(self, status: str, product_id: str | None) -> None:
                 self.data = SimpleNamespace(
@@ -806,7 +811,7 @@ class WebhookRouteTests(unittest.IsolatedAsyncioTestCase):
         self,
     ) -> None:
         class DummyUpdatedPayload:
-            TYPE = "subscription.updated"
+            type = "subscription.updated"
 
             def __init__(self, status: str, product_id: str | None) -> None:
                 self.data = SimpleNamespace(
