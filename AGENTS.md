@@ -4,7 +4,18 @@ The role of this file is to describe common mistakes and confusion points that a
 
 ## Testing
 
-Always use `npm test` or `npm run test:watch` for frontend tests.
+Always use `npm test` or `npm run test:watch` for TypeScript tests. `npm test`
+runs two Vitest projects: `assets` (frontend, jsdom, `app/assets/ts`) and
+`server` (Nest unit specs in `src/`). Select one with
+`npx vitest run --project assets`. Run the Nest e2e tests with
+`npm run test:e2e`. `npm run typecheck` checks both the root `tsconfig.json`
+(Nest, `src/` and `test/`) and `app/assets/tsconfig.json` (frontend and the
+Vite and Vitest configs).
+
+The NestJS app in `src/` is an early migration scaffold. Start it with
+`npm run start:dev`. It does not serve the site yet; production still runs the
+FastAPI app. The root `test/` directory holds Nest e2e specs for Vitest; the
+Python suite lives in `tests/`.
 
 Always use `pytest` for backend tests. The suite retains `unittest`-compatible
 test classes and standard-library mocks, but pytest is the official runner.
@@ -72,6 +83,12 @@ Cache headers are defined in `app/cache_profiles.py` - edit the profiles there i
 `app/static/js/*.js` and `app/static/css/styles.css` are Vite build outputs
 from `app/assets/ts/` and `app/assets/css/`. Never hand-edit them; edit the TS
 sources and run `npm run build`.
+
+`app/assets/css/input.css` limits Tailwind's class scan to `app/assets/ts` and
+`app/templates`, the only markup the Docker frontend stage copies. Local and
+Docker builds therefore produce the same `styles.css`. A Tailwind class written
+anywhere else, such as in `app/web.py` or `src/`, is not generated. When
+markup moves to a new directory, add a `@source` line for it.
 
 ## Rapid API (API.py)
 
@@ -142,6 +159,9 @@ sources and run `npm run build`.
   still send traffic. The UI can render a fallback `Sign In` link when Clerk
   fails; that link does not prove authentication works. Use a Clerk test
   configuration that accepts the local origin to verify sign-in.
+  On localhost the page renders the signed-out Clerk buttons rather than the
+  fallback links, and their Sign In opens an empty Clerk modal backdrop. To see
+  the fallback locally, block the `clerk.browser.js` request.
 - Template `url_for` links render as absolute URLs with the request origin.
   Browser checks should use accessible names or inspect the URL pathname,
   rather than match an exact relative `href`.
