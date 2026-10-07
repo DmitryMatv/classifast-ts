@@ -3,8 +3,9 @@ import type { AddressInfo } from "node:net";
 import { Test } from "@nestjs/testing";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import request from "supertest";
+import { vi } from "vitest";
 import { AppModule } from "../src/app.module.js";
-import { APP_CONFIG, parseAppConfig } from "../src/config/app-config.js";
+import { ConfigError } from "../src/config/app-config.js";
 import { configureHttpApp } from "../src/http-app.js";
 
 async function listen(server: Server): Promise<string> {
@@ -21,6 +22,11 @@ async function close(server: Server): Promise<void> {
 
 function fakeQdrantServer(): Server {
   return createServer((req, res) => {
+    if (req.method === "GET" && req.url === "/") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ title: "qdrant", version: "1.19.0" }));
+      return;
+    }
     if (req.method === "GET" && req.url === "/collections") {
       res.writeHead(200, { "content-type": "application/json" });
       res.end(
@@ -39,11 +45,25 @@ async function unreachableUrl(): Promise<string> {
   return url;
 }
 
-async function bootApp(env: NodeJS.ProcessEnv) {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-    .overrideProvider(APP_CONFIG)
-    .useValue(parseAppConfig(env))
-    .compile();
+const BOOT_ENV_NAMES = [
+  "HF_TOKEN",
+  "HF_EMBEDDING_TIMEOUT_SECONDS",
+  "QDRANT_URL",
+  "QDRANT_HOST",
+  "QDRANT_PORT",
+  "QDRANT_API_KEY",
+] as const;
+
+function stubBootEnv(env: Partial<Record<string, string>>): void {
+  for (const name of BOOT_ENV_NAMES) vi.stubEnv(name, undefined);
+  for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
+}
+
+async function bootApp(env: Partial<Record<string, string>>) {
+  stubBootEnv(env);
+  const moduleRef = await Test.createTestingModule({
+    imports: [AppModule],
+  }).compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>();
   configureHttpApp(app);
   await app.init();
@@ -59,6 +79,7 @@ describe("/health (e2e)", () => {
     if (qdrant) await close(qdrant);
     app = undefined;
     qdrant = undefined;
+    vi.unstubAllEnvs();
   });
 
   it("answers 200 when embedding is configured and Qdrant is reachable", async () => {
@@ -95,5 +116,16 @@ describe("/health (e2e)", () => {
 
     expect(response.status).toBe(503);
     expect(response.body).toEqual({ detail: "Service Unavailable" });
+  });
+
+  it("fails boot naming a malformed variable without echoing its value", async () => {
+    const value = "not-a-port-5521";
+    stubBootEnv({ QDRANT_PORT: value });
+
+    const boot = Test.createTestingModule({ imports: [AppModule] }).compile();
+
+    await expect(boot).rejects.toThrow(ConfigError);
+    await expect(boot).rejects.toThrow(/QDRANT_PORT must be an integer/);
+    await expect(boot).rejects.not.toThrow(value);
   });
 });
