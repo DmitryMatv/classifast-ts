@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { resolveQdrantUrl } from "../qdrant/qdrant-connection.js";
+import { parsePythonFloat, parsePythonInt } from "./python-number.js";
 
 // Like Python, boot requires no variable. Only a malformed value that Python
 // converts with int() at import or startup fails boot (`integer` below).
@@ -18,26 +19,25 @@ type DeepReadonly<T> = T extends (infer E)[]
     ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
     : T;
 
-const INTEGER = /^[+-]?\d+$/;
 const TRUE_ENV_VALUES = new Set(["1", "true", "yes", "on"]);
 
 function integer(fallback: number) {
   return z
     .string()
-    .trim()
-    .regex(INTEGER, "must be an integer")
-    .transform(Number)
+    .refine((value) => parsePythonInt(value) !== undefined, {
+      message: "must be an integer",
+    })
+    .transform((value) => parsePythonInt(value) ?? fallback)
     .default(fallback);
 }
 
 function decimal(fallback: number) {
   return z
     .string()
-    .trim()
-    .refine((value) => value !== "" && !Number.isNaN(Number(value)), {
+    .refine((value) => parsePythonFloat(value) !== undefined, {
       message: "must be a number",
     })
-    .transform(Number)
+    .transform((value) => parsePythonFloat(value) ?? fallback)
     .default(fallback);
 }
 
@@ -71,8 +71,8 @@ function commaList(value: string): string[] {
 }
 
 function positiveSeconds(name: string, raw: string) {
-  const seconds = Number(raw.trim());
-  return raw.trim() !== "" && seconds > 0
+  const seconds = parsePythonFloat(raw);
+  return seconds !== undefined && seconds > 0
     ? { ok: true as const, seconds }
     : {
         ok: false as const,

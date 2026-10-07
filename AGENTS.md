@@ -21,7 +21,11 @@ The Nest app listens on `HOST` and `PORT` (default `0.0.0.0:8001`), the same
 port as the Python app. Set `PORT` to run both at once. Like Python's
 `load_dotenv()`, it loads the repository-root `.env` when the file exists, and
 variables already in the environment win. A worktree has no `.env`, so pass
-`node --env-file=<path> dist/main.js` there. `src/config/app-config.ts` parses
+`node --env-file=<path> dist/main.js` there. Node's `.env` grammar differs
+from python-dotenv: it does not expand `${VAR}`, and it treats `#` as a
+comment start in more places. On 2026-10-08 every key in the local `.env`
+parsed the same under both. Production is unaffected, because the image has
+no `.env` and compose supplies the variables. `src/config/app-config.ts` parses
 every variable the Python app reads; add new variables to that schema instead
 of reading `process.env` elsewhere. `Dockerfile.node` builds the Nest image;
 production still uses `Dockerfile`.

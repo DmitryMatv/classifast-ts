@@ -186,6 +186,26 @@ describe("parseAppConfig", () => {
     expect(error.message).not.toContain(SECRET);
   });
 
+  it("reads numbers with Python's int() and float() grammar", () => {
+    const config = parseAppConfig({
+      ANON_LIMIT: "1_000",
+      HF_EMBEDDING_DIMS: "2_048",
+      HF_TOKEN: "hf",
+      HF_EMBEDDING_TIMEOUT_SECONDS: "2_0",
+      CLASSIFICATION_OUTBOUND_BUDGET_SECONDS: "1_0",
+      OPENROUTER_API_KEY: "or",
+      OPENROUTER_RERANK_TIMEOUT_SECONDS: "0x14",
+    });
+    expect(config.quota.anonLimit).toBe(1000);
+    expect(config.embedding.dims).toBe(2048);
+    expect(config.embedding.client).toMatchObject({
+      enabled: true,
+      timeoutSeconds: 20,
+    });
+    expect(config.classification.outboundBudgetSeconds).toBe(10);
+    expect(config.openRouter.rerank.enabled).toBe(false);
+  });
+
   it("names every malformed variable in one error", () => {
     const error = configError({ REDIS_PORT: "x", ANON_LIMIT: "1.5" });
 
