@@ -123,18 +123,21 @@ schema contract is invalid. Prepare and verify Qdrant explicitly before a
 deployment:
 
 ```bash
-source .venv/bin/activate
-python utilities/sync_payload_indexes.py apply
-python utilities/sync_payload_indexes.py check
+npm ci
+npm run qdrant:indexes -- apply
+npm run qdrant:indexes -- check
 ```
 
-`apply` is a live migration operation: it backfills normalized ID payloads and
-creates or replaces payload indexes. `check` is read-only. Run `apply` from a
-controlled maintenance environment, verify the resolved Qdrant target before
-confirming the operation, then deploy only after `check` succeeds. The utility
-loads the repository `.env`; values already exported by the shell or supplied
-by the container take precedence. A Qdrant client cleanup failure is reported
-as an operational failure and makes the command exit nonzero.
+`qdrant:indexes` builds the Nest project and runs the TypeScript CLI in
+`src/cli/sync-payload-indexes.ts`. Add `--collection NAME` (repeatable) to
+limit either command to configured collections. `apply` is a live migration
+operation: it backfills normalized ID payloads and creates or replaces payload
+indexes. `check` is read-only. Run `apply` from a controlled maintenance
+environment, verify the resolved Qdrant target before confirming the
+operation, then deploy only after `check` succeeds. The CLI loads the
+repository `.env`; values already exported by the shell or supplied by the
+container take precedence. It exits 0 on success, 1 on a schema violation or a
+failed Qdrant operation, and 2 on invalid arguments.
 
 Synchronous classification stages run on one dedicated background worker per
 application process. Each process admits one active classification and up to

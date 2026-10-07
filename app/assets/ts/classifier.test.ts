@@ -29,6 +29,19 @@ function getClassifierForm(): HTMLFormElement {
   return document.getElementById("classifier-form") as HTMLFormElement;
 }
 
+// htmx 4 validates a submitting form before htmx:config:request runs, unless
+// the form has noValidate or hx-validate="false", and sends nothing if invalid.
+function recordSentHtmxSubmits(): HTMLFormElement[] {
+  const sent: HTMLFormElement[] = [];
+  vi.mocked(window.htmx!.trigger).mockImplementation((element) => {
+    const form = element as HTMLFormElement;
+    const validate =
+      !form.noValidate && form.getAttribute("hx-validate") !== "false";
+    if (!validate || form.reportValidity()) sent.push(form);
+  });
+  return sent;
+}
+
 function createConfigRequestDetail(
   form: HTMLFormElement,
 ): HtmxConfigRequestEvent["detail"] {
@@ -139,7 +152,7 @@ describe("classifier.ts", () => {
         data-default-top-k="10"
         data-default-version="v1"
       >
-        <textarea id="product_description_area" name="product_description"></textarea>
+        <textarea id="product_description_area" name="product_description" required></textarea>
         <input type="checkbox" id="enhance-query-switch" name="enhance_query" value="1" role="switch">
         <select id="show_top_k_categories" name="top_k">
           <option value="5">5</option>
@@ -1080,6 +1093,58 @@ describe("classifier.ts", () => {
     topK.dispatchEvent(new Event("change", { bubbles: true }));
 
     expect(window.htmx?.trigger).toHaveBeenCalledWith(form, "submit");
+  });
+
+  it("sends the base example autoload after the example text is cleared", async () => {
+    window.__authReady = false;
+    vi.doMock("./common", () => ({
+      ShareLink: {
+        copyShareableLink: vi.fn(),
+      },
+    }));
+    const sent = recordSentHtmxSubmits();
+    const form = getClassifierForm();
+    form.dataset["autoloadEnabled"] = "true";
+    form.dataset["initialQueryPresent"] = "false";
+    form.dataset["defaultExamplePrefill"] = "true";
+    const textarea = document.getElementById(
+      "product_description_area",
+    ) as HTMLTextAreaElement;
+    textarea.value = "Industrial pump";
+
+    await import("./classifier");
+    textarea.value = "";
+    document.body.dispatchEvent(new CustomEvent("htmx:authReady"));
+    vi.advanceTimersByTime(0);
+
+    expect(sent).toEqual([form]);
+    expect(form.noValidate).toBe(false);
+  });
+
+  it("sends the base example top-k resubmit after the example text is cleared", async () => {
+    window.__authReady = true;
+    vi.doMock("./common", () => ({
+      ShareLink: {
+        copyShareableLink: vi.fn(),
+      },
+    }));
+    const form = getClassifierForm();
+    form.dataset["defaultExamplePrefill"] = "true";
+    form.dataset["initialQueryPresent"] = "false";
+    const textarea = document.getElementById(
+      "product_description_area",
+    ) as HTMLTextAreaElement;
+    textarea.value = "Industrial pump";
+
+    await import("./classifier");
+    const sent = recordSentHtmxSubmits();
+    textarea.value = "";
+    (
+      document.getElementById("show_top_k_categories") as HTMLSelectElement
+    ).dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(sent).toEqual([form]);
+    expect(form.noValidate).toBe(false);
   });
 
   it("uses the stored default example query when configRequest runs after timer clear", async () => {

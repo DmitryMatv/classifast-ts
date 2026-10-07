@@ -3,6 +3,11 @@ node_modules/
 app/static/js/
 app/static/css/
 
+# Nest build output and Vitest coverage
+dist/
+*.tsbuildinfo
+coverage/
+
 # Qdrant "training"
 data/
 embedders/

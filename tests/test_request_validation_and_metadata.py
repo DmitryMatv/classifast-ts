@@ -229,7 +229,7 @@ class ClassifierPageMetadataTests(unittest.IsolatedAsyncioTestCase):
             response.text,
         )
 
-    async def test_homepage_renders_stable_desktop_auth_slot(self):
+    async def test_homepage_renders_stable_auth_slots(self):
         transport = httpx.ASGITransport(app=self.app)
 
         async with httpx.AsyncClient(
@@ -242,8 +242,10 @@ class ClassifierPageMetadataTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('class="auth-slot"', response.text)
         self.assertIn('data-auth-slot="desktop"', response.text)
         self.assertIn('id="desktop-auth-container"', response.text)
+        self.assertIn('data-auth-slot="mobile"', response.text)
+        self.assertIn('id="mobile-auth-container"', response.text)
 
-    async def test_classifier_page_renders_stable_desktop_auth_slot(self):
+    async def test_classifier_page_renders_stable_auth_slots(self):
         transport = httpx.ASGITransport(app=self.app)
 
         async with httpx.AsyncClient(
@@ -256,6 +258,8 @@ class ClassifierPageMetadataTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('class="auth-slot"', response.text)
         self.assertIn('data-auth-slot="desktop"', response.text)
         self.assertIn('id="desktop-auth-container"', response.text)
+        self.assertIn('data-auth-slot="mobile"', response.text)
+        self.assertIn('id="mobile-auth-container"', response.text)
 
     async def test_search_page_gates_initial_loader_on_auth_ready(self):
         transport = httpx.ASGITransport(app=self.app)

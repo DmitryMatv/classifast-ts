@@ -426,6 +426,19 @@
             line-height: 1;
         }
 
+        .auth-slot[data-auth-slot="mobile"] {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .auth-slot[data-auth-slot="mobile"] {
+                display: inline-flex;
+                min-width: 2.25rem;
+                margin-left: auto;
+                margin-right: 0.75rem;
+            }
+        }
+
         /* HTMX loading indicator styles */
         #loading-indicator {
             display: none;
@@ -676,6 +689,10 @@
                     </li>
                 </ul>
             </nav>
+
+            <div class="auth-slot" data-auth-slot="mobile">
+                <div id="mobile-auth-container"></div>
+            </div>
 
             <button class="hamburger" id="mobile-menu-button" aria-label="Toggle mobile menu" aria-expanded="false">
                 <span></span>
