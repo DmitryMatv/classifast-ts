@@ -7,8 +7,14 @@ const SIGN_IN_CLASS =
   "inline-flex shrink-0 items-center justify-center whitespace-nowrap bg-sky-50 text-sky-700 hover:bg-sky-100 active:bg-sky-100 active:scale-95 rounded transition-all duration-150 ease-in-out transform cursor-pointer auth-loaded";
 const SIGN_UP_CLASS =
   "inline-flex shrink-0 items-center justify-center whitespace-nowrap bg-sky-700 hover:bg-sky-800 active:bg-sky-900 active:scale-95 text-white rounded transition-all duration-150 ease-in-out transform cursor-pointer auth-loaded";
-const DESKTOP_AUTH_BUTTON_SIZE_CLASS = "h-9 px-4 leading-none";
-const MOBILE_AUTH_BUTTON_SIZE_CLASS = "min-h-9 px-4 py-2 leading-none";
+const AUTH_BUTTON_SIZE_CLASS = "h-9 px-4 leading-none";
+// The mobile header bar fits one control between the logo and the menu
+// button. Clerk's sign-in modal links to sign-up.
+const AUTH_SLOTS = [
+  { name: "desktop", showSignUp: true },
+  { name: "mobile", showSignUp: false },
+] as const;
+type AuthSlot = (typeof AUTH_SLOTS)[number];
 const CLERK_SCRIPT_READINESS_TIMEOUT_MS = 10000;
 const CLERK_LOAD_TIMEOUT_MS = 10000;
 const INITIAL_TOKEN_REFRESH_TIMEOUT_MS = 10000;
@@ -831,25 +837,14 @@ export class ClerkAuth {
 
   private updateAuthUI() {
     const user = window.Clerk?.user;
-    const desktopContainer = document.getElementById("desktop-auth-container");
-    const mobileContainer = document.getElementById("mobile-auth-container");
-
-    // Clear containers
-    if (desktopContainer) desktopContainer.innerHTML = "";
-    if (mobileContainer) mobileContainer.innerHTML = "";
-
-    if (user) {
-      // Render User Button
-      this.mountUserButton(desktopContainer, "desktop");
-      this.mountUserButton(mobileContainer, "mobile");
-    } else {
-      // Render Sign In and Sign Up Buttons
-      this.renderAuthButtons(desktopContainer, "desktop");
-      this.renderAuthButtons(mobileContainer, "mobile");
-
-      // Try to open Google One Tap
-      this.openGoogleOneTap();
+    for (const slot of AUTH_SLOTS) {
+      const container = document.getElementById(`${slot.name}-auth-container`);
+      if (!container) continue;
+      container.innerHTML = "";
+      if (user) this.mountUserButton(container, slot);
+      else this.renderAuthButtons(container, slot);
     }
+    if (!user) this.openGoogleOneTap();
   }
 
   private shouldOpenGoogleOneTap(): boolean {
@@ -882,18 +877,11 @@ export class ClerkAuth {
     }
   }
 
-  private mountUserButton(
-    container: HTMLElement | null,
-    type: "desktop" | "mobile",
-  ) {
-    if (!container) return;
-
+  private mountUserButton(container: HTMLElement, slot: AuthSlot) {
     const el = document.createElement("div");
-    el.id = `clerk-user-button-${type}`;
+    el.id = `clerk-user-button-${slot.name}`;
     el.className =
-      type === "desktop"
-        ? "auth-user-button-root flex h-9 w-9 shrink-0 items-center justify-center leading-none"
-        : "auth-user-button-root";
+      "auth-user-button-root flex h-9 w-9 shrink-0 items-center justify-center leading-none";
     container.appendChild(el);
 
     try {
@@ -910,41 +898,27 @@ export class ClerkAuth {
         },
       });
     } catch (err: unknown) {
-      console.error(`Error mounting ${type} user button:`, err);
+      console.error(`Error mounting ${slot.name} user button:`, err);
     }
   }
 
-  private renderAuthButtons(
-    container: HTMLElement | null,
-    type: "desktop" | "mobile",
-  ) {
-    if (!container) return;
-
+  private renderAuthButtons(container: HTMLElement, slot: AuthSlot) {
     const signInBtn = document.createElement("button");
     signInBtn.type = "button";
-    if (type === "desktop") {
-      signInBtn.id = "clerk-sign-in-button-desktop";
-      signInBtn.className = `${SIGN_IN_CLASS} ${DESKTOP_AUTH_BUTTON_SIZE_CLASS}`;
-    } else {
-      signInBtn.id = "clerk-sign-in-button-mobile";
-      signInBtn.className = `${SIGN_IN_CLASS} ${MOBILE_AUTH_BUTTON_SIZE_CLASS} w-full text-center mb-2`;
-    }
+    signInBtn.id = `clerk-sign-in-button-${slot.name}`;
+    signInBtn.className = `${SIGN_IN_CLASS} ${AUTH_BUTTON_SIZE_CLASS}`;
     signInBtn.textContent = "Sign In";
     signInBtn.addEventListener("click", (e) => {
       e.preventDefault();
       ClerkHelpers.openSignIn();
     });
     container.appendChild(signInBtn);
+    if (!slot.showSignUp) return;
 
     const signUpBtn = document.createElement("button");
     signUpBtn.type = "button";
-    if (type === "desktop") {
-      signUpBtn.id = "clerk-sign-up-button-desktop";
-      signUpBtn.className = `${SIGN_UP_CLASS} ${DESKTOP_AUTH_BUTTON_SIZE_CLASS} ml-2`;
-    } else {
-      signUpBtn.id = "clerk-sign-up-button-mobile";
-      signUpBtn.className = `${SIGN_UP_CLASS} ${MOBILE_AUTH_BUTTON_SIZE_CLASS} w-full text-center mb-2`;
-    }
+    signUpBtn.id = `clerk-sign-up-button-${slot.name}`;
+    signUpBtn.className = `${SIGN_UP_CLASS} ${AUTH_BUTTON_SIZE_CLASS} ml-2`;
     signUpBtn.textContent = "Sign Up";
     signUpBtn.addEventListener("click", (e) => {
       e.preventDefault();
@@ -958,44 +932,26 @@ export class ClerkAuth {
     this.authUiState = "fallback";
     this.cleanupCheckoutTokens();
 
-    const desktopContainer = document.getElementById("desktop-auth-container");
-    const mobileContainer = document.getElementById("mobile-auth-container");
-
     const redirectUrl = encodeURIComponent(window.location.href);
+    for (const slot of AUTH_SLOTS) {
+      const container = document.getElementById(`${slot.name}-auth-container`);
+      if (!container) continue;
+      container.innerHTML = "";
 
-    const createFallbackLinks = (type: "desktop" | "mobile") => {
       const signInLink = document.createElement("a");
       signInLink.href =
         "https://accounts.classifast.com/sign-in?redirect_url=" + redirectUrl;
+      signInLink.className = `${SIGN_IN_CLASS} ${AUTH_BUTTON_SIZE_CLASS}`;
       signInLink.textContent = "Sign In";
+      container.appendChild(signInLink);
+      if (!slot.showSignUp) continue;
 
       const signUpLink = document.createElement("a");
       signUpLink.href =
         "https://accounts.classifast.com/sign-up?redirect_url=" + redirectUrl;
+      signUpLink.className = `${SIGN_UP_CLASS} ${AUTH_BUTTON_SIZE_CLASS} ml-2`;
       signUpLink.textContent = "Sign Up";
-
-      if (type === "desktop") {
-        signInLink.className = `${SIGN_IN_CLASS} ${DESKTOP_AUTH_BUTTON_SIZE_CLASS}`;
-        signUpLink.className = `${SIGN_UP_CLASS} ${DESKTOP_AUTH_BUTTON_SIZE_CLASS} ml-2`;
-      } else {
-        signInLink.className = `${SIGN_IN_CLASS} ${MOBILE_AUTH_BUTTON_SIZE_CLASS} w-full text-center mb-2 block`;
-        signUpLink.className = `${SIGN_UP_CLASS} ${MOBILE_AUTH_BUTTON_SIZE_CLASS} w-full text-center mb-2 block`;
-      }
-
-      return [signInLink, signUpLink];
-    };
-
-    if (desktopContainer) {
-      desktopContainer.innerHTML = "";
-      createFallbackLinks("desktop").forEach((link) =>
-        desktopContainer.appendChild(link),
-      );
-    }
-    if (mobileContainer) {
-      mobileContainer.innerHTML = "";
-      createFallbackLinks("mobile").forEach((link) =>
-        mobileContainer.appendChild(link),
-      );
+      container.appendChild(signUpLink);
     }
 
     // Signal auth ready even without Clerk (user is anonymous, fire only once).

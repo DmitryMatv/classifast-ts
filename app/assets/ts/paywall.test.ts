@@ -295,21 +295,24 @@ describe("paywall.ts", () => {
     );
   });
 
-  it("clears Upgrade before a header Sign In can synchronously notify usable authentication", async () => {
-    const headerSignIn = document.createElement("button");
-    headerSignIn.id = "clerk-sign-in-button-desktop";
-    headerSignIn.addEventListener("click", () =>
-      notify({ id: "user_123" }, { getToken: vi.fn(async () => "token") }),
-    );
-    document.body.append(headerSignIn);
-    await initialize();
-    button("upgrade-button").click();
-    headerSignIn.click();
-    await flush();
-    expect(fetch).not.toHaveBeenCalled();
-    expect(form().requestSubmit).toHaveBeenCalledTimes(1);
-    expect(sessionStorage.length).toBe(0);
-  });
+  it.each(["desktop", "mobile"])(
+    "clears Upgrade before the %s header Sign In can synchronously notify usable authentication",
+    async (slot) => {
+      const headerSignIn = document.createElement("button");
+      headerSignIn.id = `clerk-sign-in-button-${slot}`;
+      headerSignIn.addEventListener("click", () =>
+        notify({ id: "user_123" }, { getToken: vi.fn(async () => "token") }),
+      );
+      document.body.append(headerSignIn);
+      await initialize();
+      button("upgrade-button").click();
+      headerSignIn.click();
+      await flush();
+      expect(fetch).not.toHaveBeenCalled();
+      expect(form().requestSubmit).toHaveBeenCalledTimes(1);
+      expect(sessionStorage.length).toBe(0);
+    },
+  );
 
   it("times out token waiting without issuing a later checkout", async () => {
     let resolveToken: (token: string) => void = () => {};

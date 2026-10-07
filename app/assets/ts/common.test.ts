@@ -905,6 +905,99 @@ describe("common.ts", () => {
     expect(openSignUpSpy).toHaveBeenCalledTimes(1);
   });
 
+  it("mounts the signed-in avatar in the mobile header slot like the desktop one", async () => {
+    document.body.innerHTML = `
+      <div id="desktop-auth-container"></div>
+      <div id="mobile-auth-container"></div>
+    `;
+    if (window.Clerk) {
+      window.Clerk.user = { id: "user_123" } as ClerkUser;
+      window.Clerk.session = {
+        getToken: vi.fn(async () => "token-123"),
+      };
+    }
+
+    await import("./common");
+    await flushAsyncWork();
+
+    const mountCalls = vi.mocked(window.Clerk!.mountUserButton).mock.calls;
+    const mountIn = (containerId: string) =>
+      mountCalls.find(([root]) => root.parentElement?.id === containerId);
+    const [desktopRoot, desktopOptions] = mountIn("desktop-auth-container")!;
+    const [mobileRoot, mobileOptions] = mountIn("mobile-auth-container")!;
+
+    expect(
+      document.getElementById("mobile-auth-container")?.children,
+    ).toHaveLength(1);
+    expect(mobileRoot.classList).toContain("h-9");
+    expect(mobileRoot.classList).toContain("w-9");
+    expect(mobileRoot.className).toBe(desktopRoot.className);
+    expect(mobileOptions).toEqual(desktopOptions);
+    expect(document.getElementById("clerk-sign-in-button-mobile")).toBeNull();
+  });
+
+  it("renders one compact Sign In button in the mobile header slot for signed-out users", async () => {
+    document.body.innerHTML = `
+      <div id="desktop-auth-container"></div>
+      <div id="mobile-auth-container"></div>
+    `;
+
+    await import("./common");
+    await flushAsyncWork();
+
+    const mobileContainer = document.getElementById("mobile-auth-container")!;
+    const desktopSignIn = document.getElementById(
+      "clerk-sign-in-button-desktop",
+    )!;
+
+    expect(mobileContainer.children).toHaveLength(1);
+    const mobileSignIn = mobileContainer.querySelector("button")!;
+    expect(mobileSignIn.id).toBe("clerk-sign-in-button-mobile");
+    expect(mobileSignIn.textContent).toBe("Sign In");
+    expect(mobileSignIn.className).toBe(desktopSignIn.className);
+    expect(document.getElementById("clerk-sign-up-button-mobile")).toBeNull();
+    expect(
+      document.getElementById("clerk-sign-up-button-desktop"),
+    ).not.toBeNull();
+
+    mobileSignIn.click();
+
+    expect(window.Clerk?.openSignIn).toHaveBeenCalledTimes(1);
+    expect(window.Clerk?.openSignIn).toHaveBeenCalledWith({
+      redirectUrl: window.location.href,
+    });
+    expect(window.Clerk?.openSignUp).not.toHaveBeenCalled();
+  });
+
+  it("renders one Sign In link in the mobile header slot when Clerk falls back", async () => {
+    document.body.innerHTML = `
+      <div id="desktop-auth-container"></div>
+      <div id="mobile-auth-container"></div>
+    `;
+    delete window.Clerk;
+
+    await import("./common");
+    await flushAsyncWork();
+
+    const mobileContainer = document.getElementById("mobile-auth-container")!;
+    const desktopLinks = document.querySelectorAll<HTMLAnchorElement>(
+      "#desktop-auth-container a",
+    );
+
+    expect(mobileContainer.children).toHaveLength(1);
+    const mobileSignIn = mobileContainer.querySelector("a")!;
+    expect(mobileSignIn.textContent).toBe("Sign In");
+    expect(mobileSignIn.href).toBe(
+      "https://accounts.classifast.com/sign-in?redirect_url=" +
+        encodeURIComponent(window.location.href),
+    );
+    expect(mobileSignIn.className).toBe(desktopLinks[0]!.className);
+    expect(Array.from(desktopLinks, (link) => link.textContent)).toEqual([
+      "Sign In",
+      "Sign Up",
+    ]);
+  });
+
   it("preserves checkout=success, strips sensitive checkout tokens, and keeps the hash after successful auth bootstrap", async () => {
     document.body.innerHTML = `
       <div id="desktop-auth-container"></div>
