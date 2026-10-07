@@ -55,10 +55,7 @@ const pages: PageCase[] = [
     canonical: `${site}/UNSPSC/caf%C3%A9/`,
     methods: both,
   },
-  // HEAD answers before the base page server-renders its example results.
   { path: "/UNSPSC/", canonical: `${site}/UNSPSC/`, methods: ["HEAD"] },
-  // Public mode has no classifier, so the example SSR fails: the page must
-  // not be cached or indexed. Full mode renders the example.
   {
     path: "/UNSPSC/",
     canonical: `${site}/UNSPSC/`,
@@ -128,7 +125,6 @@ const sitemapLocations = [
     .matchAll(/<loc>([^<]+)<\/loc>/g),
 ]
   .map((match) => match[1] ?? "")
-  // The sitemap also lists blog.classifast.com, which this app does not serve.
   .filter((location) => location.startsWith(`${site}/`));
 
 describe("every sitemap URL is a canonical, indexable page", () => {

@@ -1,4 +1,3 @@
-// Mirrors app/cache_profiles.py.
 export const cacheProfiles = {
   HTML_PAGE: {
     cacheControl: "public, max-age=600, stale-while-revalidate=3600",
@@ -28,7 +27,6 @@ export const cacheProfiles = {
 
 export type CacheProfileName = keyof typeof cacheProfiles;
 
-// SecurityHeadersMiddleware in app/main.py sets these on every response.
 export const securityHeaders = {
   "x-content-type-options": "nosniff",
   "x-frame-options": "DENY",

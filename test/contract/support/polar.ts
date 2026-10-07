@@ -22,9 +22,7 @@ export function signWebhook(
 const createdAt = "2026-10-02T09:00:00Z";
 const organizationId = "ae247836-4fc1-42ae-a4a6-3313b5c123d7";
 const customerId = "917a921b-2790-43fb-a76b-6848ea973939";
-// Not the configured Pro product, and no user_id in the metadata, so even a
-// faulty server has no user to write an entitlement for.
-const productId = "00000000-0000-4000-8000-000000000000";
+const nonProProductId = "00000000-0000-4000-8000-000000000000";
 
 const price = {
   created_at: createdAt,
@@ -35,13 +33,12 @@ const price = {
   price_currency: "usd",
   tax_behavior: "exclusive",
   is_archived: false,
-  product_id: productId,
+  product_id: nonProProductId,
   price_amount: 1900,
 };
 
-// A complete polar.v2026_10 subscription.active payload, ported from
-// tests/test_polar_sdk_integration.py. The SDK parser rejects a payload
-// without every field, even the null ones.
+// The polar.v2026_10 SDK parser rejects a payload without every field, even
+// the null ones.
 export function nonProSubscriptionEvent() {
   return {
     type: "subscription.active",
@@ -71,7 +68,7 @@ export function nonProSubscriptionEvent() {
       paused_at: null,
       resumes_at: null,
       customer_id: customerId,
-      product_id: productId,
+      product_id: nonProProductId,
       discount_id: null,
       checkout_id: "cd1f9dfe-5c58-43b9-beb7-542f048c193d",
       units: null,
@@ -96,7 +93,7 @@ export function nonProSubscriptionEvent() {
         avatar_url: null,
       },
       product: {
-        id: productId,
+        id: nonProProductId,
         created_at: createdAt,
         modified_at: null,
         trial_interval: null,

@@ -18,16 +18,14 @@ type FileCase = {
 
 const gzipVary = ["accept-encoding"];
 
-// Python skips gzip for robots.txt and sitemap.xml because Googlebot may not
-// read a gzipped sitemap. It does not answer 304 for root files, and the
-// contract leaves that open.
-const rootFiles: FileCase[] = [
+const rootFiles: (FileCase & { gzip: boolean })[] = [
   {
     path: "/robots.txt",
     repoFile: "app/static/robots.txt",
     contentType: "text/plain; charset=utf-8",
     profile: "STATIC_TEXT",
     vary: [],
+    gzip: false,
   },
   {
     path: "/sitemap.xml",
@@ -35,6 +33,7 @@ const rootFiles: FileCase[] = [
     contentType: "text/xml; charset=utf-8",
     profile: "STATIC_TEXT",
     vary: [],
+    gzip: false,
   },
   {
     path: "/favicon.ico",
@@ -42,11 +41,10 @@ const rootFiles: FileCase[] = [
     contentType: "image/vnd.microsoft.icon",
     profile: "STATIC_MEDIA",
     vary: gzipVary,
+    gzip: true,
   },
 ];
 
-// The /static mount picks the profile from the extension. Extensions outside
-// the media and code lists, such as .gif, fall back to STATIC_TEXT.
 const staticFiles: FileCase[] = [
   {
     path: "/static/js/common.js",
@@ -137,7 +135,7 @@ describe("root files", () => {
     expectFile(await send(file.path), file, "full");
   });
 
-  it.each(rootFiles.filter((file) => file.vary.length === 0))(
+  it.each(rootFiles.filter((file) => !file.gzip))(
     "GET $path is never gzipped",
     async ({ path }) => {
       const reply = await send(path, {

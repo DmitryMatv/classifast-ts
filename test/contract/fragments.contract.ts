@@ -131,13 +131,14 @@ describe.runIf(fullMode)("paywall fragment", () => {
   });
 });
 
-// One classification runs and four wait; the rest are refused. Distinct
-// queries and addresses keep caches and quotas out of the way.
+const activeSlots = 1;
+const waitingSlots = 4;
+
 describe.runIf(fullMode)("queue overflow", () => {
   it("requests beyond one active and four waiting get 503", async () => {
     const run = randomUUID().slice(0, 8);
     const replies = await Promise.all(
-      Array.from({ length: 8 }, (_, index) =>
+      Array.from({ length: activeSlots + waitingSlots + 3 }, (_, index) =>
         fragment(`contract overflow probe ${run} item ${index}`),
       ),
     );

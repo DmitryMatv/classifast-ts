@@ -33,8 +33,6 @@ export const contract = {
 
 export const fullMode = contract.mode === "full";
 
-// Expected bodies for root static files come from the repo copy that both
-// servers serve.
 export const repoRoot = join(import.meta.dirname, "../../..");
 
 export function readRepoFile(relativePath: string): Buffer {

@@ -22,8 +22,6 @@ type SendOptions = {
   body?: string;
 };
 
-// Every response the suite receives must carry the security headers and no
-// Set-Cookie, so the check lives here instead of in each case.
 export async function send(
   path: string,
   options: SendOptions = {},
@@ -80,8 +78,6 @@ export function varyTokens(reply: Reply): string[] {
   return [...new Set(tokens)].sort();
 }
 
-// Python answers some redirects with absolute URLs on the request origin and
-// others with bare paths; the contract is the path and query.
 export function locationOf(reply: Reply): string | null {
   const location = reply.headers.get("location");
   if (location === null) return null;
@@ -105,9 +101,9 @@ export function parseJson(reply: Reply): unknown {
   return JSON.parse(reply.body);
 }
 
-// The Python app trusts CF-Connecting-IP for quota and rate-limit keys. A
-// fresh address per run keeps full-mode counters from earlier runs out of the
-// way. 198.18.0.0/15 is reserved for benchmarking.
+const benchmarkingRangeSecondOctets = [18, 19] as const;
+
 export function freshClientIp(): string {
-  return `198.${randomInt(18, 20)}.${randomInt(0, 256)}.${randomInt(1, 255)}`;
+  const second = benchmarkingRangeSecondOctets[randomInt(0, 2)];
+  return `198.${second}.${randomInt(0, 256)}.${randomInt(1, 255)}`;
 }

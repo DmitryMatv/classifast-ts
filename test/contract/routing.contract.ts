@@ -18,7 +18,6 @@ const both = ["GET", "HEAD"] as const;
 const getOnly = ["GET"] as const;
 
 const redirects: RedirectCase[] = [
-  // Trailing slash and legacy /mappings paths, query string preserved.
   { path: "/mapping", status: 301, location: "/mapping/", methods: both },
   {
     path: "/mapping?x=1",
@@ -58,7 +57,6 @@ const redirects: RedirectCase[] = [
     location: "/mapping/unspsc-to-cpv-mapping/sample",
     methods: getOnly,
   },
-  // Classifier type case and trailing slash.
   { path: "/UNSPSC", status: 301, location: "/UNSPSC/", methods: both },
   { path: "/unspsc", status: 301, location: "/UNSPSC/", methods: both },
   { path: "/unspsc/", status: 301, location: "/UNSPSC/", methods: both },
@@ -69,8 +67,6 @@ const redirects: RedirectCase[] = [
     methods: both,
   },
   { path: "/UNSPSC//", status: 301, location: "/UNSPSC/", methods: both },
-  // Query slugs: spaces and slashes become underscores, a hyphenated slug
-  // whose underscore form is in the sitemap moves there.
   {
     path: "/UNSPSC/laptop_computer",
     status: 301,
@@ -113,8 +109,6 @@ const redirects: RedirectCase[] = [
     location: "/UNSPSC/foo_bar/",
     methods: both,
   },
-  // Query normalization: collapse whitespace runs, strip ends, re-encode
-  // spaces as %20 and keep ()*,: literal. It runs before routing.
   {
     path: "/UNSPSC/?a=%20x(1),y:z*%20",
     status: 308,
@@ -167,7 +161,6 @@ describe("redirects", () => {
 type ErrorCase = { path: string; status: number; method?: Method };
 
 const errors: ErrorCase[] = [
-  // Removed classifiers answer 410 Gone so crawlers deindex them.
   { path: "/GMDN", status: 410 },
   { path: "/GMDN/", status: 410 },
   { path: "/gmdn", status: 410 },
@@ -187,11 +180,9 @@ const errors: ErrorCase[] = [
   { path: "/mappings/nope/sample", status: 404 },
   { path: "/static/nope.js", status: 404 },
   { path: "/static/", status: 404 },
-  // POST-only routes do not answer GET.
   { path: "/api/webhooks/polar", status: 404 },
   { path: "/api/create-checkout", status: 404 },
   { path: "/api/create-mapping-checkout", status: 404 },
-  // Debug headers stay hidden unless DEBUG_MODE=true.
   { path: "/api/v1/rapid/debug-headers", status: 404 },
 ];
 
@@ -224,12 +215,16 @@ describe("fragment query validation", () => {
   });
 });
 
-function urlOfLength(length: number): string {
-  return `/UNSPSC/?q=${"z".repeat(length - "/UNSPSC/q=".length)}`;
+function urlOfLength(pathPlusQueryLength: number): string {
+  const path = "/UNSPSC/";
+  const queryPrefix = "q=";
+  const value = "z".repeat(
+    pathPlusQueryLength - path.length - queryPrefix.length,
+  );
+  return `${path}?${queryPrefix}${value}`;
 }
 
 const suspiciousUrls = [
-  // The limit counts the raw path plus query: "/UNSPSC/" and "q=" are 10.
   { name: "path and query over 4000 characters", path: urlOfLength(4001) },
   { name: "triple-encoded percent", path: "/?q=%25%25%25" },
   { name: "50 consecutive digits", path: `/?q=${"1".repeat(50)}` },
@@ -256,9 +251,6 @@ describe("URL validation", () => {
   });
 });
 
-// Python declares HEAD only on page routes. HEAD on a GET-only route falls
-// through to the classifier catch-all, which answers as if the first path
-// segment were a classifier type.
 const headOnGetOnlyRoutes: {
   path: string;
   status: number;

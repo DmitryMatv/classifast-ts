@@ -3,20 +3,16 @@ import { join } from "node:path";
 import { contract, repoRoot } from "./support/env.js";
 import { expectStatus, parseHtml, pathOf, send } from "./support/http.js";
 
-// Each region is an element that a script in app/assets/ts looks up by id,
-// selector or data- attribute. URL-valued attributes render with the request
-// origin, so `paths` compares their pathname only.
 type Region = {
   selector: string;
   count?: number | "some";
   attributes?: Record<string, string>;
-  paths?: Record<string, string>;
+  pathnames?: Record<string, string>;
   text?: string;
 };
 
 type PageDom = { path: string; regions: Region[] };
 
-// common.ts: MobileMenu, initializeCommonControls.
 const shell: Region[] = [
   { selector: "#mobile-menu-button.hamburger" },
   { selector: "#mobile-menu" },
@@ -24,7 +20,6 @@ const shell: Region[] = [
   { selector: 'script[type="module"][src^="/static/js/common.js?v="]' },
 ];
 
-// common.ts: AuthManager mounts Clerk into the auth containers.
 const clerkAuth: Region[] = [
   { selector: "#desktop-auth-container" },
   { selector: "#mobile-auth-container" },
@@ -34,13 +29,10 @@ const clerkAuth: Region[] = [
   },
 ];
 
-// common.ts skips auth when body[data-auth-ui="disabled"].
 const authDisabled: Region[] = [
   { selector: "body", attributes: { "data-auth-ui": "disabled" } },
 ];
 
-// classifier.ts, paywall.ts, common.ts TextareaEnhancer, and the results
-// fragment's out-of-band title#page-title swap.
 function classifierRegions(query: {
   initialQueryPresent: boolean;
   text?: string;
@@ -60,7 +52,7 @@ function classifierRegions(query: {
         "data-default-top-k": "10",
         "data-default-version": "UNSPSC UNv260801.1 (18 March 2025)",
       },
-      paths: { "hx-get": "/UNSPSC/fragment" },
+      pathnames: { "hx-get": "/UNSPSC/fragment" },
     },
     {
       selector: "#classifier-form textarea#product_description_area[required]",
@@ -103,19 +95,18 @@ function classifierRegions(query: {
   ];
 }
 
-// storefront.ts: buy buttons and the checkout success banner.
 function buyButton(slug: string): Region {
   return {
     selector: `[data-mapping-buy-button][data-mapping-slug="${slug}"]`,
     attributes: { type: "button" },
-    paths: { "data-return-url": `/mapping/${slug}/` },
+    pathnames: { "data-return-url": `/mapping/${slug}/` },
   };
 }
 
 function sampleLink(slug: string): Region {
   return {
     selector: `a[href$="/mapping/${slug}/sample"]`,
-    paths: { href: `/mapping/${slug}/sample` },
+    pathnames: { href: `/mapping/${slug}/sample` },
   };
 }
 
@@ -163,7 +154,6 @@ const pageDoms: PageDom[] = [
       ...authDisabled,
       buyButton("unspsc-to-cpv-mapping"),
       sampleLink("unspsc-to-cpv-mapping"),
-      // storefront.ts reveals the banner by removing the "hidden" class.
       { selector: "[data-storefront-success].hidden" },
       storefrontScript,
     ],
@@ -191,7 +181,7 @@ function documentAt(path: string): Promise<Document> {
 describe("DOM regions the scripts depend on", () => {
   it.each(regionChecks)(
     "$path $selector",
-    async ({ path, selector, count, attributes, paths, text }) => {
+    async ({ path, selector, count, attributes, pathnames, text }) => {
       const elements = [...(await documentAt(path)).querySelectorAll(selector)];
       if (count === "some") {
         expect(elements.length, selector).toBeGreaterThan(0);
@@ -202,7 +192,7 @@ describe("DOM regions the scripts depend on", () => {
         for (const [name, value] of Object.entries(attributes ?? {})) {
           expect(element.getAttribute(name), `${selector} ${name}`).toBe(value);
         }
-        for (const [name, value] of Object.entries(paths ?? {})) {
+        for (const [name, value] of Object.entries(pathnames ?? {})) {
           expect(pathOf(element.getAttribute(name) ?? ""), name).toBe(value);
         }
         if (text !== undefined) {
@@ -234,8 +224,6 @@ describe("same-origin scripts and stylesheets load", () => {
   });
 });
 
-// Ids that only the fragments render; fragments.contract.ts checks them in
-// full mode.
 const fragmentIds = new Set([
   "share-button",
   "paywall-warning",

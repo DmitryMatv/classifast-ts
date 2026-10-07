@@ -34,8 +34,6 @@ const anyTimestamp = expect.any(Number);
 const json = { "content-type": "application/json" };
 const unavailable = { detail: "Service temporarily unavailable" };
 
-// Public mode runs Python without lifespan, Redis, or secrets: every
-// dependency reports itself missing.
 const unconfiguredCases: JsonCase[] = [
   {
     name: "health without clients",
@@ -98,8 +96,6 @@ describe.runIf(contract.mode === "public")("unconfigured server", () => {
   it.each(unconfiguredCases)("$name", expectJsonCase);
 });
 
-// Full-mode cases never send a valid mapping slug or a signed-in user, so
-// no case can reach Polar's checkout API.
 const configuredCases: JsonCase[] = [
   {
     name: "health",
@@ -191,6 +187,8 @@ const configuredCases: JsonCase[] = [
   },
 ];
 
+const checkoutRateLimitDefault = 10;
+
 describe.runIf(fullMode)("configured server", () => {
   it.each(configuredCases)("$name", expectJsonCase);
 
@@ -199,8 +197,6 @@ describe.runIf(fullMode)("configured server", () => {
     expect(reply.headers.get("www-authenticate")).toBe("ApiKey");
   });
 
-  // CHECKOUT_RATE_LIMIT defaults to 10 per IP per hour; the counter runs
-  // before any other check.
   it("the 11th checkout request from one IP is 429", async () => {
     const ip = freshClientIp();
     const post = () =>
@@ -209,7 +205,7 @@ describe.runIf(fullMode)("configured server", () => {
         headers: { ...json, "cf-connecting-ip": ip },
         body: "{}",
       });
-    for (let attempt = 1; attempt <= 10; attempt += 1) {
+    for (let attempt = 1; attempt <= checkoutRateLimitDefault; attempt += 1) {
       expectStatus(await post(), 400);
     }
     const reply = await post();
