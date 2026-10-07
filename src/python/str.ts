@@ -18,13 +18,44 @@ const DIGIT =
 const CASED = /^\p{Cased}$/u;
 const CASE_IGNORABLE = /^\p{Case_Ignorable}$/u;
 
+// Python counts and slices strings by code point, JavaScript by UTF-16 unit.
+export function codePointLength(value: string): number {
+  let length = 0;
+  for (const _ of value) length += 1;
+  return length;
+}
+
+export function sliceCodePoints(value: string, end: number): string {
+  let index = 0;
+  for (const character of value) {
+    if (end === 0) return value.slice(0, index);
+    index += character.length;
+    end -= 1;
+  }
+  return value;
+}
+
 // Every whitespace character is in the BMP, so testing UTF-16 units is safe.
-export function pyStrip(value: string): string {
-  let start = 0;
+// Explicit chars must be BMP characters too.
+function isStripped(unit: string, chars: string | undefined): boolean {
+  return chars === undefined
+    ? WHITESPACE_CHARACTER.test(unit)
+    : chars.includes(unit);
+}
+
+export function pyRstrip(value: string, chars?: string): string {
   let end = value.length;
-  while (start < end && WHITESPACE_CHARACTER.test(value[start]!)) start += 1;
-  while (end > start && WHITESPACE_CHARACTER.test(value[end - 1]!)) end -= 1;
-  return value.slice(start, end);
+  while (end > 0 && isStripped(value[end - 1]!, chars)) end -= 1;
+  return value.slice(0, end);
+}
+
+export function pyStrip(value: string, chars?: string): string {
+  const stripped = pyRstrip(value, chars);
+  let start = 0;
+  while (start < stripped.length && isStripped(stripped[start]!, chars)) {
+    start += 1;
+  }
+  return stripped.slice(start);
 }
 
 // re.sub(r"\s+", " ", value).strip()

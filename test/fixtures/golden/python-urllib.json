@@ -1,4016 +1,851 @@
 {
   "quote": [
-    {
-      "input": "",
-      "safe": "",
-      "quoted": ""
-    },
-    {
-      "input": " ",
-      "safe": "",
-      "quoted": "%20"
-    },
-    {
-      "input": "a",
-      "safe": "",
-      "quoted": "a"
-    },
-    {
-      "input": "ab",
-      "safe": "",
-      "quoted": "ab"
-    },
-    {
-      "input": "Laptop computer",
-      "safe": "",
-      "quoted": "Laptop%20computer"
-    },
-    {
-      "input": "laptop_computer",
-      "safe": "",
-      "quoted": "laptop_computer"
-    },
-    {
-      "input": "LED lamp",
-      "safe": "",
-      "quoted": "LED%20lamp"
-    },
-    {
-      "input": "office-chair",
-      "safe": "",
-      "quoted": "office-chair"
-    },
-    {
-      "input": "IT services",
-      "safe": "",
-      "quoted": "IT%20services"
-    },
-    {
-      "input": "  multiple   spaces\tand\ttabs\nnew lines  ",
-      "safe": "",
-      "quoted": "%20%20multiple%20%20%20spaces%09and%09tabs%0Anew%20lines%20%20"
-    },
-    {
-      "input": "Ноутбук Lenovo ThinkPad",
-      "safe": "",
-      "quoted": "%D0%9D%D0%BE%D1%83%D1%82%D0%B1%D1%83%D0%BA%20Lenovo%20ThinkPad"
-    },
-    {
-      "input": "кофе в зёрнах",
-      "safe": "",
-      "quoted": "%D0%BA%D0%BE%D1%84%D0%B5%20%D0%B2%20%D0%B7%D1%91%D1%80%D0%BD%D0%B0%D1%85"
-    },
-    {
-      "input": "商品编码 8471 笔记本电脑",
-      "safe": "",
-      "quoted": "%E5%95%86%E5%93%81%E7%BC%96%E7%A0%81%208471%20%E7%AC%94%E8%AE%B0%E6%9C%AC%E7%94%B5%E8%84%91"
-    },
-    {
-      "input": "ノートパソコン",
-      "safe": "",
-      "quoted": "%E3%83%8E%E3%83%BC%E3%83%88%E3%83%91%E3%82%BD%E3%82%B3%E3%83%B3"
-    },
-    {
-      "input": "노트북 컴퓨터",
-      "safe": "",
-      "quoted": "%EB%85%B8%ED%8A%B8%EB%B6%81%20%EC%BB%B4%ED%93%A8%ED%84%B0"
-    },
-    {
-      "input": "😀 smiley face",
-      "safe": "",
-      "quoted": "%F0%9F%98%80%20smiley%20face"
-    },
-    {
-      "input": "👨‍👩‍👧 family",
-      "safe": "",
-      "quoted": "%F0%9F%91%A8%E2%80%8D%F0%9F%91%A9%E2%80%8D%F0%9F%91%A7%20family"
-    },
-    {
-      "input": "🇩🇪 flag",
-      "safe": "",
-      "quoted": "%F0%9F%87%A9%F0%9F%87%AA%20flag"
-    },
-    {
-      "input": "👍🏽 thumbs",
-      "safe": "",
-      "quoted": "%F0%9F%91%8D%F0%9F%8F%BD%20thumbs"
-    },
-    {
-      "input": "café éclair",
-      "safe": "",
-      "quoted": "caf%C3%A9%20%C3%A9clair"
-    },
-    {
-      "input": "café éclair",
-      "safe": "",
-      "quoted": "cafe%CC%81%20e%CC%81clair"
-    },
-    {
-      "input": "Straße",
-      "safe": "",
-      "quoted": "Stra%C3%9Fe"
-    },
-    {
-      "input": "STRASSE",
-      "safe": "",
-      "quoted": "STRASSE"
-    },
-    {
-      "input": "ß",
-      "safe": "",
-      "quoted": "%C3%9F"
-    },
-    {
-      "input": "ẞ",
-      "safe": "",
-      "quoted": "%E1%BA%9E"
-    },
-    {
-      "input": "İstanbul",
-      "safe": "",
-      "quoted": "%C4%B0stanbul"
-    },
-    {
-      "input": "ıi",
-      "safe": "",
-      "quoted": "%C4%B1i"
-    },
-    {
-      "input": "IĞDIR iğdir",
-      "safe": "",
-      "quoted": "I%C4%9EDIR%20i%C4%9Fdir"
-    },
-    {
-      "input": " nbsp value ",
-      "safe": "",
-      "quoted": "%C2%A0nbsp%C2%A0value%C2%A0"
-    },
-    {
-      "input": "line separator",
-      "safe": "",
-      "quoted": "line%E2%80%A8separator"
-    },
-    {
-      "input": "para separator",
-      "safe": "",
-      "quoted": "para%E2%80%A9separator"
-    },
-    {
-      "input": "\u001cfile\u001dgroup\u001erecord\u001funit",
-      "safe": "",
-      "quoted": "%1Cfile%1Dgroup%1Erecord%1Funit"
-    },
-    {
-      "input": "next line",
-      "safe": "",
-      "quoted": "%C2%85next%20line%C2%85"
-    },
-    {
-      "input": "﻿bom﻿",
-      "safe": "",
-      "quoted": "%EF%BB%BFbom%EF%BB%BF"
-    },
-    {
-      "input": "zero​width",
-      "safe": "",
-      "quoted": "zero%E2%80%8Bwidth"
-    },
-    {
-      "input": "　ideographic　space　",
-      "safe": "",
-      "quoted": "%E3%80%80ideographic%E3%80%80space%E3%80%80"
-    },
-    {
-      "input": " figure narrow",
-      "safe": "",
-      "quoted": "%E2%80%87figure%E2%80%AFnarrow"
-    },
-    {
-      "input": "\u000bvertical\fform",
-      "safe": "",
-      "quoted": "%0Bvertical%0Cform"
-    },
-    {
-      "input": "%20encoded%20space",
-      "safe": "",
-      "quoted": "%2520encoded%2520space"
-    },
-    {
-      "input": "%2520double",
-      "safe": "",
-      "quoted": "%252520double"
-    },
-    {
-      "input": "%252520triple",
-      "safe": "",
-      "quoted": "%25252520triple"
-    },
-    {
-      "input": "100%",
-      "safe": "",
-      "quoted": "100%25"
-    },
-    {
-      "input": "%E2%9C%93 check",
-      "safe": "",
-      "quoted": "%25E2%259C%2593%20check"
-    },
-    {
-      "input": "%C3%A9t%C3%A9",
-      "safe": "",
-      "quoted": "%25C3%25A9t%25C3%25A9"
-    },
-    {
-      "input": "%C3",
-      "safe": "",
-      "quoted": "%25C3"
-    },
-    {
-      "input": "%zz",
-      "safe": "",
-      "quoted": "%25zz"
-    },
-    {
-      "input": "%",
-      "safe": "",
-      "quoted": "%25"
-    },
-    {
-      "input": "a+b",
-      "safe": "",
-      "quoted": "a%2Bb"
-    },
-    {
-      "input": "a%2Bb",
-      "safe": "",
-      "quoted": "a%252Bb"
-    },
-    {
-      "input": "%F0%9F%98%80",
-      "safe": "",
-      "quoted": "%25F0%259F%2598%2580"
-    },
-    {
-      "input": "%ED%A0%80",
-      "safe": "",
-      "quoted": "%25ED%25A0%2580"
-    },
-    {
-      "input": "03111000-2",
-      "safe": "",
-      "quoted": "03111000-2"
-    },
-    {
-      "input": "CPV 03111000-2",
-      "safe": "",
-      "quoted": "CPV%2003111000-2"
-    },
-    {
-      "input": "4321.15.03",
-      "safe": "",
-      "quoted": "4321.15.03"
-    },
-    {
-      "input": "8471.30.0100",
-      "safe": "",
-      "quoted": "8471.30.0100"
-    },
-    {
-      "input": "EC000123",
-      "safe": "",
-      "quoted": "EC000123"
-    },
-    {
-      "input": "A01.1.1",
-      "safe": "",
-      "quoted": "A01.1.1"
-    },
-    {
-      "input": "5965-01-234-5678",
-      "safe": "",
-      "quoted": "5965-01-234-5678"
-    },
-    {
-      "input": "they're o'neill's",
-      "safe": "",
-      "quoted": "they%27re%20o%27neill%27s"
-    },
-    {
-      "input": "hello-world",
-      "safe": "",
-      "quoted": "hello-world"
-    },
-    {
-      "input": "3rd-party 2nd",
-      "safe": "",
-      "quoted": "3rd-party%202nd"
-    },
-    {
-      "input": "x² ①② ٠١٢٣ Ⅻ",
-      "safe": "",
-      "quoted": "x%C2%B2%20%E2%91%A0%E2%91%A1%20%D9%A0%D9%A1%D9%A2%D9%A3%20%E2%85%AB"
-    },
-    {
-      "input": "ﬁne ﬂour",
-      "safe": "",
-      "quoted": "%EF%AC%81ne%20%EF%AC%82our"
-    },
-    {
-      "input": "ǆungla ǈudi",
-      "safe": "",
-      "quoted": "%C7%86ungla%20%C7%88udi"
-    },
-    {
-      "input": "ΣΊΣΥΦΟΣ",
-      "safe": "",
-      "quoted": "%CE%A3%CE%8A%CE%A3%CE%A5%CE%A6%CE%9F%CE%A3"
-    },
-    {
-      "input": "ὈΔΥΣΣΕΎΣ",
-      "safe": "",
-      "quoted": "%E1%BD%88%CE%94%CE%A5%CE%A3%CE%A3%CE%95%CE%8E%CE%A3"
-    },
-    {
-      "input": "ᾳ ᾀ",
-      "safe": "",
-      "quoted": "%E1%BE%B3%20%E1%BE%80"
-    },
-    {
-      "input": "ŉ ǰ",
-      "safe": "",
-      "quoted": "%C5%89%20%C7%B0"
-    },
-    {
-      "input": "ვეფხისტყაოსანი",
-      "safe": "",
-      "quoted": "%E1%83%95%E1%83%94%E1%83%A4%E1%83%AE%E1%83%98%E1%83%A1%E1%83%A2%E1%83%A7%E1%83%90%E1%83%9D%E1%83%A1%E1%83%90%E1%83%9C%E1%83%98"
-    },
-    {
-      "input": "<script>alert(1)</script>",
-      "safe": "",
-      "quoted": "%3Cscript%3Ealert%281%29%3C%2Fscript%3E"
-    },
-    {
-      "input": "a/b/c",
-      "safe": "",
-      "quoted": "a%2Fb%2Fc"
-    },
-    {
-      "input": "trailing///",
-      "safe": "",
-      "quoted": "trailing%2F%2F%2F"
-    },
-    {
-      "input": "under_score__double",
-      "safe": "",
-      "quoted": "under_score__double"
-    },
-    {
-      "input": "(parens) [brackets] {braces}",
-      "safe": "",
-      "quoted": "%28parens%29%20%5Bbrackets%5D%20%7Bbraces%7D"
-    },
-    {
-      "input": "quotes \"double\" 'single'",
-      "safe": "",
-      "quoted": "quotes%20%22double%22%20%27single%27"
-    },
-    {
-      "input": "a&b=c#d!e@f",
-      "safe": "",
-      "quoted": "a%26b%3Dc%23d%21e%40f"
-    },
-    {
-      "input": "semi;colon:comma,dot.",
-      "safe": "",
-      "quoted": "semi%3Bcolon%3Acomma%2Cdot."
-    },
-    {
-      "input": "back\\slash",
-      "safe": "",
-      "quoted": "back%5Cslash"
-    },
-    {
-      "input": "tilde~`grave",
-      "safe": "",
-      "quoted": "tilde~%60grave"
-    },
-    {
-      "input": "dead beef cafe babe",
-      "safe": "",
-      "quoted": "dead%20beef%20cafe%20babe"
-    },
-    {
-      "input": "deadbeefcafe0123",
-      "safe": "",
-      "quoted": "deadbeefcafe0123"
-    },
-    {
-      "input": "252525",
-      "safe": "",
-      "quoted": "252525"
-    },
-    {
-      "input": "a\u0000nul",
-      "safe": "",
-      "quoted": "a%00nul"
-    },
-    {
-      "input": "\u0000",
-      "safe": "",
-      "quoted": "%00"
-    },
-    {
-      "input": "\u0001",
-      "safe": "",
-      "quoted": "%01"
-    },
-    {
-      "input": "\u0002",
-      "safe": "",
-      "quoted": "%02"
-    },
-    {
-      "input": "\u0003",
-      "safe": "",
-      "quoted": "%03"
-    },
-    {
-      "input": "\u0004",
-      "safe": "",
-      "quoted": "%04"
-    },
-    {
-      "input": "\u0005",
-      "safe": "",
-      "quoted": "%05"
-    },
-    {
-      "input": "\u0006",
-      "safe": "",
-      "quoted": "%06"
-    },
-    {
-      "input": "\u0007",
-      "safe": "",
-      "quoted": "%07"
-    },
-    {
-      "input": "\b",
-      "safe": "",
-      "quoted": "%08"
-    },
-    {
-      "input": "\t",
-      "safe": "",
-      "quoted": "%09"
-    },
-    {
-      "input": "\n",
-      "safe": "",
-      "quoted": "%0A"
-    },
-    {
-      "input": "\u000b",
-      "safe": "",
-      "quoted": "%0B"
-    },
-    {
-      "input": "\f",
-      "safe": "",
-      "quoted": "%0C"
-    },
-    {
-      "input": "\r",
-      "safe": "",
-      "quoted": "%0D"
-    },
-    {
-      "input": "\u000e",
-      "safe": "",
-      "quoted": "%0E"
-    },
-    {
-      "input": "\u000f",
-      "safe": "",
-      "quoted": "%0F"
-    },
-    {
-      "input": "\u0010",
-      "safe": "",
-      "quoted": "%10"
-    },
-    {
-      "input": "\u0011",
-      "safe": "",
-      "quoted": "%11"
-    },
-    {
-      "input": "\u0012",
-      "safe": "",
-      "quoted": "%12"
-    },
-    {
-      "input": "\u0013",
-      "safe": "",
-      "quoted": "%13"
-    },
-    {
-      "input": "\u0014",
-      "safe": "",
-      "quoted": "%14"
-    },
-    {
-      "input": "\u0015",
-      "safe": "",
-      "quoted": "%15"
-    },
-    {
-      "input": "\u0016",
-      "safe": "",
-      "quoted": "%16"
-    },
-    {
-      "input": "\u0017",
-      "safe": "",
-      "quoted": "%17"
-    },
-    {
-      "input": "\u0018",
-      "safe": "",
-      "quoted": "%18"
-    },
-    {
-      "input": "\u0019",
-      "safe": "",
-      "quoted": "%19"
-    },
-    {
-      "input": "\u001a",
-      "safe": "",
-      "quoted": "%1A"
-    },
-    {
-      "input": "\u001b",
-      "safe": "",
-      "quoted": "%1B"
-    },
-    {
-      "input": "\u001c",
-      "safe": "",
-      "quoted": "%1C"
-    },
-    {
-      "input": "\u001d",
-      "safe": "",
-      "quoted": "%1D"
-    },
-    {
-      "input": "\u001e",
-      "safe": "",
-      "quoted": "%1E"
-    },
-    {
-      "input": "\u001f",
-      "safe": "",
-      "quoted": "%1F"
-    },
-    {
-      "input": " ",
-      "safe": "",
-      "quoted": "%20"
-    },
-    {
-      "input": "!",
-      "safe": "",
-      "quoted": "%21"
-    },
-    {
-      "input": "\"",
-      "safe": "",
-      "quoted": "%22"
-    },
-    {
-      "input": "#",
-      "safe": "",
-      "quoted": "%23"
-    },
-    {
-      "input": "$",
-      "safe": "",
-      "quoted": "%24"
-    },
-    {
-      "input": "%",
-      "safe": "",
-      "quoted": "%25"
-    },
-    {
-      "input": "&",
-      "safe": "",
-      "quoted": "%26"
-    },
-    {
-      "input": "'",
-      "safe": "",
-      "quoted": "%27"
-    },
-    {
-      "input": "(",
-      "safe": "",
-      "quoted": "%28"
-    },
-    {
-      "input": ")",
-      "safe": "",
-      "quoted": "%29"
-    },
-    {
-      "input": "*",
-      "safe": "",
-      "quoted": "%2A"
-    },
-    {
-      "input": "+",
-      "safe": "",
-      "quoted": "%2B"
-    },
-    {
-      "input": ",",
-      "safe": "",
-      "quoted": "%2C"
-    },
-    {
-      "input": "-",
-      "safe": "",
-      "quoted": "-"
-    },
-    {
-      "input": ".",
-      "safe": "",
-      "quoted": "."
-    },
-    {
-      "input": "/",
-      "safe": "",
-      "quoted": "%2F"
-    },
-    {
-      "input": "0",
-      "safe": "",
-      "quoted": "0"
-    },
-    {
-      "input": "1",
-      "safe": "",
-      "quoted": "1"
-    },
-    {
-      "input": "2",
-      "safe": "",
-      "quoted": "2"
-    },
-    {
-      "input": "3",
-      "safe": "",
-      "quoted": "3"
-    },
-    {
-      "input": "4",
-      "safe": "",
-      "quoted": "4"
-    },
-    {
-      "input": "5",
-      "safe": "",
-      "quoted": "5"
-    },
-    {
-      "input": "6",
-      "safe": "",
-      "quoted": "6"
-    },
-    {
-      "input": "7",
-      "safe": "",
-      "quoted": "7"
-    },
-    {
-      "input": "8",
-      "safe": "",
-      "quoted": "8"
-    },
-    {
-      "input": "9",
-      "safe": "",
-      "quoted": "9"
-    },
-    {
-      "input": ":",
-      "safe": "",
-      "quoted": "%3A"
-    },
-    {
-      "input": ";",
-      "safe": "",
-      "quoted": "%3B"
-    },
-    {
-      "input": "<",
-      "safe": "",
-      "quoted": "%3C"
-    },
-    {
-      "input": "=",
-      "safe": "",
-      "quoted": "%3D"
-    },
-    {
-      "input": ">",
-      "safe": "",
-      "quoted": "%3E"
-    },
-    {
-      "input": "?",
-      "safe": "",
-      "quoted": "%3F"
-    },
-    {
-      "input": "@",
-      "safe": "",
-      "quoted": "%40"
-    },
-    {
-      "input": "A",
-      "safe": "",
-      "quoted": "A"
-    },
-    {
-      "input": "B",
-      "safe": "",
-      "quoted": "B"
-    },
-    {
-      "input": "C",
-      "safe": "",
-      "quoted": "C"
-    },
-    {
-      "input": "D",
-      "safe": "",
-      "quoted": "D"
-    },
-    {
-      "input": "E",
-      "safe": "",
-      "quoted": "E"
-    },
-    {
-      "input": "F",
-      "safe": "",
-      "quoted": "F"
-    },
-    {
-      "input": "G",
-      "safe": "",
-      "quoted": "G"
-    },
-    {
-      "input": "H",
-      "safe": "",
-      "quoted": "H"
-    },
-    {
-      "input": "I",
-      "safe": "",
-      "quoted": "I"
-    },
-    {
-      "input": "J",
-      "safe": "",
-      "quoted": "J"
-    },
-    {
-      "input": "K",
-      "safe": "",
-      "quoted": "K"
-    },
-    {
-      "input": "L",
-      "safe": "",
-      "quoted": "L"
-    },
-    {
-      "input": "M",
-      "safe": "",
-      "quoted": "M"
-    },
-    {
-      "input": "N",
-      "safe": "",
-      "quoted": "N"
-    },
-    {
-      "input": "O",
-      "safe": "",
-      "quoted": "O"
-    },
-    {
-      "input": "P",
-      "safe": "",
-      "quoted": "P"
-    },
-    {
-      "input": "Q",
-      "safe": "",
-      "quoted": "Q"
-    },
-    {
-      "input": "R",
-      "safe": "",
-      "quoted": "R"
-    },
-    {
-      "input": "S",
-      "safe": "",
-      "quoted": "S"
-    },
-    {
-      "input": "T",
-      "safe": "",
-      "quoted": "T"
-    },
-    {
-      "input": "U",
-      "safe": "",
-      "quoted": "U"
-    },
-    {
-      "input": "V",
-      "safe": "",
-      "quoted": "V"
-    },
-    {
-      "input": "W",
-      "safe": "",
-      "quoted": "W"
-    },
-    {
-      "input": "X",
-      "safe": "",
-      "quoted": "X"
-    },
-    {
-      "input": "Y",
-      "safe": "",
-      "quoted": "Y"
-    },
-    {
-      "input": "Z",
-      "safe": "",
-      "quoted": "Z"
-    },
-    {
-      "input": "[",
-      "safe": "",
-      "quoted": "%5B"
-    },
-    {
-      "input": "\\",
-      "safe": "",
-      "quoted": "%5C"
-    },
-    {
-      "input": "]",
-      "safe": "",
-      "quoted": "%5D"
-    },
-    {
-      "input": "^",
-      "safe": "",
-      "quoted": "%5E"
-    },
-    {
-      "input": "_",
-      "safe": "",
-      "quoted": "_"
-    },
-    {
-      "input": "`",
-      "safe": "",
-      "quoted": "%60"
-    },
-    {
-      "input": "a",
-      "safe": "",
-      "quoted": "a"
-    },
-    {
-      "input": "b",
-      "safe": "",
-      "quoted": "b"
-    },
-    {
-      "input": "c",
-      "safe": "",
-      "quoted": "c"
-    },
-    {
-      "input": "d",
-      "safe": "",
-      "quoted": "d"
-    },
-    {
-      "input": "e",
-      "safe": "",
-      "quoted": "e"
-    },
-    {
-      "input": "f",
-      "safe": "",
-      "quoted": "f"
-    },
-    {
-      "input": "g",
-      "safe": "",
-      "quoted": "g"
-    },
-    {
-      "input": "h",
-      "safe": "",
-      "quoted": "h"
-    },
-    {
-      "input": "i",
-      "safe": "",
-      "quoted": "i"
-    },
-    {
-      "input": "j",
-      "safe": "",
-      "quoted": "j"
-    },
-    {
-      "input": "k",
-      "safe": "",
-      "quoted": "k"
-    },
-    {
-      "input": "l",
-      "safe": "",
-      "quoted": "l"
-    },
-    {
-      "input": "m",
-      "safe": "",
-      "quoted": "m"
-    },
-    {
-      "input": "n",
-      "safe": "",
-      "quoted": "n"
-    },
-    {
-      "input": "o",
-      "safe": "",
-      "quoted": "o"
-    },
-    {
-      "input": "p",
-      "safe": "",
-      "quoted": "p"
-    },
-    {
-      "input": "q",
-      "safe": "",
-      "quoted": "q"
-    },
-    {
-      "input": "r",
-      "safe": "",
-      "quoted": "r"
-    },
-    {
-      "input": "s",
-      "safe": "",
-      "quoted": "s"
-    },
-    {
-      "input": "t",
-      "safe": "",
-      "quoted": "t"
-    },
-    {
-      "input": "u",
-      "safe": "",
-      "quoted": "u"
-    },
-    {
-      "input": "v",
-      "safe": "",
-      "quoted": "v"
-    },
-    {
-      "input": "w",
-      "safe": "",
-      "quoted": "w"
-    },
-    {
-      "input": "x",
-      "safe": "",
-      "quoted": "x"
-    },
-    {
-      "input": "y",
-      "safe": "",
-      "quoted": "y"
-    },
-    {
-      "input": "z",
-      "safe": "",
-      "quoted": "z"
-    },
-    {
-      "input": "{",
-      "safe": "",
-      "quoted": "%7B"
-    },
-    {
-      "input": "|",
-      "safe": "",
-      "quoted": "%7C"
-    },
-    {
-      "input": "}",
-      "safe": "",
-      "quoted": "%7D"
-    },
-    {
-      "input": "~",
-      "safe": "",
-      "quoted": "~"
-    },
-    {
-      "input": "",
-      "safe": "",
-      "quoted": "%7F"
-    },
-    {
-      "input": "",
-      "safe": "/",
-      "quoted": ""
-    },
-    {
-      "input": " ",
-      "safe": "/",
-      "quoted": "%20"
-    },
-    {
-      "input": "a",
-      "safe": "/",
-      "quoted": "a"
-    },
-    {
-      "input": "ab",
-      "safe": "/",
-      "quoted": "ab"
-    },
-    {
-      "input": "Laptop computer",
-      "safe": "/",
-      "quoted": "Laptop%20computer"
-    },
-    {
-      "input": "laptop_computer",
-      "safe": "/",
-      "quoted": "laptop_computer"
-    },
-    {
-      "input": "LED lamp",
-      "safe": "/",
-      "quoted": "LED%20lamp"
-    },
-    {
-      "input": "office-chair",
-      "safe": "/",
-      "quoted": "office-chair"
-    },
-    {
-      "input": "IT services",
-      "safe": "/",
-      "quoted": "IT%20services"
-    },
-    {
-      "input": "  multiple   spaces\tand\ttabs\nnew lines  ",
-      "safe": "/",
-      "quoted": "%20%20multiple%20%20%20spaces%09and%09tabs%0Anew%20lines%20%20"
-    },
-    {
-      "input": "Ноутбук Lenovo ThinkPad",
-      "safe": "/",
-      "quoted": "%D0%9D%D0%BE%D1%83%D1%82%D0%B1%D1%83%D0%BA%20Lenovo%20ThinkPad"
-    },
-    {
-      "input": "кофе в зёрнах",
-      "safe": "/",
-      "quoted": "%D0%BA%D0%BE%D1%84%D0%B5%20%D0%B2%20%D0%B7%D1%91%D1%80%D0%BD%D0%B0%D1%85"
-    },
-    {
-      "input": "商品编码 8471 笔记本电脑",
-      "safe": "/",
-      "quoted": "%E5%95%86%E5%93%81%E7%BC%96%E7%A0%81%208471%20%E7%AC%94%E8%AE%B0%E6%9C%AC%E7%94%B5%E8%84%91"
-    },
-    {
-      "input": "ノートパソコン",
-      "safe": "/",
-      "quoted": "%E3%83%8E%E3%83%BC%E3%83%88%E3%83%91%E3%82%BD%E3%82%B3%E3%83%B3"
-    },
-    {
-      "input": "노트북 컴퓨터",
-      "safe": "/",
-      "quoted": "%EB%85%B8%ED%8A%B8%EB%B6%81%20%EC%BB%B4%ED%93%A8%ED%84%B0"
-    },
-    {
-      "input": "😀 smiley face",
-      "safe": "/",
-      "quoted": "%F0%9F%98%80%20smiley%20face"
-    },
-    {
-      "input": "👨‍👩‍👧 family",
-      "safe": "/",
-      "quoted": "%F0%9F%91%A8%E2%80%8D%F0%9F%91%A9%E2%80%8D%F0%9F%91%A7%20family"
-    },
-    {
-      "input": "🇩🇪 flag",
-      "safe": "/",
-      "quoted": "%F0%9F%87%A9%F0%9F%87%AA%20flag"
-    },
-    {
-      "input": "👍🏽 thumbs",
-      "safe": "/",
-      "quoted": "%F0%9F%91%8D%F0%9F%8F%BD%20thumbs"
-    },
-    {
-      "input": "café éclair",
-      "safe": "/",
-      "quoted": "caf%C3%A9%20%C3%A9clair"
-    },
-    {
-      "input": "café éclair",
-      "safe": "/",
-      "quoted": "cafe%CC%81%20e%CC%81clair"
-    },
-    {
-      "input": "Straße",
-      "safe": "/",
-      "quoted": "Stra%C3%9Fe"
-    },
-    {
-      "input": "STRASSE",
-      "safe": "/",
-      "quoted": "STRASSE"
-    },
-    {
-      "input": "ß",
-      "safe": "/",
-      "quoted": "%C3%9F"
-    },
-    {
-      "input": "ẞ",
-      "safe": "/",
-      "quoted": "%E1%BA%9E"
-    },
-    {
-      "input": "İstanbul",
-      "safe": "/",
-      "quoted": "%C4%B0stanbul"
-    },
-    {
-      "input": "ıi",
-      "safe": "/",
-      "quoted": "%C4%B1i"
-    },
-    {
-      "input": "IĞDIR iğdir",
-      "safe": "/",
-      "quoted": "I%C4%9EDIR%20i%C4%9Fdir"
-    },
-    {
-      "input": " nbsp value ",
-      "safe": "/",
-      "quoted": "%C2%A0nbsp%C2%A0value%C2%A0"
-    },
-    {
-      "input": "line separator",
-      "safe": "/",
-      "quoted": "line%E2%80%A8separator"
-    },
-    {
-      "input": "para separator",
-      "safe": "/",
-      "quoted": "para%E2%80%A9separator"
-    },
-    {
-      "input": "\u001cfile\u001dgroup\u001erecord\u001funit",
-      "safe": "/",
-      "quoted": "%1Cfile%1Dgroup%1Erecord%1Funit"
-    },
-    {
-      "input": "next line",
-      "safe": "/",
-      "quoted": "%C2%85next%20line%C2%85"
-    },
-    {
-      "input": "﻿bom﻿",
-      "safe": "/",
-      "quoted": "%EF%BB%BFbom%EF%BB%BF"
-    },
-    {
-      "input": "zero​width",
-      "safe": "/",
-      "quoted": "zero%E2%80%8Bwidth"
-    },
-    {
-      "input": "　ideographic　space　",
-      "safe": "/",
-      "quoted": "%E3%80%80ideographic%E3%80%80space%E3%80%80"
-    },
-    {
-      "input": " figure narrow",
-      "safe": "/",
-      "quoted": "%E2%80%87figure%E2%80%AFnarrow"
-    },
-    {
-      "input": "\u000bvertical\fform",
-      "safe": "/",
-      "quoted": "%0Bvertical%0Cform"
-    },
-    {
-      "input": "%20encoded%20space",
-      "safe": "/",
-      "quoted": "%2520encoded%2520space"
-    },
-    {
-      "input": "%2520double",
-      "safe": "/",
-      "quoted": "%252520double"
-    },
-    {
-      "input": "%252520triple",
-      "safe": "/",
-      "quoted": "%25252520triple"
-    },
-    {
-      "input": "100%",
-      "safe": "/",
-      "quoted": "100%25"
-    },
-    {
-      "input": "%E2%9C%93 check",
-      "safe": "/",
-      "quoted": "%25E2%259C%2593%20check"
-    },
-    {
-      "input": "%C3%A9t%C3%A9",
-      "safe": "/",
-      "quoted": "%25C3%25A9t%25C3%25A9"
-    },
-    {
-      "input": "%C3",
-      "safe": "/",
-      "quoted": "%25C3"
-    },
-    {
-      "input": "%zz",
-      "safe": "/",
-      "quoted": "%25zz"
-    },
-    {
-      "input": "%",
-      "safe": "/",
-      "quoted": "%25"
-    },
-    {
-      "input": "a+b",
-      "safe": "/",
-      "quoted": "a%2Bb"
-    },
-    {
-      "input": "a%2Bb",
-      "safe": "/",
-      "quoted": "a%252Bb"
-    },
-    {
-      "input": "%F0%9F%98%80",
-      "safe": "/",
-      "quoted": "%25F0%259F%2598%2580"
-    },
-    {
-      "input": "%ED%A0%80",
-      "safe": "/",
-      "quoted": "%25ED%25A0%2580"
-    },
-    {
-      "input": "03111000-2",
-      "safe": "/",
-      "quoted": "03111000-2"
-    },
-    {
-      "input": "CPV 03111000-2",
-      "safe": "/",
-      "quoted": "CPV%2003111000-2"
-    },
-    {
-      "input": "4321.15.03",
-      "safe": "/",
-      "quoted": "4321.15.03"
-    },
-    {
-      "input": "8471.30.0100",
-      "safe": "/",
-      "quoted": "8471.30.0100"
-    },
-    {
-      "input": "EC000123",
-      "safe": "/",
-      "quoted": "EC000123"
-    },
-    {
-      "input": "A01.1.1",
-      "safe": "/",
-      "quoted": "A01.1.1"
-    },
-    {
-      "input": "5965-01-234-5678",
-      "safe": "/",
-      "quoted": "5965-01-234-5678"
-    },
-    {
-      "input": "they're o'neill's",
-      "safe": "/",
-      "quoted": "they%27re%20o%27neill%27s"
-    },
-    {
-      "input": "hello-world",
-      "safe": "/",
-      "quoted": "hello-world"
-    },
-    {
-      "input": "3rd-party 2nd",
-      "safe": "/",
-      "quoted": "3rd-party%202nd"
-    },
-    {
-      "input": "x² ①② ٠١٢٣ Ⅻ",
-      "safe": "/",
-      "quoted": "x%C2%B2%20%E2%91%A0%E2%91%A1%20%D9%A0%D9%A1%D9%A2%D9%A3%20%E2%85%AB"
-    },
-    {
-      "input": "ﬁne ﬂour",
-      "safe": "/",
-      "quoted": "%EF%AC%81ne%20%EF%AC%82our"
-    },
-    {
-      "input": "ǆungla ǈudi",
-      "safe": "/",
-      "quoted": "%C7%86ungla%20%C7%88udi"
-    },
-    {
-      "input": "ΣΊΣΥΦΟΣ",
-      "safe": "/",
-      "quoted": "%CE%A3%CE%8A%CE%A3%CE%A5%CE%A6%CE%9F%CE%A3"
-    },
-    {
-      "input": "ὈΔΥΣΣΕΎΣ",
-      "safe": "/",
-      "quoted": "%E1%BD%88%CE%94%CE%A5%CE%A3%CE%A3%CE%95%CE%8E%CE%A3"
-    },
-    {
-      "input": "ᾳ ᾀ",
-      "safe": "/",
-      "quoted": "%E1%BE%B3%20%E1%BE%80"
-    },
-    {
-      "input": "ŉ ǰ",
-      "safe": "/",
-      "quoted": "%C5%89%20%C7%B0"
-    },
-    {
-      "input": "ვეფხისტყაოსანი",
-      "safe": "/",
-      "quoted": "%E1%83%95%E1%83%94%E1%83%A4%E1%83%AE%E1%83%98%E1%83%A1%E1%83%A2%E1%83%A7%E1%83%90%E1%83%9D%E1%83%A1%E1%83%90%E1%83%9C%E1%83%98"
-    },
-    {
-      "input": "<script>alert(1)</script>",
-      "safe": "/",
-      "quoted": "%3Cscript%3Ealert%281%29%3C/script%3E"
-    },
-    {
-      "input": "a/b/c",
-      "safe": "/",
-      "quoted": "a/b/c"
-    },
-    {
-      "input": "trailing///",
-      "safe": "/",
-      "quoted": "trailing///"
-    },
-    {
-      "input": "under_score__double",
-      "safe": "/",
-      "quoted": "under_score__double"
-    },
-    {
-      "input": "(parens) [brackets] {braces}",
-      "safe": "/",
-      "quoted": "%28parens%29%20%5Bbrackets%5D%20%7Bbraces%7D"
-    },
-    {
-      "input": "quotes \"double\" 'single'",
-      "safe": "/",
-      "quoted": "quotes%20%22double%22%20%27single%27"
-    },
-    {
-      "input": "a&b=c#d!e@f",
-      "safe": "/",
-      "quoted": "a%26b%3Dc%23d%21e%40f"
-    },
-    {
-      "input": "semi;colon:comma,dot.",
-      "safe": "/",
-      "quoted": "semi%3Bcolon%3Acomma%2Cdot."
-    },
-    {
-      "input": "back\\slash",
-      "safe": "/",
-      "quoted": "back%5Cslash"
-    },
-    {
-      "input": "tilde~`grave",
-      "safe": "/",
-      "quoted": "tilde~%60grave"
-    },
-    {
-      "input": "dead beef cafe babe",
-      "safe": "/",
-      "quoted": "dead%20beef%20cafe%20babe"
-    },
-    {
-      "input": "deadbeefcafe0123",
-      "safe": "/",
-      "quoted": "deadbeefcafe0123"
-    },
-    {
-      "input": "252525",
-      "safe": "/",
-      "quoted": "252525"
-    },
-    {
-      "input": "a\u0000nul",
-      "safe": "/",
-      "quoted": "a%00nul"
-    },
-    {
-      "input": "\u0000",
-      "safe": "/",
-      "quoted": "%00"
-    },
-    {
-      "input": "\u0001",
-      "safe": "/",
-      "quoted": "%01"
-    },
-    {
-      "input": "\u0002",
-      "safe": "/",
-      "quoted": "%02"
-    },
-    {
-      "input": "\u0003",
-      "safe": "/",
-      "quoted": "%03"
-    },
-    {
-      "input": "\u0004",
-      "safe": "/",
-      "quoted": "%04"
-    },
-    {
-      "input": "\u0005",
-      "safe": "/",
-      "quoted": "%05"
-    },
-    {
-      "input": "\u0006",
-      "safe": "/",
-      "quoted": "%06"
-    },
-    {
-      "input": "\u0007",
-      "safe": "/",
-      "quoted": "%07"
-    },
-    {
-      "input": "\b",
-      "safe": "/",
-      "quoted": "%08"
-    },
-    {
-      "input": "\t",
-      "safe": "/",
-      "quoted": "%09"
-    },
-    {
-      "input": "\n",
-      "safe": "/",
-      "quoted": "%0A"
-    },
-    {
-      "input": "\u000b",
-      "safe": "/",
-      "quoted": "%0B"
-    },
-    {
-      "input": "\f",
-      "safe": "/",
-      "quoted": "%0C"
-    },
-    {
-      "input": "\r",
-      "safe": "/",
-      "quoted": "%0D"
-    },
-    {
-      "input": "\u000e",
-      "safe": "/",
-      "quoted": "%0E"
-    },
-    {
-      "input": "\u000f",
-      "safe": "/",
-      "quoted": "%0F"
-    },
-    {
-      "input": "\u0010",
-      "safe": "/",
-      "quoted": "%10"
-    },
-    {
-      "input": "\u0011",
-      "safe": "/",
-      "quoted": "%11"
-    },
-    {
-      "input": "\u0012",
-      "safe": "/",
-      "quoted": "%12"
-    },
-    {
-      "input": "\u0013",
-      "safe": "/",
-      "quoted": "%13"
-    },
-    {
-      "input": "\u0014",
-      "safe": "/",
-      "quoted": "%14"
-    },
-    {
-      "input": "\u0015",
-      "safe": "/",
-      "quoted": "%15"
-    },
-    {
-      "input": "\u0016",
-      "safe": "/",
-      "quoted": "%16"
-    },
-    {
-      "input": "\u0017",
-      "safe": "/",
-      "quoted": "%17"
-    },
-    {
-      "input": "\u0018",
-      "safe": "/",
-      "quoted": "%18"
-    },
-    {
-      "input": "\u0019",
-      "safe": "/",
-      "quoted": "%19"
-    },
-    {
-      "input": "\u001a",
-      "safe": "/",
-      "quoted": "%1A"
-    },
-    {
-      "input": "\u001b",
-      "safe": "/",
-      "quoted": "%1B"
-    },
-    {
-      "input": "\u001c",
-      "safe": "/",
-      "quoted": "%1C"
-    },
-    {
-      "input": "\u001d",
-      "safe": "/",
-      "quoted": "%1D"
-    },
-    {
-      "input": "\u001e",
-      "safe": "/",
-      "quoted": "%1E"
-    },
-    {
-      "input": "\u001f",
-      "safe": "/",
-      "quoted": "%1F"
-    },
-    {
-      "input": " ",
-      "safe": "/",
-      "quoted": "%20"
-    },
-    {
-      "input": "!",
-      "safe": "/",
-      "quoted": "%21"
-    },
-    {
-      "input": "\"",
-      "safe": "/",
-      "quoted": "%22"
-    },
-    {
-      "input": "#",
-      "safe": "/",
-      "quoted": "%23"
-    },
-    {
-      "input": "$",
-      "safe": "/",
-      "quoted": "%24"
-    },
-    {
-      "input": "%",
-      "safe": "/",
-      "quoted": "%25"
-    },
-    {
-      "input": "&",
-      "safe": "/",
-      "quoted": "%26"
-    },
-    {
-      "input": "'",
-      "safe": "/",
-      "quoted": "%27"
-    },
-    {
-      "input": "(",
-      "safe": "/",
-      "quoted": "%28"
-    },
-    {
-      "input": ")",
-      "safe": "/",
-      "quoted": "%29"
-    },
-    {
-      "input": "*",
-      "safe": "/",
-      "quoted": "%2A"
-    },
-    {
-      "input": "+",
-      "safe": "/",
-      "quoted": "%2B"
-    },
-    {
-      "input": ",",
-      "safe": "/",
-      "quoted": "%2C"
-    },
-    {
-      "input": "-",
-      "safe": "/",
-      "quoted": "-"
-    },
-    {
-      "input": ".",
-      "safe": "/",
-      "quoted": "."
-    },
-    {
-      "input": "/",
-      "safe": "/",
-      "quoted": "/"
-    },
-    {
-      "input": "0",
-      "safe": "/",
-      "quoted": "0"
-    },
-    {
-      "input": "1",
-      "safe": "/",
-      "quoted": "1"
-    },
-    {
-      "input": "2",
-      "safe": "/",
-      "quoted": "2"
-    },
-    {
-      "input": "3",
-      "safe": "/",
-      "quoted": "3"
-    },
-    {
-      "input": "4",
-      "safe": "/",
-      "quoted": "4"
-    },
-    {
-      "input": "5",
-      "safe": "/",
-      "quoted": "5"
-    },
-    {
-      "input": "6",
-      "safe": "/",
-      "quoted": "6"
-    },
-    {
-      "input": "7",
-      "safe": "/",
-      "quoted": "7"
-    },
-    {
-      "input": "8",
-      "safe": "/",
-      "quoted": "8"
-    },
-    {
-      "input": "9",
-      "safe": "/",
-      "quoted": "9"
-    },
-    {
-      "input": ":",
-      "safe": "/",
-      "quoted": "%3A"
-    },
-    {
-      "input": ";",
-      "safe": "/",
-      "quoted": "%3B"
-    },
-    {
-      "input": "<",
-      "safe": "/",
-      "quoted": "%3C"
-    },
-    {
-      "input": "=",
-      "safe": "/",
-      "quoted": "%3D"
-    },
-    {
-      "input": ">",
-      "safe": "/",
-      "quoted": "%3E"
-    },
-    {
-      "input": "?",
-      "safe": "/",
-      "quoted": "%3F"
-    },
-    {
-      "input": "@",
-      "safe": "/",
-      "quoted": "%40"
-    },
-    {
-      "input": "A",
-      "safe": "/",
-      "quoted": "A"
-    },
-    {
-      "input": "B",
-      "safe": "/",
-      "quoted": "B"
-    },
-    {
-      "input": "C",
-      "safe": "/",
-      "quoted": "C"
-    },
-    {
-      "input": "D",
-      "safe": "/",
-      "quoted": "D"
-    },
-    {
-      "input": "E",
-      "safe": "/",
-      "quoted": "E"
-    },
-    {
-      "input": "F",
-      "safe": "/",
-      "quoted": "F"
-    },
-    {
-      "input": "G",
-      "safe": "/",
-      "quoted": "G"
-    },
-    {
-      "input": "H",
-      "safe": "/",
-      "quoted": "H"
-    },
-    {
-      "input": "I",
-      "safe": "/",
-      "quoted": "I"
-    },
-    {
-      "input": "J",
-      "safe": "/",
-      "quoted": "J"
-    },
-    {
-      "input": "K",
-      "safe": "/",
-      "quoted": "K"
-    },
-    {
-      "input": "L",
-      "safe": "/",
-      "quoted": "L"
-    },
-    {
-      "input": "M",
-      "safe": "/",
-      "quoted": "M"
-    },
-    {
-      "input": "N",
-      "safe": "/",
-      "quoted": "N"
-    },
-    {
-      "input": "O",
-      "safe": "/",
-      "quoted": "O"
-    },
-    {
-      "input": "P",
-      "safe": "/",
-      "quoted": "P"
-    },
-    {
-      "input": "Q",
-      "safe": "/",
-      "quoted": "Q"
-    },
-    {
-      "input": "R",
-      "safe": "/",
-      "quoted": "R"
-    },
-    {
-      "input": "S",
-      "safe": "/",
-      "quoted": "S"
-    },
-    {
-      "input": "T",
-      "safe": "/",
-      "quoted": "T"
-    },
-    {
-      "input": "U",
-      "safe": "/",
-      "quoted": "U"
-    },
-    {
-      "input": "V",
-      "safe": "/",
-      "quoted": "V"
-    },
-    {
-      "input": "W",
-      "safe": "/",
-      "quoted": "W"
-    },
-    {
-      "input": "X",
-      "safe": "/",
-      "quoted": "X"
-    },
-    {
-      "input": "Y",
-      "safe": "/",
-      "quoted": "Y"
-    },
-    {
-      "input": "Z",
-      "safe": "/",
-      "quoted": "Z"
-    },
-    {
-      "input": "[",
-      "safe": "/",
-      "quoted": "%5B"
-    },
-    {
-      "input": "\\",
-      "safe": "/",
-      "quoted": "%5C"
-    },
-    {
-      "input": "]",
-      "safe": "/",
-      "quoted": "%5D"
-    },
-    {
-      "input": "^",
-      "safe": "/",
-      "quoted": "%5E"
-    },
-    {
-      "input": "_",
-      "safe": "/",
-      "quoted": "_"
-    },
-    {
-      "input": "`",
-      "safe": "/",
-      "quoted": "%60"
-    },
-    {
-      "input": "a",
-      "safe": "/",
-      "quoted": "a"
-    },
-    {
-      "input": "b",
-      "safe": "/",
-      "quoted": "b"
-    },
-    {
-      "input": "c",
-      "safe": "/",
-      "quoted": "c"
-    },
-    {
-      "input": "d",
-      "safe": "/",
-      "quoted": "d"
-    },
-    {
-      "input": "e",
-      "safe": "/",
-      "quoted": "e"
-    },
-    {
-      "input": "f",
-      "safe": "/",
-      "quoted": "f"
-    },
-    {
-      "input": "g",
-      "safe": "/",
-      "quoted": "g"
-    },
-    {
-      "input": "h",
-      "safe": "/",
-      "quoted": "h"
-    },
-    {
-      "input": "i",
-      "safe": "/",
-      "quoted": "i"
-    },
-    {
-      "input": "j",
-      "safe": "/",
-      "quoted": "j"
-    },
-    {
-      "input": "k",
-      "safe": "/",
-      "quoted": "k"
-    },
-    {
-      "input": "l",
-      "safe": "/",
-      "quoted": "l"
-    },
-    {
-      "input": "m",
-      "safe": "/",
-      "quoted": "m"
-    },
-    {
-      "input": "n",
-      "safe": "/",
-      "quoted": "n"
-    },
-    {
-      "input": "o",
-      "safe": "/",
-      "quoted": "o"
-    },
-    {
-      "input": "p",
-      "safe": "/",
-      "quoted": "p"
-    },
-    {
-      "input": "q",
-      "safe": "/",
-      "quoted": "q"
-    },
-    {
-      "input": "r",
-      "safe": "/",
-      "quoted": "r"
-    },
-    {
-      "input": "s",
-      "safe": "/",
-      "quoted": "s"
-    },
-    {
-      "input": "t",
-      "safe": "/",
-      "quoted": "t"
-    },
-    {
-      "input": "u",
-      "safe": "/",
-      "quoted": "u"
-    },
-    {
-      "input": "v",
-      "safe": "/",
-      "quoted": "v"
-    },
-    {
-      "input": "w",
-      "safe": "/",
-      "quoted": "w"
-    },
-    {
-      "input": "x",
-      "safe": "/",
-      "quoted": "x"
-    },
-    {
-      "input": "y",
-      "safe": "/",
-      "quoted": "y"
-    },
-    {
-      "input": "z",
-      "safe": "/",
-      "quoted": "z"
-    },
-    {
-      "input": "{",
-      "safe": "/",
-      "quoted": "%7B"
-    },
-    {
-      "input": "|",
-      "safe": "/",
-      "quoted": "%7C"
-    },
-    {
-      "input": "}",
-      "safe": "/",
-      "quoted": "%7D"
-    },
-    {
-      "input": "~",
-      "safe": "/",
-      "quoted": "~"
-    },
-    {
-      "input": "",
-      "safe": "/",
-      "quoted": "%7F"
-    },
-    {
-      "input": "",
-      "safe": "()*,:",
-      "quoted": ""
-    },
-    {
-      "input": " ",
-      "safe": "()*,:",
-      "quoted": "%20"
-    },
-    {
-      "input": "a",
-      "safe": "()*,:",
-      "quoted": "a"
-    },
-    {
-      "input": "ab",
-      "safe": "()*,:",
-      "quoted": "ab"
-    },
-    {
-      "input": "Laptop computer",
-      "safe": "()*,:",
-      "quoted": "Laptop%20computer"
-    },
-    {
-      "input": "laptop_computer",
-      "safe": "()*,:",
-      "quoted": "laptop_computer"
-    },
-    {
-      "input": "LED lamp",
-      "safe": "()*,:",
-      "quoted": "LED%20lamp"
-    },
-    {
-      "input": "office-chair",
-      "safe": "()*,:",
-      "quoted": "office-chair"
-    },
-    {
-      "input": "IT services",
-      "safe": "()*,:",
-      "quoted": "IT%20services"
-    },
-    {
-      "input": "  multiple   spaces\tand\ttabs\nnew lines  ",
-      "safe": "()*,:",
-      "quoted": "%20%20multiple%20%20%20spaces%09and%09tabs%0Anew%20lines%20%20"
-    },
-    {
-      "input": "Ноутбук Lenovo ThinkPad",
-      "safe": "()*,:",
-      "quoted": "%D0%9D%D0%BE%D1%83%D1%82%D0%B1%D1%83%D0%BA%20Lenovo%20ThinkPad"
-    },
-    {
-      "input": "кофе в зёрнах",
-      "safe": "()*,:",
-      "quoted": "%D0%BA%D0%BE%D1%84%D0%B5%20%D0%B2%20%D0%B7%D1%91%D1%80%D0%BD%D0%B0%D1%85"
-    },
-    {
-      "input": "商品编码 8471 笔记本电脑",
-      "safe": "()*,:",
-      "quoted": "%E5%95%86%E5%93%81%E7%BC%96%E7%A0%81%208471%20%E7%AC%94%E8%AE%B0%E6%9C%AC%E7%94%B5%E8%84%91"
-    },
-    {
-      "input": "ノートパソコン",
-      "safe": "()*,:",
-      "quoted": "%E3%83%8E%E3%83%BC%E3%83%88%E3%83%91%E3%82%BD%E3%82%B3%E3%83%B3"
-    },
-    {
-      "input": "노트북 컴퓨터",
-      "safe": "()*,:",
-      "quoted": "%EB%85%B8%ED%8A%B8%EB%B6%81%20%EC%BB%B4%ED%93%A8%ED%84%B0"
-    },
-    {
-      "input": "😀 smiley face",
-      "safe": "()*,:",
-      "quoted": "%F0%9F%98%80%20smiley%20face"
-    },
-    {
-      "input": "👨‍👩‍👧 family",
-      "safe": "()*,:",
-      "quoted": "%F0%9F%91%A8%E2%80%8D%F0%9F%91%A9%E2%80%8D%F0%9F%91%A7%20family"
-    },
-    {
-      "input": "🇩🇪 flag",
-      "safe": "()*,:",
-      "quoted": "%F0%9F%87%A9%F0%9F%87%AA%20flag"
-    },
-    {
-      "input": "👍🏽 thumbs",
-      "safe": "()*,:",
-      "quoted": "%F0%9F%91%8D%F0%9F%8F%BD%20thumbs"
-    },
-    {
-      "input": "café éclair",
-      "safe": "()*,:",
-      "quoted": "caf%C3%A9%20%C3%A9clair"
-    },
-    {
-      "input": "café éclair",
-      "safe": "()*,:",
-      "quoted": "cafe%CC%81%20e%CC%81clair"
-    },
-    {
-      "input": "Straße",
-      "safe": "()*,:",
-      "quoted": "Stra%C3%9Fe"
-    },
-    {
-      "input": "STRASSE",
-      "safe": "()*,:",
-      "quoted": "STRASSE"
-    },
-    {
-      "input": "ß",
-      "safe": "()*,:",
-      "quoted": "%C3%9F"
-    },
-    {
-      "input": "ẞ",
-      "safe": "()*,:",
-      "quoted": "%E1%BA%9E"
-    },
-    {
-      "input": "İstanbul",
-      "safe": "()*,:",
-      "quoted": "%C4%B0stanbul"
-    },
-    {
-      "input": "ıi",
-      "safe": "()*,:",
-      "quoted": "%C4%B1i"
-    },
-    {
-      "input": "IĞDIR iğdir",
-      "safe": "()*,:",
-      "quoted": "I%C4%9EDIR%20i%C4%9Fdir"
-    },
-    {
-      "input": " nbsp value ",
-      "safe": "()*,:",
-      "quoted": "%C2%A0nbsp%C2%A0value%C2%A0"
-    },
-    {
-      "input": "line separator",
-      "safe": "()*,:",
-      "quoted": "line%E2%80%A8separator"
-    },
-    {
-      "input": "para separator",
-      "safe": "()*,:",
-      "quoted": "para%E2%80%A9separator"
-    },
-    {
-      "input": "\u001cfile\u001dgroup\u001erecord\u001funit",
-      "safe": "()*,:",
-      "quoted": "%1Cfile%1Dgroup%1Erecord%1Funit"
-    },
-    {
-      "input": "next line",
-      "safe": "()*,:",
-      "quoted": "%C2%85next%20line%C2%85"
-    },
-    {
-      "input": "﻿bom﻿",
-      "safe": "()*,:",
-      "quoted": "%EF%BB%BFbom%EF%BB%BF"
-    },
-    {
-      "input": "zero​width",
-      "safe": "()*,:",
-      "quoted": "zero%E2%80%8Bwidth"
-    },
-    {
-      "input": "　ideographic　space　",
-      "safe": "()*,:",
-      "quoted": "%E3%80%80ideographic%E3%80%80space%E3%80%80"
-    },
-    {
-      "input": " figure narrow",
-      "safe": "()*,:",
-      "quoted": "%E2%80%87figure%E2%80%AFnarrow"
-    },
-    {
-      "input": "\u000bvertical\fform",
-      "safe": "()*,:",
-      "quoted": "%0Bvertical%0Cform"
-    },
-    {
-      "input": "%20encoded%20space",
-      "safe": "()*,:",
-      "quoted": "%2520encoded%2520space"
-    },
-    {
-      "input": "%2520double",
-      "safe": "()*,:",
-      "quoted": "%252520double"
-    },
-    {
-      "input": "%252520triple",
-      "safe": "()*,:",
-      "quoted": "%25252520triple"
-    },
-    {
-      "input": "100%",
-      "safe": "()*,:",
-      "quoted": "100%25"
-    },
-    {
-      "input": "%E2%9C%93 check",
-      "safe": "()*,:",
-      "quoted": "%25E2%259C%2593%20check"
-    },
-    {
-      "input": "%C3%A9t%C3%A9",
-      "safe": "()*,:",
-      "quoted": "%25C3%25A9t%25C3%25A9"
-    },
-    {
-      "input": "%C3",
-      "safe": "()*,:",
-      "quoted": "%25C3"
-    },
-    {
-      "input": "%zz",
-      "safe": "()*,:",
-      "quoted": "%25zz"
-    },
-    {
-      "input": "%",
-      "safe": "()*,:",
-      "quoted": "%25"
-    },
-    {
-      "input": "a+b",
-      "safe": "()*,:",
-      "quoted": "a%2Bb"
-    },
-    {
-      "input": "a%2Bb",
-      "safe": "()*,:",
-      "quoted": "a%252Bb"
-    },
-    {
-      "input": "%F0%9F%98%80",
-      "safe": "()*,:",
-      "quoted": "%25F0%259F%2598%2580"
-    },
-    {
-      "input": "%ED%A0%80",
-      "safe": "()*,:",
-      "quoted": "%25ED%25A0%2580"
-    },
-    {
-      "input": "03111000-2",
-      "safe": "()*,:",
-      "quoted": "03111000-2"
-    },
-    {
-      "input": "CPV 03111000-2",
-      "safe": "()*,:",
-      "quoted": "CPV%2003111000-2"
-    },
-    {
-      "input": "4321.15.03",
-      "safe": "()*,:",
-      "quoted": "4321.15.03"
-    },
-    {
-      "input": "8471.30.0100",
-      "safe": "()*,:",
-      "quoted": "8471.30.0100"
-    },
-    {
-      "input": "EC000123",
-      "safe": "()*,:",
-      "quoted": "EC000123"
-    },
-    {
-      "input": "A01.1.1",
-      "safe": "()*,:",
-      "quoted": "A01.1.1"
-    },
-    {
-      "input": "5965-01-234-5678",
-      "safe": "()*,:",
-      "quoted": "5965-01-234-5678"
-    },
-    {
-      "input": "they're o'neill's",
-      "safe": "()*,:",
-      "quoted": "they%27re%20o%27neill%27s"
-    },
-    {
-      "input": "hello-world",
-      "safe": "()*,:",
-      "quoted": "hello-world"
-    },
-    {
-      "input": "3rd-party 2nd",
-      "safe": "()*,:",
-      "quoted": "3rd-party%202nd"
-    },
-    {
-      "input": "x² ①② ٠١٢٣ Ⅻ",
-      "safe": "()*,:",
-      "quoted": "x%C2%B2%20%E2%91%A0%E2%91%A1%20%D9%A0%D9%A1%D9%A2%D9%A3%20%E2%85%AB"
-    },
-    {
-      "input": "ﬁne ﬂour",
-      "safe": "()*,:",
-      "quoted": "%EF%AC%81ne%20%EF%AC%82our"
-    },
-    {
-      "input": "ǆungla ǈudi",
-      "safe": "()*,:",
-      "quoted": "%C7%86ungla%20%C7%88udi"
-    },
-    {
-      "input": "ΣΊΣΥΦΟΣ",
-      "safe": "()*,:",
-      "quoted": "%CE%A3%CE%8A%CE%A3%CE%A5%CE%A6%CE%9F%CE%A3"
-    },
-    {
-      "input": "ὈΔΥΣΣΕΎΣ",
-      "safe": "()*,:",
-      "quoted": "%E1%BD%88%CE%94%CE%A5%CE%A3%CE%A3%CE%95%CE%8E%CE%A3"
-    },
-    {
-      "input": "ᾳ ᾀ",
-      "safe": "()*,:",
-      "quoted": "%E1%BE%B3%20%E1%BE%80"
-    },
-    {
-      "input": "ŉ ǰ",
-      "safe": "()*,:",
-      "quoted": "%C5%89%20%C7%B0"
-    },
-    {
-      "input": "ვეფხისტყაოსანი",
-      "safe": "()*,:",
-      "quoted": "%E1%83%95%E1%83%94%E1%83%A4%E1%83%AE%E1%83%98%E1%83%A1%E1%83%A2%E1%83%A7%E1%83%90%E1%83%9D%E1%83%A1%E1%83%90%E1%83%9C%E1%83%98"
-    },
-    {
-      "input": "<script>alert(1)</script>",
-      "safe": "()*,:",
-      "quoted": "%3Cscript%3Ealert(1)%3C%2Fscript%3E"
-    },
-    {
-      "input": "a/b/c",
-      "safe": "()*,:",
-      "quoted": "a%2Fb%2Fc"
-    },
-    {
-      "input": "trailing///",
-      "safe": "()*,:",
-      "quoted": "trailing%2F%2F%2F"
-    },
-    {
-      "input": "under_score__double",
-      "safe": "()*,:",
-      "quoted": "under_score__double"
-    },
-    {
-      "input": "(parens) [brackets] {braces}",
-      "safe": "()*,:",
-      "quoted": "(parens)%20%5Bbrackets%5D%20%7Bbraces%7D"
-    },
-    {
-      "input": "quotes \"double\" 'single'",
-      "safe": "()*,:",
-      "quoted": "quotes%20%22double%22%20%27single%27"
-    },
-    {
-      "input": "a&b=c#d!e@f",
-      "safe": "()*,:",
-      "quoted": "a%26b%3Dc%23d%21e%40f"
-    },
-    {
-      "input": "semi;colon:comma,dot.",
-      "safe": "()*,:",
-      "quoted": "semi%3Bcolon:comma,dot."
-    },
-    {
-      "input": "back\\slash",
-      "safe": "()*,:",
-      "quoted": "back%5Cslash"
-    },
-    {
-      "input": "tilde~`grave",
-      "safe": "()*,:",
-      "quoted": "tilde~%60grave"
-    },
-    {
-      "input": "dead beef cafe babe",
-      "safe": "()*,:",
-      "quoted": "dead%20beef%20cafe%20babe"
-    },
-    {
-      "input": "deadbeefcafe0123",
-      "safe": "()*,:",
-      "quoted": "deadbeefcafe0123"
-    },
-    {
-      "input": "252525",
-      "safe": "()*,:",
-      "quoted": "252525"
-    },
-    {
-      "input": "a\u0000nul",
-      "safe": "()*,:",
-      "quoted": "a%00nul"
-    },
-    {
-      "input": "\u0000",
-      "safe": "()*,:",
-      "quoted": "%00"
-    },
-    {
-      "input": "\u0001",
-      "safe": "()*,:",
-      "quoted": "%01"
-    },
-    {
-      "input": "\u0002",
-      "safe": "()*,:",
-      "quoted": "%02"
-    },
-    {
-      "input": "\u0003",
-      "safe": "()*,:",
-      "quoted": "%03"
-    },
-    {
-      "input": "\u0004",
-      "safe": "()*,:",
-      "quoted": "%04"
-    },
-    {
-      "input": "\u0005",
-      "safe": "()*,:",
-      "quoted": "%05"
-    },
-    {
-      "input": "\u0006",
-      "safe": "()*,:",
-      "quoted": "%06"
-    },
-    {
-      "input": "\u0007",
-      "safe": "()*,:",
-      "quoted": "%07"
-    },
-    {
-      "input": "\b",
-      "safe": "()*,:",
-      "quoted": "%08"
-    },
-    {
-      "input": "\t",
-      "safe": "()*,:",
-      "quoted": "%09"
-    },
-    {
-      "input": "\n",
-      "safe": "()*,:",
-      "quoted": "%0A"
-    },
-    {
-      "input": "\u000b",
-      "safe": "()*,:",
-      "quoted": "%0B"
-    },
-    {
-      "input": "\f",
-      "safe": "()*,:",
-      "quoted": "%0C"
-    },
-    {
-      "input": "\r",
-      "safe": "()*,:",
-      "quoted": "%0D"
-    },
-    {
-      "input": "\u000e",
-      "safe": "()*,:",
-      "quoted": "%0E"
-    },
-    {
-      "input": "\u000f",
-      "safe": "()*,:",
-      "quoted": "%0F"
-    },
-    {
-      "input": "\u0010",
-      "safe": "()*,:",
-      "quoted": "%10"
-    },
-    {
-      "input": "\u0011",
-      "safe": "()*,:",
-      "quoted": "%11"
-    },
-    {
-      "input": "\u0012",
-      "safe": "()*,:",
-      "quoted": "%12"
-    },
-    {
-      "input": "\u0013",
-      "safe": "()*,:",
-      "quoted": "%13"
-    },
-    {
-      "input": "\u0014",
-      "safe": "()*,:",
-      "quoted": "%14"
-    },
-    {
-      "input": "\u0015",
-      "safe": "()*,:",
-      "quoted": "%15"
-    },
-    {
-      "input": "\u0016",
-      "safe": "()*,:",
-      "quoted": "%16"
-    },
-    {
-      "input": "\u0017",
-      "safe": "()*,:",
-      "quoted": "%17"
-    },
-    {
-      "input": "\u0018",
-      "safe": "()*,:",
-      "quoted": "%18"
-    },
-    {
-      "input": "\u0019",
-      "safe": "()*,:",
-      "quoted": "%19"
-    },
-    {
-      "input": "\u001a",
-      "safe": "()*,:",
-      "quoted": "%1A"
-    },
-    {
-      "input": "\u001b",
-      "safe": "()*,:",
-      "quoted": "%1B"
-    },
-    {
-      "input": "\u001c",
-      "safe": "()*,:",
-      "quoted": "%1C"
-    },
-    {
-      "input": "\u001d",
-      "safe": "()*,:",
-      "quoted": "%1D"
-    },
-    {
-      "input": "\u001e",
-      "safe": "()*,:",
-      "quoted": "%1E"
-    },
-    {
-      "input": "\u001f",
-      "safe": "()*,:",
-      "quoted": "%1F"
-    },
-    {
-      "input": " ",
-      "safe": "()*,:",
-      "quoted": "%20"
-    },
-    {
-      "input": "!",
-      "safe": "()*,:",
-      "quoted": "%21"
-    },
-    {
-      "input": "\"",
-      "safe": "()*,:",
-      "quoted": "%22"
-    },
-    {
-      "input": "#",
-      "safe": "()*,:",
-      "quoted": "%23"
-    },
-    {
-      "input": "$",
-      "safe": "()*,:",
-      "quoted": "%24"
-    },
-    {
-      "input": "%",
-      "safe": "()*,:",
-      "quoted": "%25"
-    },
-    {
-      "input": "&",
-      "safe": "()*,:",
-      "quoted": "%26"
-    },
-    {
-      "input": "'",
-      "safe": "()*,:",
-      "quoted": "%27"
-    },
-    {
-      "input": "(",
-      "safe": "()*,:",
-      "quoted": "("
-    },
-    {
-      "input": ")",
-      "safe": "()*,:",
-      "quoted": ")"
-    },
-    {
-      "input": "*",
-      "safe": "()*,:",
-      "quoted": "*"
-    },
-    {
-      "input": "+",
-      "safe": "()*,:",
-      "quoted": "%2B"
-    },
-    {
-      "input": ",",
-      "safe": "()*,:",
-      "quoted": ","
-    },
-    {
-      "input": "-",
-      "safe": "()*,:",
-      "quoted": "-"
-    },
-    {
-      "input": ".",
-      "safe": "()*,:",
-      "quoted": "."
-    },
-    {
-      "input": "/",
-      "safe": "()*,:",
-      "quoted": "%2F"
-    },
-    {
-      "input": "0",
-      "safe": "()*,:",
-      "quoted": "0"
-    },
-    {
-      "input": "1",
-      "safe": "()*,:",
-      "quoted": "1"
-    },
-    {
-      "input": "2",
-      "safe": "()*,:",
-      "quoted": "2"
-    },
-    {
-      "input": "3",
-      "safe": "()*,:",
-      "quoted": "3"
-    },
-    {
-      "input": "4",
-      "safe": "()*,:",
-      "quoted": "4"
-    },
-    {
-      "input": "5",
-      "safe": "()*,:",
-      "quoted": "5"
-    },
-    {
-      "input": "6",
-      "safe": "()*,:",
-      "quoted": "6"
-    },
-    {
-      "input": "7",
-      "safe": "()*,:",
-      "quoted": "7"
-    },
-    {
-      "input": "8",
-      "safe": "()*,:",
-      "quoted": "8"
-    },
-    {
-      "input": "9",
-      "safe": "()*,:",
-      "quoted": "9"
-    },
-    {
-      "input": ":",
-      "safe": "()*,:",
-      "quoted": ":"
-    },
-    {
-      "input": ";",
-      "safe": "()*,:",
-      "quoted": "%3B"
-    },
-    {
-      "input": "<",
-      "safe": "()*,:",
-      "quoted": "%3C"
-    },
-    {
-      "input": "=",
-      "safe": "()*,:",
-      "quoted": "%3D"
-    },
-    {
-      "input": ">",
-      "safe": "()*,:",
-      "quoted": "%3E"
-    },
-    {
-      "input": "?",
-      "safe": "()*,:",
-      "quoted": "%3F"
-    },
-    {
-      "input": "@",
-      "safe": "()*,:",
-      "quoted": "%40"
-    },
-    {
-      "input": "A",
-      "safe": "()*,:",
-      "quoted": "A"
-    },
-    {
-      "input": "B",
-      "safe": "()*,:",
-      "quoted": "B"
-    },
-    {
-      "input": "C",
-      "safe": "()*,:",
-      "quoted": "C"
-    },
-    {
-      "input": "D",
-      "safe": "()*,:",
-      "quoted": "D"
-    },
-    {
-      "input": "E",
-      "safe": "()*,:",
-      "quoted": "E"
-    },
-    {
-      "input": "F",
-      "safe": "()*,:",
-      "quoted": "F"
-    },
-    {
-      "input": "G",
-      "safe": "()*,:",
-      "quoted": "G"
-    },
-    {
-      "input": "H",
-      "safe": "()*,:",
-      "quoted": "H"
-    },
-    {
-      "input": "I",
-      "safe": "()*,:",
-      "quoted": "I"
-    },
-    {
-      "input": "J",
-      "safe": "()*,:",
-      "quoted": "J"
-    },
-    {
-      "input": "K",
-      "safe": "()*,:",
-      "quoted": "K"
-    },
-    {
-      "input": "L",
-      "safe": "()*,:",
-      "quoted": "L"
-    },
-    {
-      "input": "M",
-      "safe": "()*,:",
-      "quoted": "M"
-    },
-    {
-      "input": "N",
-      "safe": "()*,:",
-      "quoted": "N"
-    },
-    {
-      "input": "O",
-      "safe": "()*,:",
-      "quoted": "O"
-    },
-    {
-      "input": "P",
-      "safe": "()*,:",
-      "quoted": "P"
-    },
-    {
-      "input": "Q",
-      "safe": "()*,:",
-      "quoted": "Q"
-    },
-    {
-      "input": "R",
-      "safe": "()*,:",
-      "quoted": "R"
-    },
-    {
-      "input": "S",
-      "safe": "()*,:",
-      "quoted": "S"
-    },
-    {
-      "input": "T",
-      "safe": "()*,:",
-      "quoted": "T"
-    },
-    {
-      "input": "U",
-      "safe": "()*,:",
-      "quoted": "U"
-    },
-    {
-      "input": "V",
-      "safe": "()*,:",
-      "quoted": "V"
-    },
-    {
-      "input": "W",
-      "safe": "()*,:",
-      "quoted": "W"
-    },
-    {
-      "input": "X",
-      "safe": "()*,:",
-      "quoted": "X"
-    },
-    {
-      "input": "Y",
-      "safe": "()*,:",
-      "quoted": "Y"
-    },
-    {
-      "input": "Z",
-      "safe": "()*,:",
-      "quoted": "Z"
-    },
-    {
-      "input": "[",
-      "safe": "()*,:",
-      "quoted": "%5B"
-    },
-    {
-      "input": "\\",
-      "safe": "()*,:",
-      "quoted": "%5C"
-    },
-    {
-      "input": "]",
-      "safe": "()*,:",
-      "quoted": "%5D"
-    },
-    {
-      "input": "^",
-      "safe": "()*,:",
-      "quoted": "%5E"
-    },
-    {
-      "input": "_",
-      "safe": "()*,:",
-      "quoted": "_"
-    },
-    {
-      "input": "`",
-      "safe": "()*,:",
-      "quoted": "%60"
-    },
-    {
-      "input": "a",
-      "safe": "()*,:",
-      "quoted": "a"
-    },
-    {
-      "input": "b",
-      "safe": "()*,:",
-      "quoted": "b"
-    },
-    {
-      "input": "c",
-      "safe": "()*,:",
-      "quoted": "c"
-    },
-    {
-      "input": "d",
-      "safe": "()*,:",
-      "quoted": "d"
-    },
-    {
-      "input": "e",
-      "safe": "()*,:",
-      "quoted": "e"
-    },
-    {
-      "input": "f",
-      "safe": "()*,:",
-      "quoted": "f"
-    },
-    {
-      "input": "g",
-      "safe": "()*,:",
-      "quoted": "g"
-    },
-    {
-      "input": "h",
-      "safe": "()*,:",
-      "quoted": "h"
-    },
-    {
-      "input": "i",
-      "safe": "()*,:",
-      "quoted": "i"
-    },
-    {
-      "input": "j",
-      "safe": "()*,:",
-      "quoted": "j"
-    },
-    {
-      "input": "k",
-      "safe": "()*,:",
-      "quoted": "k"
-    },
-    {
-      "input": "l",
-      "safe": "()*,:",
-      "quoted": "l"
-    },
-    {
-      "input": "m",
-      "safe": "()*,:",
-      "quoted": "m"
-    },
-    {
-      "input": "n",
-      "safe": "()*,:",
-      "quoted": "n"
-    },
-    {
-      "input": "o",
-      "safe": "()*,:",
-      "quoted": "o"
-    },
-    {
-      "input": "p",
-      "safe": "()*,:",
-      "quoted": "p"
-    },
-    {
-      "input": "q",
-      "safe": "()*,:",
-      "quoted": "q"
-    },
-    {
-      "input": "r",
-      "safe": "()*,:",
-      "quoted": "r"
-    },
-    {
-      "input": "s",
-      "safe": "()*,:",
-      "quoted": "s"
-    },
-    {
-      "input": "t",
-      "safe": "()*,:",
-      "quoted": "t"
-    },
-    {
-      "input": "u",
-      "safe": "()*,:",
-      "quoted": "u"
-    },
-    {
-      "input": "v",
-      "safe": "()*,:",
-      "quoted": "v"
-    },
-    {
-      "input": "w",
-      "safe": "()*,:",
-      "quoted": "w"
-    },
-    {
-      "input": "x",
-      "safe": "()*,:",
-      "quoted": "x"
-    },
-    {
-      "input": "y",
-      "safe": "()*,:",
-      "quoted": "y"
-    },
-    {
-      "input": "z",
-      "safe": "()*,:",
-      "quoted": "z"
-    },
-    {
-      "input": "{",
-      "safe": "()*,:",
-      "quoted": "%7B"
-    },
-    {
-      "input": "|",
-      "safe": "()*,:",
-      "quoted": "%7C"
-    },
-    {
-      "input": "}",
-      "safe": "()*,:",
-      "quoted": "%7D"
-    },
-    {
-      "input": "~",
-      "safe": "()*,:",
-      "quoted": "~"
-    },
-    {
-      "input": "",
-      "safe": "()*,:",
-      "quoted": "%7F"
-    }
+    {"input": "", "safe": "", "quoted": ""},
+    {"input": " ", "safe": "", "quoted": "%20"},
+    {"input": "a", "safe": "", "quoted": "a"},
+    {"input": "ab", "safe": "", "quoted": "ab"},
+    {"input": "Laptop computer", "safe": "", "quoted": "Laptop%20computer"},
+    {"input": "laptop_computer", "safe": "", "quoted": "laptop_computer"},
+    {"input": "LED lamp", "safe": "", "quoted": "LED%20lamp"},
+    {"input": "office-chair", "safe": "", "quoted": "office-chair"},
+    {"input": "IT services", "safe": "", "quoted": "IT%20services"},
+    {"input": "  multiple   spaces\tand\ttabs\nnew lines  ", "safe": "", "quoted": "%20%20multiple%20%20%20spaces%09and%09tabs%0Anew%20lines%20%20"},
+    {"input": "Ноутбук Lenovo ThinkPad", "safe": "", "quoted": "%D0%9D%D0%BE%D1%83%D1%82%D0%B1%D1%83%D0%BA%20Lenovo%20ThinkPad"},
+    {"input": "кофе в зёрнах", "safe": "", "quoted": "%D0%BA%D0%BE%D1%84%D0%B5%20%D0%B2%20%D0%B7%D1%91%D1%80%D0%BD%D0%B0%D1%85"},
+    {"input": "商品编码 8471 笔记本电脑", "safe": "", "quoted": "%E5%95%86%E5%93%81%E7%BC%96%E7%A0%81%208471%20%E7%AC%94%E8%AE%B0%E6%9C%AC%E7%94%B5%E8%84%91"},
+    {"input": "ノートパソコン", "safe": "", "quoted": "%E3%83%8E%E3%83%BC%E3%83%88%E3%83%91%E3%82%BD%E3%82%B3%E3%83%B3"},
+    {"input": "노트북 컴퓨터", "safe": "", "quoted": "%EB%85%B8%ED%8A%B8%EB%B6%81%20%EC%BB%B4%ED%93%A8%ED%84%B0"},
+    {"input": "😀 smiley face", "safe": "", "quoted": "%F0%9F%98%80%20smiley%20face"},
+    {"input": "👨‍👩‍👧 family", "safe": "", "quoted": "%F0%9F%91%A8%E2%80%8D%F0%9F%91%A9%E2%80%8D%F0%9F%91%A7%20family"},
+    {"input": "🇩🇪 flag", "safe": "", "quoted": "%F0%9F%87%A9%F0%9F%87%AA%20flag"},
+    {"input": "👍🏽 thumbs", "safe": "", "quoted": "%F0%9F%91%8D%F0%9F%8F%BD%20thumbs"},
+    {"input": "café éclair", "safe": "", "quoted": "caf%C3%A9%20%C3%A9clair"},
+    {"input": "café éclair", "safe": "", "quoted": "cafe%CC%81%20e%CC%81clair"},
+    {"input": "Straße", "safe": "", "quoted": "Stra%C3%9Fe"},
+    {"input": "STRASSE", "safe": "", "quoted": "STRASSE"},
+    {"input": "ß", "safe": "", "quoted": "%C3%9F"},
+    {"input": "ẞ", "safe": "", "quoted": "%E1%BA%9E"},
+    {"input": "İstanbul", "safe": "", "quoted": "%C4%B0stanbul"},
+    {"input": "ıi", "safe": "", "quoted": "%C4%B1i"},
+    {"input": "IĞDIR iğdir", "safe": "", "quoted": "I%C4%9EDIR%20i%C4%9Fdir"},
+    {"input": " nbsp value ", "safe": "", "quoted": "%C2%A0nbsp%C2%A0value%C2%A0"},
+    {"input": "line separator", "safe": "", "quoted": "line%E2%80%A8separator"},
+    {"input": "para separator", "safe": "", "quoted": "para%E2%80%A9separator"},
+    {"input": "\u001cfile\u001dgroup\u001erecord\u001funit", "safe": "", "quoted": "%1Cfile%1Dgroup%1Erecord%1Funit"},
+    {"input": "next line", "safe": "", "quoted": "%C2%85next%20line%C2%85"},
+    {"input": "﻿bom﻿", "safe": "", "quoted": "%EF%BB%BFbom%EF%BB%BF"},
+    {"input": "zero​width", "safe": "", "quoted": "zero%E2%80%8Bwidth"},
+    {"input": "　ideographic　space　", "safe": "", "quoted": "%E3%80%80ideographic%E3%80%80space%E3%80%80"},
+    {"input": " figure narrow", "safe": "", "quoted": "%E2%80%87figure%E2%80%AFnarrow"},
+    {"input": "\u000bvertical\fform", "safe": "", "quoted": "%0Bvertical%0Cform"},
+    {"input": "%20encoded%20space", "safe": "", "quoted": "%2520encoded%2520space"},
+    {"input": "%2520double", "safe": "", "quoted": "%252520double"},
+    {"input": "%252520triple", "safe": "", "quoted": "%25252520triple"},
+    {"input": "100%", "safe": "", "quoted": "100%25"},
+    {"input": "%E2%9C%93 check", "safe": "", "quoted": "%25E2%259C%2593%20check"},
+    {"input": "%C3%A9t%C3%A9", "safe": "", "quoted": "%25C3%25A9t%25C3%25A9"},
+    {"input": "%C3", "safe": "", "quoted": "%25C3"},
+    {"input": "%zz", "safe": "", "quoted": "%25zz"},
+    {"input": "%", "safe": "", "quoted": "%25"},
+    {"input": "a+b", "safe": "", "quoted": "a%2Bb"},
+    {"input": "a%2Bb", "safe": "", "quoted": "a%252Bb"},
+    {"input": "%F0%9F%98%80", "safe": "", "quoted": "%25F0%259F%2598%2580"},
+    {"input": "%ED%A0%80", "safe": "", "quoted": "%25ED%25A0%2580"},
+    {"input": "03111000-2", "safe": "", "quoted": "03111000-2"},
+    {"input": "CPV 03111000-2", "safe": "", "quoted": "CPV%2003111000-2"},
+    {"input": "4321.15.03", "safe": "", "quoted": "4321.15.03"},
+    {"input": "8471.30.0100", "safe": "", "quoted": "8471.30.0100"},
+    {"input": "EC000123", "safe": "", "quoted": "EC000123"},
+    {"input": "A01.1.1", "safe": "", "quoted": "A01.1.1"},
+    {"input": "5965-01-234-5678", "safe": "", "quoted": "5965-01-234-5678"},
+    {"input": "they're o'neill's", "safe": "", "quoted": "they%27re%20o%27neill%27s"},
+    {"input": "hello-world", "safe": "", "quoted": "hello-world"},
+    {"input": "3rd-party 2nd", "safe": "", "quoted": "3rd-party%202nd"},
+    {"input": "x² ①② ٠١٢٣ Ⅻ", "safe": "", "quoted": "x%C2%B2%20%E2%91%A0%E2%91%A1%20%D9%A0%D9%A1%D9%A2%D9%A3%20%E2%85%AB"},
+    {"input": "ﬁne ﬂour", "safe": "", "quoted": "%EF%AC%81ne%20%EF%AC%82our"},
+    {"input": "ǆungla ǈudi", "safe": "", "quoted": "%C7%86ungla%20%C7%88udi"},
+    {"input": "ΣΊΣΥΦΟΣ", "safe": "", "quoted": "%CE%A3%CE%8A%CE%A3%CE%A5%CE%A6%CE%9F%CE%A3"},
+    {"input": "ὈΔΥΣΣΕΎΣ", "safe": "", "quoted": "%E1%BD%88%CE%94%CE%A5%CE%A3%CE%A3%CE%95%CE%8E%CE%A3"},
+    {"input": "ᾳ ᾀ", "safe": "", "quoted": "%E1%BE%B3%20%E1%BE%80"},
+    {"input": "ŉ ǰ", "safe": "", "quoted": "%C5%89%20%C7%B0"},
+    {"input": "ვეფხისტყაოსანი", "safe": "", "quoted": "%E1%83%95%E1%83%94%E1%83%A4%E1%83%AE%E1%83%98%E1%83%A1%E1%83%A2%E1%83%A7%E1%83%90%E1%83%9D%E1%83%A1%E1%83%90%E1%83%9C%E1%83%98"},
+    {"input": "<script>alert(1)</script>", "safe": "", "quoted": "%3Cscript%3Ealert%281%29%3C%2Fscript%3E"},
+    {"input": "a/b/c", "safe": "", "quoted": "a%2Fb%2Fc"},
+    {"input": "trailing///", "safe": "", "quoted": "trailing%2F%2F%2F"},
+    {"input": "under_score__double", "safe": "", "quoted": "under_score__double"},
+    {"input": "(parens) [brackets] {braces}", "safe": "", "quoted": "%28parens%29%20%5Bbrackets%5D%20%7Bbraces%7D"},
+    {"input": "quotes \"double\" 'single'", "safe": "", "quoted": "quotes%20%22double%22%20%27single%27"},
+    {"input": "a&b=c#d!e@f", "safe": "", "quoted": "a%26b%3Dc%23d%21e%40f"},
+    {"input": "semi;colon:comma,dot.", "safe": "", "quoted": "semi%3Bcolon%3Acomma%2Cdot."},
+    {"input": "back\\slash", "safe": "", "quoted": "back%5Cslash"},
+    {"input": "tilde~`grave", "safe": "", "quoted": "tilde~%60grave"},
+    {"input": "dead beef cafe babe", "safe": "", "quoted": "dead%20beef%20cafe%20babe"},
+    {"input": "deadbeefcafe0123", "safe": "", "quoted": "deadbeefcafe0123"},
+    {"input": "252525", "safe": "", "quoted": "252525"},
+    {"input": "a\u0000nul", "safe": "", "quoted": "a%00nul"},
+    {"input": "\u0000", "safe": "", "quoted": "%00"},
+    {"input": "\u0001", "safe": "", "quoted": "%01"},
+    {"input": "\u0002", "safe": "", "quoted": "%02"},
+    {"input": "\u0003", "safe": "", "quoted": "%03"},
+    {"input": "\u0004", "safe": "", "quoted": "%04"},
+    {"input": "\u0005", "safe": "", "quoted": "%05"},
+    {"input": "\u0006", "safe": "", "quoted": "%06"},
+    {"input": "\u0007", "safe": "", "quoted": "%07"},
+    {"input": "\b", "safe": "", "quoted": "%08"},
+    {"input": "\t", "safe": "", "quoted": "%09"},
+    {"input": "\n", "safe": "", "quoted": "%0A"},
+    {"input": "\u000b", "safe": "", "quoted": "%0B"},
+    {"input": "\f", "safe": "", "quoted": "%0C"},
+    {"input": "\r", "safe": "", "quoted": "%0D"},
+    {"input": "\u000e", "safe": "", "quoted": "%0E"},
+    {"input": "\u000f", "safe": "", "quoted": "%0F"},
+    {"input": "\u0010", "safe": "", "quoted": "%10"},
+    {"input": "\u0011", "safe": "", "quoted": "%11"},
+    {"input": "\u0012", "safe": "", "quoted": "%12"},
+    {"input": "\u0013", "safe": "", "quoted": "%13"},
+    {"input": "\u0014", "safe": "", "quoted": "%14"},
+    {"input": "\u0015", "safe": "", "quoted": "%15"},
+    {"input": "\u0016", "safe": "", "quoted": "%16"},
+    {"input": "\u0017", "safe": "", "quoted": "%17"},
+    {"input": "\u0018", "safe": "", "quoted": "%18"},
+    {"input": "\u0019", "safe": "", "quoted": "%19"},
+    {"input": "\u001a", "safe": "", "quoted": "%1A"},
+    {"input": "\u001b", "safe": "", "quoted": "%1B"},
+    {"input": "\u001c", "safe": "", "quoted": "%1C"},
+    {"input": "\u001d", "safe": "", "quoted": "%1D"},
+    {"input": "\u001e", "safe": "", "quoted": "%1E"},
+    {"input": "\u001f", "safe": "", "quoted": "%1F"},
+    {"input": " ", "safe": "", "quoted": "%20"},
+    {"input": "!", "safe": "", "quoted": "%21"},
+    {"input": "\"", "safe": "", "quoted": "%22"},
+    {"input": "#", "safe": "", "quoted": "%23"},
+    {"input": "$", "safe": "", "quoted": "%24"},
+    {"input": "%", "safe": "", "quoted": "%25"},
+    {"input": "&", "safe": "", "quoted": "%26"},
+    {"input": "'", "safe": "", "quoted": "%27"},
+    {"input": "(", "safe": "", "quoted": "%28"},
+    {"input": ")", "safe": "", "quoted": "%29"},
+    {"input": "*", "safe": "", "quoted": "%2A"},
+    {"input": "+", "safe": "", "quoted": "%2B"},
+    {"input": ",", "safe": "", "quoted": "%2C"},
+    {"input": "-", "safe": "", "quoted": "-"},
+    {"input": ".", "safe": "", "quoted": "."},
+    {"input": "/", "safe": "", "quoted": "%2F"},
+    {"input": "0", "safe": "", "quoted": "0"},
+    {"input": "1", "safe": "", "quoted": "1"},
+    {"input": "2", "safe": "", "quoted": "2"},
+    {"input": "3", "safe": "", "quoted": "3"},
+    {"input": "4", "safe": "", "quoted": "4"},
+    {"input": "5", "safe": "", "quoted": "5"},
+    {"input": "6", "safe": "", "quoted": "6"},
+    {"input": "7", "safe": "", "quoted": "7"},
+    {"input": "8", "safe": "", "quoted": "8"},
+    {"input": "9", "safe": "", "quoted": "9"},
+    {"input": ":", "safe": "", "quoted": "%3A"},
+    {"input": ";", "safe": "", "quoted": "%3B"},
+    {"input": "<", "safe": "", "quoted": "%3C"},
+    {"input": "=", "safe": "", "quoted": "%3D"},
+    {"input": ">", "safe": "", "quoted": "%3E"},
+    {"input": "?", "safe": "", "quoted": "%3F"},
+    {"input": "@", "safe": "", "quoted": "%40"},
+    {"input": "A", "safe": "", "quoted": "A"},
+    {"input": "B", "safe": "", "quoted": "B"},
+    {"input": "C", "safe": "", "quoted": "C"},
+    {"input": "D", "safe": "", "quoted": "D"},
+    {"input": "E", "safe": "", "quoted": "E"},
+    {"input": "F", "safe": "", "quoted": "F"},
+    {"input": "G", "safe": "", "quoted": "G"},
+    {"input": "H", "safe": "", "quoted": "H"},
+    {"input": "I", "safe": "", "quoted": "I"},
+    {"input": "J", "safe": "", "quoted": "J"},
+    {"input": "K", "safe": "", "quoted": "K"},
+    {"input": "L", "safe": "", "quoted": "L"},
+    {"input": "M", "safe": "", "quoted": "M"},
+    {"input": "N", "safe": "", "quoted": "N"},
+    {"input": "O", "safe": "", "quoted": "O"},
+    {"input": "P", "safe": "", "quoted": "P"},
+    {"input": "Q", "safe": "", "quoted": "Q"},
+    {"input": "R", "safe": "", "quoted": "R"},
+    {"input": "S", "safe": "", "quoted": "S"},
+    {"input": "T", "safe": "", "quoted": "T"},
+    {"input": "U", "safe": "", "quoted": "U"},
+    {"input": "V", "safe": "", "quoted": "V"},
+    {"input": "W", "safe": "", "quoted": "W"},
+    {"input": "X", "safe": "", "quoted": "X"},
+    {"input": "Y", "safe": "", "quoted": "Y"},
+    {"input": "Z", "safe": "", "quoted": "Z"},
+    {"input": "[", "safe": "", "quoted": "%5B"},
+    {"input": "\\", "safe": "", "quoted": "%5C"},
+    {"input": "]", "safe": "", "quoted": "%5D"},
+    {"input": "^", "safe": "", "quoted": "%5E"},
+    {"input": "_", "safe": "", "quoted": "_"},
+    {"input": "`", "safe": "", "quoted": "%60"},
+    {"input": "a", "safe": "", "quoted": "a"},
+    {"input": "b", "safe": "", "quoted": "b"},
+    {"input": "c", "safe": "", "quoted": "c"},
+    {"input": "d", "safe": "", "quoted": "d"},
+    {"input": "e", "safe": "", "quoted": "e"},
+    {"input": "f", "safe": "", "quoted": "f"},
+    {"input": "g", "safe": "", "quoted": "g"},
+    {"input": "h", "safe": "", "quoted": "h"},
+    {"input": "i", "safe": "", "quoted": "i"},
+    {"input": "j", "safe": "", "quoted": "j"},
+    {"input": "k", "safe": "", "quoted": "k"},
+    {"input": "l", "safe": "", "quoted": "l"},
+    {"input": "m", "safe": "", "quoted": "m"},
+    {"input": "n", "safe": "", "quoted": "n"},
+    {"input": "o", "safe": "", "quoted": "o"},
+    {"input": "p", "safe": "", "quoted": "p"},
+    {"input": "q", "safe": "", "quoted": "q"},
+    {"input": "r", "safe": "", "quoted": "r"},
+    {"input": "s", "safe": "", "quoted": "s"},
+    {"input": "t", "safe": "", "quoted": "t"},
+    {"input": "u", "safe": "", "quoted": "u"},
+    {"input": "v", "safe": "", "quoted": "v"},
+    {"input": "w", "safe": "", "quoted": "w"},
+    {"input": "x", "safe": "", "quoted": "x"},
+    {"input": "y", "safe": "", "quoted": "y"},
+    {"input": "z", "safe": "", "quoted": "z"},
+    {"input": "{", "safe": "", "quoted": "%7B"},
+    {"input": "|", "safe": "", "quoted": "%7C"},
+    {"input": "}", "safe": "", "quoted": "%7D"},
+    {"input": "~", "safe": "", "quoted": "~"},
+    {"input": "", "safe": "", "quoted": "%7F"},
+    {"input": "", "safe": "/", "quoted": ""},
+    {"input": " ", "safe": "/", "quoted": "%20"},
+    {"input": "a", "safe": "/", "quoted": "a"},
+    {"input": "ab", "safe": "/", "quoted": "ab"},
+    {"input": "Laptop computer", "safe": "/", "quoted": "Laptop%20computer"},
+    {"input": "laptop_computer", "safe": "/", "quoted": "laptop_computer"},
+    {"input": "LED lamp", "safe": "/", "quoted": "LED%20lamp"},
+    {"input": "office-chair", "safe": "/", "quoted": "office-chair"},
+    {"input": "IT services", "safe": "/", "quoted": "IT%20services"},
+    {"input": "  multiple   spaces\tand\ttabs\nnew lines  ", "safe": "/", "quoted": "%20%20multiple%20%20%20spaces%09and%09tabs%0Anew%20lines%20%20"},
+    {"input": "Ноутбук Lenovo ThinkPad", "safe": "/", "quoted": "%D0%9D%D0%BE%D1%83%D1%82%D0%B1%D1%83%D0%BA%20Lenovo%20ThinkPad"},
+    {"input": "кофе в зёрнах", "safe": "/", "quoted": "%D0%BA%D0%BE%D1%84%D0%B5%20%D0%B2%20%D0%B7%D1%91%D1%80%D0%BD%D0%B0%D1%85"},
+    {"input": "商品编码 8471 笔记本电脑", "safe": "/", "quoted": "%E5%95%86%E5%93%81%E7%BC%96%E7%A0%81%208471%20%E7%AC%94%E8%AE%B0%E6%9C%AC%E7%94%B5%E8%84%91"},
+    {"input": "ノートパソコン", "safe": "/", "quoted": "%E3%83%8E%E3%83%BC%E3%83%88%E3%83%91%E3%82%BD%E3%82%B3%E3%83%B3"},
+    {"input": "노트북 컴퓨터", "safe": "/", "quoted": "%EB%85%B8%ED%8A%B8%EB%B6%81%20%EC%BB%B4%ED%93%A8%ED%84%B0"},
+    {"input": "😀 smiley face", "safe": "/", "quoted": "%F0%9F%98%80%20smiley%20face"},
+    {"input": "👨‍👩‍👧 family", "safe": "/", "quoted": "%F0%9F%91%A8%E2%80%8D%F0%9F%91%A9%E2%80%8D%F0%9F%91%A7%20family"},
+    {"input": "🇩🇪 flag", "safe": "/", "quoted": "%F0%9F%87%A9%F0%9F%87%AA%20flag"},
+    {"input": "👍🏽 thumbs", "safe": "/", "quoted": "%F0%9F%91%8D%F0%9F%8F%BD%20thumbs"},
+    {"input": "café éclair", "safe": "/", "quoted": "caf%C3%A9%20%C3%A9clair"},
+    {"input": "café éclair", "safe": "/", "quoted": "cafe%CC%81%20e%CC%81clair"},
+    {"input": "Straße", "safe": "/", "quoted": "Stra%C3%9Fe"},
+    {"input": "STRASSE", "safe": "/", "quoted": "STRASSE"},
+    {"input": "ß", "safe": "/", "quoted": "%C3%9F"},
+    {"input": "ẞ", "safe": "/", "quoted": "%E1%BA%9E"},
+    {"input": "İstanbul", "safe": "/", "quoted": "%C4%B0stanbul"},
+    {"input": "ıi", "safe": "/", "quoted": "%C4%B1i"},
+    {"input": "IĞDIR iğdir", "safe": "/", "quoted": "I%C4%9EDIR%20i%C4%9Fdir"},
+    {"input": " nbsp value ", "safe": "/", "quoted": "%C2%A0nbsp%C2%A0value%C2%A0"},
+    {"input": "line separator", "safe": "/", "quoted": "line%E2%80%A8separator"},
+    {"input": "para separator", "safe": "/", "quoted": "para%E2%80%A9separator"},
+    {"input": "\u001cfile\u001dgroup\u001erecord\u001funit", "safe": "/", "quoted": "%1Cfile%1Dgroup%1Erecord%1Funit"},
+    {"input": "next line", "safe": "/", "quoted": "%C2%85next%20line%C2%85"},
+    {"input": "﻿bom﻿", "safe": "/", "quoted": "%EF%BB%BFbom%EF%BB%BF"},
+    {"input": "zero​width", "safe": "/", "quoted": "zero%E2%80%8Bwidth"},
+    {"input": "　ideographic　space　", "safe": "/", "quoted": "%E3%80%80ideographic%E3%80%80space%E3%80%80"},
+    {"input": " figure narrow", "safe": "/", "quoted": "%E2%80%87figure%E2%80%AFnarrow"},
+    {"input": "\u000bvertical\fform", "safe": "/", "quoted": "%0Bvertical%0Cform"},
+    {"input": "%20encoded%20space", "safe": "/", "quoted": "%2520encoded%2520space"},
+    {"input": "%2520double", "safe": "/", "quoted": "%252520double"},
+    {"input": "%252520triple", "safe": "/", "quoted": "%25252520triple"},
+    {"input": "100%", "safe": "/", "quoted": "100%25"},
+    {"input": "%E2%9C%93 check", "safe": "/", "quoted": "%25E2%259C%2593%20check"},
+    {"input": "%C3%A9t%C3%A9", "safe": "/", "quoted": "%25C3%25A9t%25C3%25A9"},
+    {"input": "%C3", "safe": "/", "quoted": "%25C3"},
+    {"input": "%zz", "safe": "/", "quoted": "%25zz"},
+    {"input": "%", "safe": "/", "quoted": "%25"},
+    {"input": "a+b", "safe": "/", "quoted": "a%2Bb"},
+    {"input": "a%2Bb", "safe": "/", "quoted": "a%252Bb"},
+    {"input": "%F0%9F%98%80", "safe": "/", "quoted": "%25F0%259F%2598%2580"},
+    {"input": "%ED%A0%80", "safe": "/", "quoted": "%25ED%25A0%2580"},
+    {"input": "03111000-2", "safe": "/", "quoted": "03111000-2"},
+    {"input": "CPV 03111000-2", "safe": "/", "quoted": "CPV%2003111000-2"},
+    {"input": "4321.15.03", "safe": "/", "quoted": "4321.15.03"},
+    {"input": "8471.30.0100", "safe": "/", "quoted": "8471.30.0100"},
+    {"input": "EC000123", "safe": "/", "quoted": "EC000123"},
+    {"input": "A01.1.1", "safe": "/", "quoted": "A01.1.1"},
+    {"input": "5965-01-234-5678", "safe": "/", "quoted": "5965-01-234-5678"},
+    {"input": "they're o'neill's", "safe": "/", "quoted": "they%27re%20o%27neill%27s"},
+    {"input": "hello-world", "safe": "/", "quoted": "hello-world"},
+    {"input": "3rd-party 2nd", "safe": "/", "quoted": "3rd-party%202nd"},
+    {"input": "x² ①② ٠١٢٣ Ⅻ", "safe": "/", "quoted": "x%C2%B2%20%E2%91%A0%E2%91%A1%20%D9%A0%D9%A1%D9%A2%D9%A3%20%E2%85%AB"},
+    {"input": "ﬁne ﬂour", "safe": "/", "quoted": "%EF%AC%81ne%20%EF%AC%82our"},
+    {"input": "ǆungla ǈudi", "safe": "/", "quoted": "%C7%86ungla%20%C7%88udi"},
+    {"input": "ΣΊΣΥΦΟΣ", "safe": "/", "quoted": "%CE%A3%CE%8A%CE%A3%CE%A5%CE%A6%CE%9F%CE%A3"},
+    {"input": "ὈΔΥΣΣΕΎΣ", "safe": "/", "quoted": "%E1%BD%88%CE%94%CE%A5%CE%A3%CE%A3%CE%95%CE%8E%CE%A3"},
+    {"input": "ᾳ ᾀ", "safe": "/", "quoted": "%E1%BE%B3%20%E1%BE%80"},
+    {"input": "ŉ ǰ", "safe": "/", "quoted": "%C5%89%20%C7%B0"},
+    {"input": "ვეფხისტყაოსანი", "safe": "/", "quoted": "%E1%83%95%E1%83%94%E1%83%A4%E1%83%AE%E1%83%98%E1%83%A1%E1%83%A2%E1%83%A7%E1%83%90%E1%83%9D%E1%83%A1%E1%83%90%E1%83%9C%E1%83%98"},
+    {"input": "<script>alert(1)</script>", "safe": "/", "quoted": "%3Cscript%3Ealert%281%29%3C/script%3E"},
+    {"input": "a/b/c", "safe": "/", "quoted": "a/b/c"},
+    {"input": "trailing///", "safe": "/", "quoted": "trailing///"},
+    {"input": "under_score__double", "safe": "/", "quoted": "under_score__double"},
+    {"input": "(parens) [brackets] {braces}", "safe": "/", "quoted": "%28parens%29%20%5Bbrackets%5D%20%7Bbraces%7D"},
+    {"input": "quotes \"double\" 'single'", "safe": "/", "quoted": "quotes%20%22double%22%20%27single%27"},
+    {"input": "a&b=c#d!e@f", "safe": "/", "quoted": "a%26b%3Dc%23d%21e%40f"},
+    {"input": "semi;colon:comma,dot.", "safe": "/", "quoted": "semi%3Bcolon%3Acomma%2Cdot."},
+    {"input": "back\\slash", "safe": "/", "quoted": "back%5Cslash"},
+    {"input": "tilde~`grave", "safe": "/", "quoted": "tilde~%60grave"},
+    {"input": "dead beef cafe babe", "safe": "/", "quoted": "dead%20beef%20cafe%20babe"},
+    {"input": "deadbeefcafe0123", "safe": "/", "quoted": "deadbeefcafe0123"},
+    {"input": "252525", "safe": "/", "quoted": "252525"},
+    {"input": "a\u0000nul", "safe": "/", "quoted": "a%00nul"},
+    {"input": "\u0000", "safe": "/", "quoted": "%00"},
+    {"input": "\u0001", "safe": "/", "quoted": "%01"},
+    {"input": "\u0002", "safe": "/", "quoted": "%02"},
+    {"input": "\u0003", "safe": "/", "quoted": "%03"},
+    {"input": "\u0004", "safe": "/", "quoted": "%04"},
+    {"input": "\u0005", "safe": "/", "quoted": "%05"},
+    {"input": "\u0006", "safe": "/", "quoted": "%06"},
+    {"input": "\u0007", "safe": "/", "quoted": "%07"},
+    {"input": "\b", "safe": "/", "quoted": "%08"},
+    {"input": "\t", "safe": "/", "quoted": "%09"},
+    {"input": "\n", "safe": "/", "quoted": "%0A"},
+    {"input": "\u000b", "safe": "/", "quoted": "%0B"},
+    {"input": "\f", "safe": "/", "quoted": "%0C"},
+    {"input": "\r", "safe": "/", "quoted": "%0D"},
+    {"input": "\u000e", "safe": "/", "quoted": "%0E"},
+    {"input": "\u000f", "safe": "/", "quoted": "%0F"},
+    {"input": "\u0010", "safe": "/", "quoted": "%10"},
+    {"input": "\u0011", "safe": "/", "quoted": "%11"},
+    {"input": "\u0012", "safe": "/", "quoted": "%12"},
+    {"input": "\u0013", "safe": "/", "quoted": "%13"},
+    {"input": "\u0014", "safe": "/", "quoted": "%14"},
+    {"input": "\u0015", "safe": "/", "quoted": "%15"},
+    {"input": "\u0016", "safe": "/", "quoted": "%16"},
+    {"input": "\u0017", "safe": "/", "quoted": "%17"},
+    {"input": "\u0018", "safe": "/", "quoted": "%18"},
+    {"input": "\u0019", "safe": "/", "quoted": "%19"},
+    {"input": "\u001a", "safe": "/", "quoted": "%1A"},
+    {"input": "\u001b", "safe": "/", "quoted": "%1B"},
+    {"input": "\u001c", "safe": "/", "quoted": "%1C"},
+    {"input": "\u001d", "safe": "/", "quoted": "%1D"},
+    {"input": "\u001e", "safe": "/", "quoted": "%1E"},
+    {"input": "\u001f", "safe": "/", "quoted": "%1F"},
+    {"input": " ", "safe": "/", "quoted": "%20"},
+    {"input": "!", "safe": "/", "quoted": "%21"},
+    {"input": "\"", "safe": "/", "quoted": "%22"},
+    {"input": "#", "safe": "/", "quoted": "%23"},
+    {"input": "$", "safe": "/", "quoted": "%24"},
+    {"input": "%", "safe": "/", "quoted": "%25"},
+    {"input": "&", "safe": "/", "quoted": "%26"},
+    {"input": "'", "safe": "/", "quoted": "%27"},
+    {"input": "(", "safe": "/", "quoted": "%28"},
+    {"input": ")", "safe": "/", "quoted": "%29"},
+    {"input": "*", "safe": "/", "quoted": "%2A"},
+    {"input": "+", "safe": "/", "quoted": "%2B"},
+    {"input": ",", "safe": "/", "quoted": "%2C"},
+    {"input": "-", "safe": "/", "quoted": "-"},
+    {"input": ".", "safe": "/", "quoted": "."},
+    {"input": "/", "safe": "/", "quoted": "/"},
+    {"input": "0", "safe": "/", "quoted": "0"},
+    {"input": "1", "safe": "/", "quoted": "1"},
+    {"input": "2", "safe": "/", "quoted": "2"},
+    {"input": "3", "safe": "/", "quoted": "3"},
+    {"input": "4", "safe": "/", "quoted": "4"},
+    {"input": "5", "safe": "/", "quoted": "5"},
+    {"input": "6", "safe": "/", "quoted": "6"},
+    {"input": "7", "safe": "/", "quoted": "7"},
+    {"input": "8", "safe": "/", "quoted": "8"},
+    {"input": "9", "safe": "/", "quoted": "9"},
+    {"input": ":", "safe": "/", "quoted": "%3A"},
+    {"input": ";", "safe": "/", "quoted": "%3B"},
+    {"input": "<", "safe": "/", "quoted": "%3C"},
+    {"input": "=", "safe": "/", "quoted": "%3D"},
+    {"input": ">", "safe": "/", "quoted": "%3E"},
+    {"input": "?", "safe": "/", "quoted": "%3F"},
+    {"input": "@", "safe": "/", "quoted": "%40"},
+    {"input": "A", "safe": "/", "quoted": "A"},
+    {"input": "B", "safe": "/", "quoted": "B"},
+    {"input": "C", "safe": "/", "quoted": "C"},
+    {"input": "D", "safe": "/", "quoted": "D"},
+    {"input": "E", "safe": "/", "quoted": "E"},
+    {"input": "F", "safe": "/", "quoted": "F"},
+    {"input": "G", "safe": "/", "quoted": "G"},
+    {"input": "H", "safe": "/", "quoted": "H"},
+    {"input": "I", "safe": "/", "quoted": "I"},
+    {"input": "J", "safe": "/", "quoted": "J"},
+    {"input": "K", "safe": "/", "quoted": "K"},
+    {"input": "L", "safe": "/", "quoted": "L"},
+    {"input": "M", "safe": "/", "quoted": "M"},
+    {"input": "N", "safe": "/", "quoted": "N"},
+    {"input": "O", "safe": "/", "quoted": "O"},
+    {"input": "P", "safe": "/", "quoted": "P"},
+    {"input": "Q", "safe": "/", "quoted": "Q"},
+    {"input": "R", "safe": "/", "quoted": "R"},
+    {"input": "S", "safe": "/", "quoted": "S"},
+    {"input": "T", "safe": "/", "quoted": "T"},
+    {"input": "U", "safe": "/", "quoted": "U"},
+    {"input": "V", "safe": "/", "quoted": "V"},
+    {"input": "W", "safe": "/", "quoted": "W"},
+    {"input": "X", "safe": "/", "quoted": "X"},
+    {"input": "Y", "safe": "/", "quoted": "Y"},
+    {"input": "Z", "safe": "/", "quoted": "Z"},
+    {"input": "[", "safe": "/", "quoted": "%5B"},
+    {"input": "\\", "safe": "/", "quoted": "%5C"},
+    {"input": "]", "safe": "/", "quoted": "%5D"},
+    {"input": "^", "safe": "/", "quoted": "%5E"},
+    {"input": "_", "safe": "/", "quoted": "_"},
+    {"input": "`", "safe": "/", "quoted": "%60"},
+    {"input": "a", "safe": "/", "quoted": "a"},
+    {"input": "b", "safe": "/", "quoted": "b"},
+    {"input": "c", "safe": "/", "quoted": "c"},
+    {"input": "d", "safe": "/", "quoted": "d"},
+    {"input": "e", "safe": "/", "quoted": "e"},
+    {"input": "f", "safe": "/", "quoted": "f"},
+    {"input": "g", "safe": "/", "quoted": "g"},
+    {"input": "h", "safe": "/", "quoted": "h"},
+    {"input": "i", "safe": "/", "quoted": "i"},
+    {"input": "j", "safe": "/", "quoted": "j"},
+    {"input": "k", "safe": "/", "quoted": "k"},
+    {"input": "l", "safe": "/", "quoted": "l"},
+    {"input": "m", "safe": "/", "quoted": "m"},
+    {"input": "n", "safe": "/", "quoted": "n"},
+    {"input": "o", "safe": "/", "quoted": "o"},
+    {"input": "p", "safe": "/", "quoted": "p"},
+    {"input": "q", "safe": "/", "quoted": "q"},
+    {"input": "r", "safe": "/", "quoted": "r"},
+    {"input": "s", "safe": "/", "quoted": "s"},
+    {"input": "t", "safe": "/", "quoted": "t"},
+    {"input": "u", "safe": "/", "quoted": "u"},
+    {"input": "v", "safe": "/", "quoted": "v"},
+    {"input": "w", "safe": "/", "quoted": "w"},
+    {"input": "x", "safe": "/", "quoted": "x"},
+    {"input": "y", "safe": "/", "quoted": "y"},
+    {"input": "z", "safe": "/", "quoted": "z"},
+    {"input": "{", "safe": "/", "quoted": "%7B"},
+    {"input": "|", "safe": "/", "quoted": "%7C"},
+    {"input": "}", "safe": "/", "quoted": "%7D"},
+    {"input": "~", "safe": "/", "quoted": "~"},
+    {"input": "", "safe": "/", "quoted": "%7F"},
+    {"input": "", "safe": "()*,:", "quoted": ""},
+    {"input": " ", "safe": "()*,:", "quoted": "%20"},
+    {"input": "a", "safe": "()*,:", "quoted": "a"},
+    {"input": "ab", "safe": "()*,:", "quoted": "ab"},
+    {"input": "Laptop computer", "safe": "()*,:", "quoted": "Laptop%20computer"},
+    {"input": "laptop_computer", "safe": "()*,:", "quoted": "laptop_computer"},
+    {"input": "LED lamp", "safe": "()*,:", "quoted": "LED%20lamp"},
+    {"input": "office-chair", "safe": "()*,:", "quoted": "office-chair"},
+    {"input": "IT services", "safe": "()*,:", "quoted": "IT%20services"},
+    {"input": "  multiple   spaces\tand\ttabs\nnew lines  ", "safe": "()*,:", "quoted": "%20%20multiple%20%20%20spaces%09and%09tabs%0Anew%20lines%20%20"},
+    {"input": "Ноутбук Lenovo ThinkPad", "safe": "()*,:", "quoted": "%D0%9D%D0%BE%D1%83%D1%82%D0%B1%D1%83%D0%BA%20Lenovo%20ThinkPad"},
+    {"input": "кофе в зёрнах", "safe": "()*,:", "quoted": "%D0%BA%D0%BE%D1%84%D0%B5%20%D0%B2%20%D0%B7%D1%91%D1%80%D0%BD%D0%B0%D1%85"},
+    {"input": "商品编码 8471 笔记本电脑", "safe": "()*,:", "quoted": "%E5%95%86%E5%93%81%E7%BC%96%E7%A0%81%208471%20%E7%AC%94%E8%AE%B0%E6%9C%AC%E7%94%B5%E8%84%91"},
+    {"input": "ノートパソコン", "safe": "()*,:", "quoted": "%E3%83%8E%E3%83%BC%E3%83%88%E3%83%91%E3%82%BD%E3%82%B3%E3%83%B3"},
+    {"input": "노트북 컴퓨터", "safe": "()*,:", "quoted": "%EB%85%B8%ED%8A%B8%EB%B6%81%20%EC%BB%B4%ED%93%A8%ED%84%B0"},
+    {"input": "😀 smiley face", "safe": "()*,:", "quoted": "%F0%9F%98%80%20smiley%20face"},
+    {"input": "👨‍👩‍👧 family", "safe": "()*,:", "quoted": "%F0%9F%91%A8%E2%80%8D%F0%9F%91%A9%E2%80%8D%F0%9F%91%A7%20family"},
+    {"input": "🇩🇪 flag", "safe": "()*,:", "quoted": "%F0%9F%87%A9%F0%9F%87%AA%20flag"},
+    {"input": "👍🏽 thumbs", "safe": "()*,:", "quoted": "%F0%9F%91%8D%F0%9F%8F%BD%20thumbs"},
+    {"input": "café éclair", "safe": "()*,:", "quoted": "caf%C3%A9%20%C3%A9clair"},
+    {"input": "café éclair", "safe": "()*,:", "quoted": "cafe%CC%81%20e%CC%81clair"},
+    {"input": "Straße", "safe": "()*,:", "quoted": "Stra%C3%9Fe"},
+    {"input": "STRASSE", "safe": "()*,:", "quoted": "STRASSE"},
+    {"input": "ß", "safe": "()*,:", "quoted": "%C3%9F"},
+    {"input": "ẞ", "safe": "()*,:", "quoted": "%E1%BA%9E"},
+    {"input": "İstanbul", "safe": "()*,:", "quoted": "%C4%B0stanbul"},
+    {"input": "ıi", "safe": "()*,:", "quoted": "%C4%B1i"},
+    {"input": "IĞDIR iğdir", "safe": "()*,:", "quoted": "I%C4%9EDIR%20i%C4%9Fdir"},
+    {"input": " nbsp value ", "safe": "()*,:", "quoted": "%C2%A0nbsp%C2%A0value%C2%A0"},
+    {"input": "line separator", "safe": "()*,:", "quoted": "line%E2%80%A8separator"},
+    {"input": "para separator", "safe": "()*,:", "quoted": "para%E2%80%A9separator"},
+    {"input": "\u001cfile\u001dgroup\u001erecord\u001funit", "safe": "()*,:", "quoted": "%1Cfile%1Dgroup%1Erecord%1Funit"},
+    {"input": "next line", "safe": "()*,:", "quoted": "%C2%85next%20line%C2%85"},
+    {"input": "﻿bom﻿", "safe": "()*,:", "quoted": "%EF%BB%BFbom%EF%BB%BF"},
+    {"input": "zero​width", "safe": "()*,:", "quoted": "zero%E2%80%8Bwidth"},
+    {"input": "　ideographic　space　", "safe": "()*,:", "quoted": "%E3%80%80ideographic%E3%80%80space%E3%80%80"},
+    {"input": " figure narrow", "safe": "()*,:", "quoted": "%E2%80%87figure%E2%80%AFnarrow"},
+    {"input": "\u000bvertical\fform", "safe": "()*,:", "quoted": "%0Bvertical%0Cform"},
+    {"input": "%20encoded%20space", "safe": "()*,:", "quoted": "%2520encoded%2520space"},
+    {"input": "%2520double", "safe": "()*,:", "quoted": "%252520double"},
+    {"input": "%252520triple", "safe": "()*,:", "quoted": "%25252520triple"},
+    {"input": "100%", "safe": "()*,:", "quoted": "100%25"},
+    {"input": "%E2%9C%93 check", "safe": "()*,:", "quoted": "%25E2%259C%2593%20check"},
+    {"input": "%C3%A9t%C3%A9", "safe": "()*,:", "quoted": "%25C3%25A9t%25C3%25A9"},
+    {"input": "%C3", "safe": "()*,:", "quoted": "%25C3"},
+    {"input": "%zz", "safe": "()*,:", "quoted": "%25zz"},
+    {"input": "%", "safe": "()*,:", "quoted": "%25"},
+    {"input": "a+b", "safe": "()*,:", "quoted": "a%2Bb"},
+    {"input": "a%2Bb", "safe": "()*,:", "quoted": "a%252Bb"},
+    {"input": "%F0%9F%98%80", "safe": "()*,:", "quoted": "%25F0%259F%2598%2580"},
+    {"input": "%ED%A0%80", "safe": "()*,:", "quoted": "%25ED%25A0%2580"},
+    {"input": "03111000-2", "safe": "()*,:", "quoted": "03111000-2"},
+    {"input": "CPV 03111000-2", "safe": "()*,:", "quoted": "CPV%2003111000-2"},
+    {"input": "4321.15.03", "safe": "()*,:", "quoted": "4321.15.03"},
+    {"input": "8471.30.0100", "safe": "()*,:", "quoted": "8471.30.0100"},
+    {"input": "EC000123", "safe": "()*,:", "quoted": "EC000123"},
+    {"input": "A01.1.1", "safe": "()*,:", "quoted": "A01.1.1"},
+    {"input": "5965-01-234-5678", "safe": "()*,:", "quoted": "5965-01-234-5678"},
+    {"input": "they're o'neill's", "safe": "()*,:", "quoted": "they%27re%20o%27neill%27s"},
+    {"input": "hello-world", "safe": "()*,:", "quoted": "hello-world"},
+    {"input": "3rd-party 2nd", "safe": "()*,:", "quoted": "3rd-party%202nd"},
+    {"input": "x² ①② ٠١٢٣ Ⅻ", "safe": "()*,:", "quoted": "x%C2%B2%20%E2%91%A0%E2%91%A1%20%D9%A0%D9%A1%D9%A2%D9%A3%20%E2%85%AB"},
+    {"input": "ﬁne ﬂour", "safe": "()*,:", "quoted": "%EF%AC%81ne%20%EF%AC%82our"},
+    {"input": "ǆungla ǈudi", "safe": "()*,:", "quoted": "%C7%86ungla%20%C7%88udi"},
+    {"input": "ΣΊΣΥΦΟΣ", "safe": "()*,:", "quoted": "%CE%A3%CE%8A%CE%A3%CE%A5%CE%A6%CE%9F%CE%A3"},
+    {"input": "ὈΔΥΣΣΕΎΣ", "safe": "()*,:", "quoted": "%E1%BD%88%CE%94%CE%A5%CE%A3%CE%A3%CE%95%CE%8E%CE%A3"},
+    {"input": "ᾳ ᾀ", "safe": "()*,:", "quoted": "%E1%BE%B3%20%E1%BE%80"},
+    {"input": "ŉ ǰ", "safe": "()*,:", "quoted": "%C5%89%20%C7%B0"},
+    {"input": "ვეფხისტყაოსანი", "safe": "()*,:", "quoted": "%E1%83%95%E1%83%94%E1%83%A4%E1%83%AE%E1%83%98%E1%83%A1%E1%83%A2%E1%83%A7%E1%83%90%E1%83%9D%E1%83%A1%E1%83%90%E1%83%9C%E1%83%98"},
+    {"input": "<script>alert(1)</script>", "safe": "()*,:", "quoted": "%3Cscript%3Ealert(1)%3C%2Fscript%3E"},
+    {"input": "a/b/c", "safe": "()*,:", "quoted": "a%2Fb%2Fc"},
+    {"input": "trailing///", "safe": "()*,:", "quoted": "trailing%2F%2F%2F"},
+    {"input": "under_score__double", "safe": "()*,:", "quoted": "under_score__double"},
+    {"input": "(parens) [brackets] {braces}", "safe": "()*,:", "quoted": "(parens)%20%5Bbrackets%5D%20%7Bbraces%7D"},
+    {"input": "quotes \"double\" 'single'", "safe": "()*,:", "quoted": "quotes%20%22double%22%20%27single%27"},
+    {"input": "a&b=c#d!e@f", "safe": "()*,:", "quoted": "a%26b%3Dc%23d%21e%40f"},
+    {"input": "semi;colon:comma,dot.", "safe": "()*,:", "quoted": "semi%3Bcolon:comma,dot."},
+    {"input": "back\\slash", "safe": "()*,:", "quoted": "back%5Cslash"},
+    {"input": "tilde~`grave", "safe": "()*,:", "quoted": "tilde~%60grave"},
+    {"input": "dead beef cafe babe", "safe": "()*,:", "quoted": "dead%20beef%20cafe%20babe"},
+    {"input": "deadbeefcafe0123", "safe": "()*,:", "quoted": "deadbeefcafe0123"},
+    {"input": "252525", "safe": "()*,:", "quoted": "252525"},
+    {"input": "a\u0000nul", "safe": "()*,:", "quoted": "a%00nul"},
+    {"input": "\u0000", "safe": "()*,:", "quoted": "%00"},
+    {"input": "\u0001", "safe": "()*,:", "quoted": "%01"},
+    {"input": "\u0002", "safe": "()*,:", "quoted": "%02"},
+    {"input": "\u0003", "safe": "()*,:", "quoted": "%03"},
+    {"input": "\u0004", "safe": "()*,:", "quoted": "%04"},
+    {"input": "\u0005", "safe": "()*,:", "quoted": "%05"},
+    {"input": "\u0006", "safe": "()*,:", "quoted": "%06"},
+    {"input": "\u0007", "safe": "()*,:", "quoted": "%07"},
+    {"input": "\b", "safe": "()*,:", "quoted": "%08"},
+    {"input": "\t", "safe": "()*,:", "quoted": "%09"},
+    {"input": "\n", "safe": "()*,:", "quoted": "%0A"},
+    {"input": "\u000b", "safe": "()*,:", "quoted": "%0B"},
+    {"input": "\f", "safe": "()*,:", "quoted": "%0C"},
+    {"input": "\r", "safe": "()*,:", "quoted": "%0D"},
+    {"input": "\u000e", "safe": "()*,:", "quoted": "%0E"},
+    {"input": "\u000f", "safe": "()*,:", "quoted": "%0F"},
+    {"input": "\u0010", "safe": "()*,:", "quoted": "%10"},
+    {"input": "\u0011", "safe": "()*,:", "quoted": "%11"},
+    {"input": "\u0012", "safe": "()*,:", "quoted": "%12"},
+    {"input": "\u0013", "safe": "()*,:", "quoted": "%13"},
+    {"input": "\u0014", "safe": "()*,:", "quoted": "%14"},
+    {"input": "\u0015", "safe": "()*,:", "quoted": "%15"},
+    {"input": "\u0016", "safe": "()*,:", "quoted": "%16"},
+    {"input": "\u0017", "safe": "()*,:", "quoted": "%17"},
+    {"input": "\u0018", "safe": "()*,:", "quoted": "%18"},
+    {"input": "\u0019", "safe": "()*,:", "quoted": "%19"},
+    {"input": "\u001a", "safe": "()*,:", "quoted": "%1A"},
+    {"input": "\u001b", "safe": "()*,:", "quoted": "%1B"},
+    {"input": "\u001c", "safe": "()*,:", "quoted": "%1C"},
+    {"input": "\u001d", "safe": "()*,:", "quoted": "%1D"},
+    {"input": "\u001e", "safe": "()*,:", "quoted": "%1E"},
+    {"input": "\u001f", "safe": "()*,:", "quoted": "%1F"},
+    {"input": " ", "safe": "()*,:", "quoted": "%20"},
+    {"input": "!", "safe": "()*,:", "quoted": "%21"},
+    {"input": "\"", "safe": "()*,:", "quoted": "%22"},
+    {"input": "#", "safe": "()*,:", "quoted": "%23"},
+    {"input": "$", "safe": "()*,:", "quoted": "%24"},
+    {"input": "%", "safe": "()*,:", "quoted": "%25"},
+    {"input": "&", "safe": "()*,:", "quoted": "%26"},
+    {"input": "'", "safe": "()*,:", "quoted": "%27"},
+    {"input": "(", "safe": "()*,:", "quoted": "("},
+    {"input": ")", "safe": "()*,:", "quoted": ")"},
+    {"input": "*", "safe": "()*,:", "quoted": "*"},
+    {"input": "+", "safe": "()*,:", "quoted": "%2B"},
+    {"input": ",", "safe": "()*,:", "quoted": ","},
+    {"input": "-", "safe": "()*,:", "quoted": "-"},
+    {"input": ".", "safe": "()*,:", "quoted": "."},
+    {"input": "/", "safe": "()*,:", "quoted": "%2F"},
+    {"input": "0", "safe": "()*,:", "quoted": "0"},
+    {"input": "1", "safe": "()*,:", "quoted": "1"},
+    {"input": "2", "safe": "()*,:", "quoted": "2"},
+    {"input": "3", "safe": "()*,:", "quoted": "3"},
+    {"input": "4", "safe": "()*,:", "quoted": "4"},
+    {"input": "5", "safe": "()*,:", "quoted": "5"},
+    {"input": "6", "safe": "()*,:", "quoted": "6"},
+    {"input": "7", "safe": "()*,:", "quoted": "7"},
+    {"input": "8", "safe": "()*,:", "quoted": "8"},
+    {"input": "9", "safe": "()*,:", "quoted": "9"},
+    {"input": ":", "safe": "()*,:", "quoted": ":"},
+    {"input": ";", "safe": "()*,:", "quoted": "%3B"},
+    {"input": "<", "safe": "()*,:", "quoted": "%3C"},
+    {"input": "=", "safe": "()*,:", "quoted": "%3D"},
+    {"input": ">", "safe": "()*,:", "quoted": "%3E"},
+    {"input": "?", "safe": "()*,:", "quoted": "%3F"},
+    {"input": "@", "safe": "()*,:", "quoted": "%40"},
+    {"input": "A", "safe": "()*,:", "quoted": "A"},
+    {"input": "B", "safe": "()*,:", "quoted": "B"},
+    {"input": "C", "safe": "()*,:", "quoted": "C"},
+    {"input": "D", "safe": "()*,:", "quoted": "D"},
+    {"input": "E", "safe": "()*,:", "quoted": "E"},
+    {"input": "F", "safe": "()*,:", "quoted": "F"},
+    {"input": "G", "safe": "()*,:", "quoted": "G"},
+    {"input": "H", "safe": "()*,:", "quoted": "H"},
+    {"input": "I", "safe": "()*,:", "quoted": "I"},
+    {"input": "J", "safe": "()*,:", "quoted": "J"},
+    {"input": "K", "safe": "()*,:", "quoted": "K"},
+    {"input": "L", "safe": "()*,:", "quoted": "L"},
+    {"input": "M", "safe": "()*,:", "quoted": "M"},
+    {"input": "N", "safe": "()*,:", "quoted": "N"},
+    {"input": "O", "safe": "()*,:", "quoted": "O"},
+    {"input": "P", "safe": "()*,:", "quoted": "P"},
+    {"input": "Q", "safe": "()*,:", "quoted": "Q"},
+    {"input": "R", "safe": "()*,:", "quoted": "R"},
+    {"input": "S", "safe": "()*,:", "quoted": "S"},
+    {"input": "T", "safe": "()*,:", "quoted": "T"},
+    {"input": "U", "safe": "()*,:", "quoted": "U"},
+    {"input": "V", "safe": "()*,:", "quoted": "V"},
+    {"input": "W", "safe": "()*,:", "quoted": "W"},
+    {"input": "X", "safe": "()*,:", "quoted": "X"},
+    {"input": "Y", "safe": "()*,:", "quoted": "Y"},
+    {"input": "Z", "safe": "()*,:", "quoted": "Z"},
+    {"input": "[", "safe": "()*,:", "quoted": "%5B"},
+    {"input": "\\", "safe": "()*,:", "quoted": "%5C"},
+    {"input": "]", "safe": "()*,:", "quoted": "%5D"},
+    {"input": "^", "safe": "()*,:", "quoted": "%5E"},
+    {"input": "_", "safe": "()*,:", "quoted": "_"},
+    {"input": "`", "safe": "()*,:", "quoted": "%60"},
+    {"input": "a", "safe": "()*,:", "quoted": "a"},
+    {"input": "b", "safe": "()*,:", "quoted": "b"},
+    {"input": "c", "safe": "()*,:", "quoted": "c"},
+    {"input": "d", "safe": "()*,:", "quoted": "d"},
+    {"input": "e", "safe": "()*,:", "quoted": "e"},
+    {"input": "f", "safe": "()*,:", "quoted": "f"},
+    {"input": "g", "safe": "()*,:", "quoted": "g"},
+    {"input": "h", "safe": "()*,:", "quoted": "h"},
+    {"input": "i", "safe": "()*,:", "quoted": "i"},
+    {"input": "j", "safe": "()*,:", "quoted": "j"},
+    {"input": "k", "safe": "()*,:", "quoted": "k"},
+    {"input": "l", "safe": "()*,:", "quoted": "l"},
+    {"input": "m", "safe": "()*,:", "quoted": "m"},
+    {"input": "n", "safe": "()*,:", "quoted": "n"},
+    {"input": "o", "safe": "()*,:", "quoted": "o"},
+    {"input": "p", "safe": "()*,:", "quoted": "p"},
+    {"input": "q", "safe": "()*,:", "quoted": "q"},
+    {"input": "r", "safe": "()*,:", "quoted": "r"},
+    {"input": "s", "safe": "()*,:", "quoted": "s"},
+    {"input": "t", "safe": "()*,:", "quoted": "t"},
+    {"input": "u", "safe": "()*,:", "quoted": "u"},
+    {"input": "v", "safe": "()*,:", "quoted": "v"},
+    {"input": "w", "safe": "()*,:", "quoted": "w"},
+    {"input": "x", "safe": "()*,:", "quoted": "x"},
+    {"input": "y", "safe": "()*,:", "quoted": "y"},
+    {"input": "z", "safe": "()*,:", "quoted": "z"},
+    {"input": "{", "safe": "()*,:", "quoted": "%7B"},
+    {"input": "|", "safe": "()*,:", "quoted": "%7C"},
+    {"input": "}", "safe": "()*,:", "quoted": "%7D"},
+    {"input": "~", "safe": "()*,:", "quoted": "~"},
+    {"input": "", "safe": "()*,:", "quoted": "%7F"}
   ],
   "quotePlus": [
-    {
-      "input": "",
-      "quoted": ""
-    },
-    {
-      "input": " ",
-      "quoted": "+"
-    },
-    {
-      "input": "a",
-      "quoted": "a"
-    },
-    {
-      "input": "ab",
-      "quoted": "ab"
-    },
-    {
-      "input": "Laptop computer",
-      "quoted": "Laptop+computer"
-    },
-    {
-      "input": "laptop_computer",
-      "quoted": "laptop_computer"
-    },
-    {
-      "input": "LED lamp",
-      "quoted": "LED+lamp"
-    },
-    {
-      "input": "office-chair",
-      "quoted": "office-chair"
-    },
-    {
-      "input": "IT services",
-      "quoted": "IT+services"
-    },
-    {
-      "input": "  multiple   spaces\tand\ttabs\nnew lines  ",
-      "quoted": "++multiple+++spaces%09and%09tabs%0Anew+lines++"
-    },
-    {
-      "input": "Ноутбук Lenovo ThinkPad",
-      "quoted": "%D0%9D%D0%BE%D1%83%D1%82%D0%B1%D1%83%D0%BA+Lenovo+ThinkPad"
-    },
-    {
-      "input": "кофе в зёрнах",
-      "quoted": "%D0%BA%D0%BE%D1%84%D0%B5+%D0%B2+%D0%B7%D1%91%D1%80%D0%BD%D0%B0%D1%85"
-    },
-    {
-      "input": "商品编码 8471 笔记本电脑",
-      "quoted": "%E5%95%86%E5%93%81%E7%BC%96%E7%A0%81+8471+%E7%AC%94%E8%AE%B0%E6%9C%AC%E7%94%B5%E8%84%91"
-    },
-    {
-      "input": "ノートパソコン",
-      "quoted": "%E3%83%8E%E3%83%BC%E3%83%88%E3%83%91%E3%82%BD%E3%82%B3%E3%83%B3"
-    },
-    {
-      "input": "노트북 컴퓨터",
-      "quoted": "%EB%85%B8%ED%8A%B8%EB%B6%81+%EC%BB%B4%ED%93%A8%ED%84%B0"
-    },
-    {
-      "input": "😀 smiley face",
-      "quoted": "%F0%9F%98%80+smiley+face"
-    },
-    {
-      "input": "👨‍👩‍👧 family",
-      "quoted": "%F0%9F%91%A8%E2%80%8D%F0%9F%91%A9%E2%80%8D%F0%9F%91%A7+family"
-    },
-    {
-      "input": "🇩🇪 flag",
-      "quoted": "%F0%9F%87%A9%F0%9F%87%AA+flag"
-    },
-    {
-      "input": "👍🏽 thumbs",
-      "quoted": "%F0%9F%91%8D%F0%9F%8F%BD+thumbs"
-    },
-    {
-      "input": "café éclair",
-      "quoted": "caf%C3%A9+%C3%A9clair"
-    },
-    {
-      "input": "café éclair",
-      "quoted": "cafe%CC%81+e%CC%81clair"
-    },
-    {
-      "input": "Straße",
-      "quoted": "Stra%C3%9Fe"
-    },
-    {
-      "input": "STRASSE",
-      "quoted": "STRASSE"
-    },
-    {
-      "input": "ß",
-      "quoted": "%C3%9F"
-    },
-    {
-      "input": "ẞ",
-      "quoted": "%E1%BA%9E"
-    },
-    {
-      "input": "İstanbul",
-      "quoted": "%C4%B0stanbul"
-    },
-    {
-      "input": "ıi",
-      "quoted": "%C4%B1i"
-    },
-    {
-      "input": "IĞDIR iğdir",
-      "quoted": "I%C4%9EDIR+i%C4%9Fdir"
-    },
-    {
-      "input": " nbsp value ",
-      "quoted": "%C2%A0nbsp%C2%A0value%C2%A0"
-    },
-    {
-      "input": "line separator",
-      "quoted": "line%E2%80%A8separator"
-    },
-    {
-      "input": "para separator",
-      "quoted": "para%E2%80%A9separator"
-    },
-    {
-      "input": "\u001cfile\u001dgroup\u001erecord\u001funit",
-      "quoted": "%1Cfile%1Dgroup%1Erecord%1Funit"
-    },
-    {
-      "input": "next line",
-      "quoted": "%C2%85next+line%C2%85"
-    },
-    {
-      "input": "﻿bom﻿",
-      "quoted": "%EF%BB%BFbom%EF%BB%BF"
-    },
-    {
-      "input": "zero​width",
-      "quoted": "zero%E2%80%8Bwidth"
-    },
-    {
-      "input": "　ideographic　space　",
-      "quoted": "%E3%80%80ideographic%E3%80%80space%E3%80%80"
-    },
-    {
-      "input": " figure narrow",
-      "quoted": "%E2%80%87figure%E2%80%AFnarrow"
-    },
-    {
-      "input": "\u000bvertical\fform",
-      "quoted": "%0Bvertical%0Cform"
-    },
-    {
-      "input": "%20encoded%20space",
-      "quoted": "%2520encoded%2520space"
-    },
-    {
-      "input": "%2520double",
-      "quoted": "%252520double"
-    },
-    {
-      "input": "%252520triple",
-      "quoted": "%25252520triple"
-    },
-    {
-      "input": "100%",
-      "quoted": "100%25"
-    },
-    {
-      "input": "%E2%9C%93 check",
-      "quoted": "%25E2%259C%2593+check"
-    },
-    {
-      "input": "%C3%A9t%C3%A9",
-      "quoted": "%25C3%25A9t%25C3%25A9"
-    },
-    {
-      "input": "%C3",
-      "quoted": "%25C3"
-    },
-    {
-      "input": "%zz",
-      "quoted": "%25zz"
-    },
-    {
-      "input": "%",
-      "quoted": "%25"
-    },
-    {
-      "input": "a+b",
-      "quoted": "a%2Bb"
-    },
-    {
-      "input": "a%2Bb",
-      "quoted": "a%252Bb"
-    },
-    {
-      "input": "%F0%9F%98%80",
-      "quoted": "%25F0%259F%2598%2580"
-    },
-    {
-      "input": "%ED%A0%80",
-      "quoted": "%25ED%25A0%2580"
-    },
-    {
-      "input": "03111000-2",
-      "quoted": "03111000-2"
-    },
-    {
-      "input": "CPV 03111000-2",
-      "quoted": "CPV+03111000-2"
-    },
-    {
-      "input": "4321.15.03",
-      "quoted": "4321.15.03"
-    },
-    {
-      "input": "8471.30.0100",
-      "quoted": "8471.30.0100"
-    },
-    {
-      "input": "EC000123",
-      "quoted": "EC000123"
-    },
-    {
-      "input": "A01.1.1",
-      "quoted": "A01.1.1"
-    },
-    {
-      "input": "5965-01-234-5678",
-      "quoted": "5965-01-234-5678"
-    },
-    {
-      "input": "they're o'neill's",
-      "quoted": "they%27re+o%27neill%27s"
-    },
-    {
-      "input": "hello-world",
-      "quoted": "hello-world"
-    },
-    {
-      "input": "3rd-party 2nd",
-      "quoted": "3rd-party+2nd"
-    },
-    {
-      "input": "x² ①② ٠١٢٣ Ⅻ",
-      "quoted": "x%C2%B2+%E2%91%A0%E2%91%A1+%D9%A0%D9%A1%D9%A2%D9%A3+%E2%85%AB"
-    },
-    {
-      "input": "ﬁne ﬂour",
-      "quoted": "%EF%AC%81ne+%EF%AC%82our"
-    },
-    {
-      "input": "ǆungla ǈudi",
-      "quoted": "%C7%86ungla+%C7%88udi"
-    },
-    {
-      "input": "ΣΊΣΥΦΟΣ",
-      "quoted": "%CE%A3%CE%8A%CE%A3%CE%A5%CE%A6%CE%9F%CE%A3"
-    },
-    {
-      "input": "ὈΔΥΣΣΕΎΣ",
-      "quoted": "%E1%BD%88%CE%94%CE%A5%CE%A3%CE%A3%CE%95%CE%8E%CE%A3"
-    },
-    {
-      "input": "ᾳ ᾀ",
-      "quoted": "%E1%BE%B3+%E1%BE%80"
-    },
-    {
-      "input": "ŉ ǰ",
-      "quoted": "%C5%89+%C7%B0"
-    },
-    {
-      "input": "ვეფხისტყაოსანი",
-      "quoted": "%E1%83%95%E1%83%94%E1%83%A4%E1%83%AE%E1%83%98%E1%83%A1%E1%83%A2%E1%83%A7%E1%83%90%E1%83%9D%E1%83%A1%E1%83%90%E1%83%9C%E1%83%98"
-    },
-    {
-      "input": "<script>alert(1)</script>",
-      "quoted": "%3Cscript%3Ealert%281%29%3C%2Fscript%3E"
-    },
-    {
-      "input": "a/b/c",
-      "quoted": "a%2Fb%2Fc"
-    },
-    {
-      "input": "trailing///",
-      "quoted": "trailing%2F%2F%2F"
-    },
-    {
-      "input": "under_score__double",
-      "quoted": "under_score__double"
-    },
-    {
-      "input": "(parens) [brackets] {braces}",
-      "quoted": "%28parens%29+%5Bbrackets%5D+%7Bbraces%7D"
-    },
-    {
-      "input": "quotes \"double\" 'single'",
-      "quoted": "quotes+%22double%22+%27single%27"
-    },
-    {
-      "input": "a&b=c#d!e@f",
-      "quoted": "a%26b%3Dc%23d%21e%40f"
-    },
-    {
-      "input": "semi;colon:comma,dot.",
-      "quoted": "semi%3Bcolon%3Acomma%2Cdot."
-    },
-    {
-      "input": "back\\slash",
-      "quoted": "back%5Cslash"
-    },
-    {
-      "input": "tilde~`grave",
-      "quoted": "tilde~%60grave"
-    },
-    {
-      "input": "dead beef cafe babe",
-      "quoted": "dead+beef+cafe+babe"
-    },
-    {
-      "input": "deadbeefcafe0123",
-      "quoted": "deadbeefcafe0123"
-    },
-    {
-      "input": "252525",
-      "quoted": "252525"
-    },
-    {
-      "input": "a\u0000nul",
-      "quoted": "a%00nul"
-    },
-    {
-      "input": "\u0000",
-      "quoted": "%00"
-    },
-    {
-      "input": "\u0001",
-      "quoted": "%01"
-    },
-    {
-      "input": "\u0002",
-      "quoted": "%02"
-    },
-    {
-      "input": "\u0003",
-      "quoted": "%03"
-    },
-    {
-      "input": "\u0004",
-      "quoted": "%04"
-    },
-    {
-      "input": "\u0005",
-      "quoted": "%05"
-    },
-    {
-      "input": "\u0006",
-      "quoted": "%06"
-    },
-    {
-      "input": "\u0007",
-      "quoted": "%07"
-    },
-    {
-      "input": "\b",
-      "quoted": "%08"
-    },
-    {
-      "input": "\t",
-      "quoted": "%09"
-    },
-    {
-      "input": "\n",
-      "quoted": "%0A"
-    },
-    {
-      "input": "\u000b",
-      "quoted": "%0B"
-    },
-    {
-      "input": "\f",
-      "quoted": "%0C"
-    },
-    {
-      "input": "\r",
-      "quoted": "%0D"
-    },
-    {
-      "input": "\u000e",
-      "quoted": "%0E"
-    },
-    {
-      "input": "\u000f",
-      "quoted": "%0F"
-    },
-    {
-      "input": "\u0010",
-      "quoted": "%10"
-    },
-    {
-      "input": "\u0011",
-      "quoted": "%11"
-    },
-    {
-      "input": "\u0012",
-      "quoted": "%12"
-    },
-    {
-      "input": "\u0013",
-      "quoted": "%13"
-    },
-    {
-      "input": "\u0014",
-      "quoted": "%14"
-    },
-    {
-      "input": "\u0015",
-      "quoted": "%15"
-    },
-    {
-      "input": "\u0016",
-      "quoted": "%16"
-    },
-    {
-      "input": "\u0017",
-      "quoted": "%17"
-    },
-    {
-      "input": "\u0018",
-      "quoted": "%18"
-    },
-    {
-      "input": "\u0019",
-      "quoted": "%19"
-    },
-    {
-      "input": "\u001a",
-      "quoted": "%1A"
-    },
-    {
-      "input": "\u001b",
-      "quoted": "%1B"
-    },
-    {
-      "input": "\u001c",
-      "quoted": "%1C"
-    },
-    {
-      "input": "\u001d",
-      "quoted": "%1D"
-    },
-    {
-      "input": "\u001e",
-      "quoted": "%1E"
-    },
-    {
-      "input": "\u001f",
-      "quoted": "%1F"
-    },
-    {
-      "input": " ",
-      "quoted": "+"
-    },
-    {
-      "input": "!",
-      "quoted": "%21"
-    },
-    {
-      "input": "\"",
-      "quoted": "%22"
-    },
-    {
-      "input": "#",
-      "quoted": "%23"
-    },
-    {
-      "input": "$",
-      "quoted": "%24"
-    },
-    {
-      "input": "%",
-      "quoted": "%25"
-    },
-    {
-      "input": "&",
-      "quoted": "%26"
-    },
-    {
-      "input": "'",
-      "quoted": "%27"
-    },
-    {
-      "input": "(",
-      "quoted": "%28"
-    },
-    {
-      "input": ")",
-      "quoted": "%29"
-    },
-    {
-      "input": "*",
-      "quoted": "%2A"
-    },
-    {
-      "input": "+",
-      "quoted": "%2B"
-    },
-    {
-      "input": ",",
-      "quoted": "%2C"
-    },
-    {
-      "input": "-",
-      "quoted": "-"
-    },
-    {
-      "input": ".",
-      "quoted": "."
-    },
-    {
-      "input": "/",
-      "quoted": "%2F"
-    },
-    {
-      "input": "0",
-      "quoted": "0"
-    },
-    {
-      "input": "1",
-      "quoted": "1"
-    },
-    {
-      "input": "2",
-      "quoted": "2"
-    },
-    {
-      "input": "3",
-      "quoted": "3"
-    },
-    {
-      "input": "4",
-      "quoted": "4"
-    },
-    {
-      "input": "5",
-      "quoted": "5"
-    },
-    {
-      "input": "6",
-      "quoted": "6"
-    },
-    {
-      "input": "7",
-      "quoted": "7"
-    },
-    {
-      "input": "8",
-      "quoted": "8"
-    },
-    {
-      "input": "9",
-      "quoted": "9"
-    },
-    {
-      "input": ":",
-      "quoted": "%3A"
-    },
-    {
-      "input": ";",
-      "quoted": "%3B"
-    },
-    {
-      "input": "<",
-      "quoted": "%3C"
-    },
-    {
-      "input": "=",
-      "quoted": "%3D"
-    },
-    {
-      "input": ">",
-      "quoted": "%3E"
-    },
-    {
-      "input": "?",
-      "quoted": "%3F"
-    },
-    {
-      "input": "@",
-      "quoted": "%40"
-    },
-    {
-      "input": "A",
-      "quoted": "A"
-    },
-    {
-      "input": "B",
-      "quoted": "B"
-    },
-    {
-      "input": "C",
-      "quoted": "C"
-    },
-    {
-      "input": "D",
-      "quoted": "D"
-    },
-    {
-      "input": "E",
-      "quoted": "E"
-    },
-    {
-      "input": "F",
-      "quoted": "F"
-    },
-    {
-      "input": "G",
-      "quoted": "G"
-    },
-    {
-      "input": "H",
-      "quoted": "H"
-    },
-    {
-      "input": "I",
-      "quoted": "I"
-    },
-    {
-      "input": "J",
-      "quoted": "J"
-    },
-    {
-      "input": "K",
-      "quoted": "K"
-    },
-    {
-      "input": "L",
-      "quoted": "L"
-    },
-    {
-      "input": "M",
-      "quoted": "M"
-    },
-    {
-      "input": "N",
-      "quoted": "N"
-    },
-    {
-      "input": "O",
-      "quoted": "O"
-    },
-    {
-      "input": "P",
-      "quoted": "P"
-    },
-    {
-      "input": "Q",
-      "quoted": "Q"
-    },
-    {
-      "input": "R",
-      "quoted": "R"
-    },
-    {
-      "input": "S",
-      "quoted": "S"
-    },
-    {
-      "input": "T",
-      "quoted": "T"
-    },
-    {
-      "input": "U",
-      "quoted": "U"
-    },
-    {
-      "input": "V",
-      "quoted": "V"
-    },
-    {
-      "input": "W",
-      "quoted": "W"
-    },
-    {
-      "input": "X",
-      "quoted": "X"
-    },
-    {
-      "input": "Y",
-      "quoted": "Y"
-    },
-    {
-      "input": "Z",
-      "quoted": "Z"
-    },
-    {
-      "input": "[",
-      "quoted": "%5B"
-    },
-    {
-      "input": "\\",
-      "quoted": "%5C"
-    },
-    {
-      "input": "]",
-      "quoted": "%5D"
-    },
-    {
-      "input": "^",
-      "quoted": "%5E"
-    },
-    {
-      "input": "_",
-      "quoted": "_"
-    },
-    {
-      "input": "`",
-      "quoted": "%60"
-    },
-    {
-      "input": "a",
-      "quoted": "a"
-    },
-    {
-      "input": "b",
-      "quoted": "b"
-    },
-    {
-      "input": "c",
-      "quoted": "c"
-    },
-    {
-      "input": "d",
-      "quoted": "d"
-    },
-    {
-      "input": "e",
-      "quoted": "e"
-    },
-    {
-      "input": "f",
-      "quoted": "f"
-    },
-    {
-      "input": "g",
-      "quoted": "g"
-    },
-    {
-      "input": "h",
-      "quoted": "h"
-    },
-    {
-      "input": "i",
-      "quoted": "i"
-    },
-    {
-      "input": "j",
-      "quoted": "j"
-    },
-    {
-      "input": "k",
-      "quoted": "k"
-    },
-    {
-      "input": "l",
-      "quoted": "l"
-    },
-    {
-      "input": "m",
-      "quoted": "m"
-    },
-    {
-      "input": "n",
-      "quoted": "n"
-    },
-    {
-      "input": "o",
-      "quoted": "o"
-    },
-    {
-      "input": "p",
-      "quoted": "p"
-    },
-    {
-      "input": "q",
-      "quoted": "q"
-    },
-    {
-      "input": "r",
-      "quoted": "r"
-    },
-    {
-      "input": "s",
-      "quoted": "s"
-    },
-    {
-      "input": "t",
-      "quoted": "t"
-    },
-    {
-      "input": "u",
-      "quoted": "u"
-    },
-    {
-      "input": "v",
-      "quoted": "v"
-    },
-    {
-      "input": "w",
-      "quoted": "w"
-    },
-    {
-      "input": "x",
-      "quoted": "x"
-    },
-    {
-      "input": "y",
-      "quoted": "y"
-    },
-    {
-      "input": "z",
-      "quoted": "z"
-    },
-    {
-      "input": "{",
-      "quoted": "%7B"
-    },
-    {
-      "input": "|",
-      "quoted": "%7C"
-    },
-    {
-      "input": "}",
-      "quoted": "%7D"
-    },
-    {
-      "input": "~",
-      "quoted": "~"
-    },
-    {
-      "input": "",
-      "quoted": "%7F"
-    }
+    {"input": "", "quoted": ""},
+    {"input": " ", "quoted": "+"},
+    {"input": "a", "quoted": "a"},
+    {"input": "ab", "quoted": "ab"},
+    {"input": "Laptop computer", "quoted": "Laptop+computer"},
+    {"input": "laptop_computer", "quoted": "laptop_computer"},
+    {"input": "LED lamp", "quoted": "LED+lamp"},
+    {"input": "office-chair", "quoted": "office-chair"},
+    {"input": "IT services", "quoted": "IT+services"},
+    {"input": "  multiple   spaces\tand\ttabs\nnew lines  ", "quoted": "++multiple+++spaces%09and%09tabs%0Anew+lines++"},
+    {"input": "Ноутбук Lenovo ThinkPad", "quoted": "%D0%9D%D0%BE%D1%83%D1%82%D0%B1%D1%83%D0%BA+Lenovo+ThinkPad"},
+    {"input": "кофе в зёрнах", "quoted": "%D0%BA%D0%BE%D1%84%D0%B5+%D0%B2+%D0%B7%D1%91%D1%80%D0%BD%D0%B0%D1%85"},
+    {"input": "商品编码 8471 笔记本电脑", "quoted": "%E5%95%86%E5%93%81%E7%BC%96%E7%A0%81+8471+%E7%AC%94%E8%AE%B0%E6%9C%AC%E7%94%B5%E8%84%91"},
+    {"input": "ノートパソコン", "quoted": "%E3%83%8E%E3%83%BC%E3%83%88%E3%83%91%E3%82%BD%E3%82%B3%E3%83%B3"},
+    {"input": "노트북 컴퓨터", "quoted": "%EB%85%B8%ED%8A%B8%EB%B6%81+%EC%BB%B4%ED%93%A8%ED%84%B0"},
+    {"input": "😀 smiley face", "quoted": "%F0%9F%98%80+smiley+face"},
+    {"input": "👨‍👩‍👧 family", "quoted": "%F0%9F%91%A8%E2%80%8D%F0%9F%91%A9%E2%80%8D%F0%9F%91%A7+family"},
+    {"input": "🇩🇪 flag", "quoted": "%F0%9F%87%A9%F0%9F%87%AA+flag"},
+    {"input": "👍🏽 thumbs", "quoted": "%F0%9F%91%8D%F0%9F%8F%BD+thumbs"},
+    {"input": "café éclair", "quoted": "caf%C3%A9+%C3%A9clair"},
+    {"input": "café éclair", "quoted": "cafe%CC%81+e%CC%81clair"},
+    {"input": "Straße", "quoted": "Stra%C3%9Fe"},
+    {"input": "STRASSE", "quoted": "STRASSE"},
+    {"input": "ß", "quoted": "%C3%9F"},
+    {"input": "ẞ", "quoted": "%E1%BA%9E"},
+    {"input": "İstanbul", "quoted": "%C4%B0stanbul"},
+    {"input": "ıi", "quoted": "%C4%B1i"},
+    {"input": "IĞDIR iğdir", "quoted": "I%C4%9EDIR+i%C4%9Fdir"},
+    {"input": " nbsp value ", "quoted": "%C2%A0nbsp%C2%A0value%C2%A0"},
+    {"input": "line separator", "quoted": "line%E2%80%A8separator"},
+    {"input": "para separator", "quoted": "para%E2%80%A9separator"},
+    {"input": "\u001cfile\u001dgroup\u001erecord\u001funit", "quoted": "%1Cfile%1Dgroup%1Erecord%1Funit"},
+    {"input": "next line", "quoted": "%C2%85next+line%C2%85"},
+    {"input": "﻿bom﻿", "quoted": "%EF%BB%BFbom%EF%BB%BF"},
+    {"input": "zero​width", "quoted": "zero%E2%80%8Bwidth"},
+    {"input": "　ideographic　space　", "quoted": "%E3%80%80ideographic%E3%80%80space%E3%80%80"},
+    {"input": " figure narrow", "quoted": "%E2%80%87figure%E2%80%AFnarrow"},
+    {"input": "\u000bvertical\fform", "quoted": "%0Bvertical%0Cform"},
+    {"input": "%20encoded%20space", "quoted": "%2520encoded%2520space"},
+    {"input": "%2520double", "quoted": "%252520double"},
+    {"input": "%252520triple", "quoted": "%25252520triple"},
+    {"input": "100%", "quoted": "100%25"},
+    {"input": "%E2%9C%93 check", "quoted": "%25E2%259C%2593+check"},
+    {"input": "%C3%A9t%C3%A9", "quoted": "%25C3%25A9t%25C3%25A9"},
+    {"input": "%C3", "quoted": "%25C3"},
+    {"input": "%zz", "quoted": "%25zz"},
+    {"input": "%", "quoted": "%25"},
+    {"input": "a+b", "quoted": "a%2Bb"},
+    {"input": "a%2Bb", "quoted": "a%252Bb"},
+    {"input": "%F0%9F%98%80", "quoted": "%25F0%259F%2598%2580"},
+    {"input": "%ED%A0%80", "quoted": "%25ED%25A0%2580"},
+    {"input": "03111000-2", "quoted": "03111000-2"},
+    {"input": "CPV 03111000-2", "quoted": "CPV+03111000-2"},
+    {"input": "4321.15.03", "quoted": "4321.15.03"},
+    {"input": "8471.30.0100", "quoted": "8471.30.0100"},
+    {"input": "EC000123", "quoted": "EC000123"},
+    {"input": "A01.1.1", "quoted": "A01.1.1"},
+    {"input": "5965-01-234-5678", "quoted": "5965-01-234-5678"},
+    {"input": "they're o'neill's", "quoted": "they%27re+o%27neill%27s"},
+    {"input": "hello-world", "quoted": "hello-world"},
+    {"input": "3rd-party 2nd", "quoted": "3rd-party+2nd"},
+    {"input": "x² ①② ٠١٢٣ Ⅻ", "quoted": "x%C2%B2+%E2%91%A0%E2%91%A1+%D9%A0%D9%A1%D9%A2%D9%A3+%E2%85%AB"},
+    {"input": "ﬁne ﬂour", "quoted": "%EF%AC%81ne+%EF%AC%82our"},
+    {"input": "ǆungla ǈudi", "quoted": "%C7%86ungla+%C7%88udi"},
+    {"input": "ΣΊΣΥΦΟΣ", "quoted": "%CE%A3%CE%8A%CE%A3%CE%A5%CE%A6%CE%9F%CE%A3"},
+    {"input": "ὈΔΥΣΣΕΎΣ", "quoted": "%E1%BD%88%CE%94%CE%A5%CE%A3%CE%A3%CE%95%CE%8E%CE%A3"},
+    {"input": "ᾳ ᾀ", "quoted": "%E1%BE%B3+%E1%BE%80"},
+    {"input": "ŉ ǰ", "quoted": "%C5%89+%C7%B0"},
+    {"input": "ვეფხისტყაოსანი", "quoted": "%E1%83%95%E1%83%94%E1%83%A4%E1%83%AE%E1%83%98%E1%83%A1%E1%83%A2%E1%83%A7%E1%83%90%E1%83%9D%E1%83%A1%E1%83%90%E1%83%9C%E1%83%98"},
+    {"input": "<script>alert(1)</script>", "quoted": "%3Cscript%3Ealert%281%29%3C%2Fscript%3E"},
+    {"input": "a/b/c", "quoted": "a%2Fb%2Fc"},
+    {"input": "trailing///", "quoted": "trailing%2F%2F%2F"},
+    {"input": "under_score__double", "quoted": "under_score__double"},
+    {"input": "(parens) [brackets] {braces}", "quoted": "%28parens%29+%5Bbrackets%5D+%7Bbraces%7D"},
+    {"input": "quotes \"double\" 'single'", "quoted": "quotes+%22double%22+%27single%27"},
+    {"input": "a&b=c#d!e@f", "quoted": "a%26b%3Dc%23d%21e%40f"},
+    {"input": "semi;colon:comma,dot.", "quoted": "semi%3Bcolon%3Acomma%2Cdot."},
+    {"input": "back\\slash", "quoted": "back%5Cslash"},
+    {"input": "tilde~`grave", "quoted": "tilde~%60grave"},
+    {"input": "dead beef cafe babe", "quoted": "dead+beef+cafe+babe"},
+    {"input": "deadbeefcafe0123", "quoted": "deadbeefcafe0123"},
+    {"input": "252525", "quoted": "252525"},
+    {"input": "a\u0000nul", "quoted": "a%00nul"},
+    {"input": "\u0000", "quoted": "%00"},
+    {"input": "\u0001", "quoted": "%01"},
+    {"input": "\u0002", "quoted": "%02"},
+    {"input": "\u0003", "quoted": "%03"},
+    {"input": "\u0004", "quoted": "%04"},
+    {"input": "\u0005", "quoted": "%05"},
+    {"input": "\u0006", "quoted": "%06"},
+    {"input": "\u0007", "quoted": "%07"},
+    {"input": "\b", "quoted": "%08"},
+    {"input": "\t", "quoted": "%09"},
+    {"input": "\n", "quoted": "%0A"},
+    {"input": "\u000b", "quoted": "%0B"},
+    {"input": "\f", "quoted": "%0C"},
+    {"input": "\r", "quoted": "%0D"},
+    {"input": "\u000e", "quoted": "%0E"},
+    {"input": "\u000f", "quoted": "%0F"},
+    {"input": "\u0010", "quoted": "%10"},
+    {"input": "\u0011", "quoted": "%11"},
+    {"input": "\u0012", "quoted": "%12"},
+    {"input": "\u0013", "quoted": "%13"},
+    {"input": "\u0014", "quoted": "%14"},
+    {"input": "\u0015", "quoted": "%15"},
+    {"input": "\u0016", "quoted": "%16"},
+    {"input": "\u0017", "quoted": "%17"},
+    {"input": "\u0018", "quoted": "%18"},
+    {"input": "\u0019", "quoted": "%19"},
+    {"input": "\u001a", "quoted": "%1A"},
+    {"input": "\u001b", "quoted": "%1B"},
+    {"input": "\u001c", "quoted": "%1C"},
+    {"input": "\u001d", "quoted": "%1D"},
+    {"input": "\u001e", "quoted": "%1E"},
+    {"input": "\u001f", "quoted": "%1F"},
+    {"input": " ", "quoted": "+"},
+    {"input": "!", "quoted": "%21"},
+    {"input": "\"", "quoted": "%22"},
+    {"input": "#", "quoted": "%23"},
+    {"input": "$", "quoted": "%24"},
+    {"input": "%", "quoted": "%25"},
+    {"input": "&", "quoted": "%26"},
+    {"input": "'", "quoted": "%27"},
+    {"input": "(", "quoted": "%28"},
+    {"input": ")", "quoted": "%29"},
+    {"input": "*", "quoted": "%2A"},
+    {"input": "+", "quoted": "%2B"},
+    {"input": ",", "quoted": "%2C"},
+    {"input": "-", "quoted": "-"},
+    {"input": ".", "quoted": "."},
+    {"input": "/", "quoted": "%2F"},
+    {"input": "0", "quoted": "0"},
+    {"input": "1", "quoted": "1"},
+    {"input": "2", "quoted": "2"},
+    {"input": "3", "quoted": "3"},
+    {"input": "4", "quoted": "4"},
+    {"input": "5", "quoted": "5"},
+    {"input": "6", "quoted": "6"},
+    {"input": "7", "quoted": "7"},
+    {"input": "8", "quoted": "8"},
+    {"input": "9", "quoted": "9"},
+    {"input": ":", "quoted": "%3A"},
+    {"input": ";", "quoted": "%3B"},
+    {"input": "<", "quoted": "%3C"},
+    {"input": "=", "quoted": "%3D"},
+    {"input": ">", "quoted": "%3E"},
+    {"input": "?", "quoted": "%3F"},
+    {"input": "@", "quoted": "%40"},
+    {"input": "A", "quoted": "A"},
+    {"input": "B", "quoted": "B"},
+    {"input": "C", "quoted": "C"},
+    {"input": "D", "quoted": "D"},
+    {"input": "E", "quoted": "E"},
+    {"input": "F", "quoted": "F"},
+    {"input": "G", "quoted": "G"},
+    {"input": "H", "quoted": "H"},
+    {"input": "I", "quoted": "I"},
+    {"input": "J", "quoted": "J"},
+    {"input": "K", "quoted": "K"},
+    {"input": "L", "quoted": "L"},
+    {"input": "M", "quoted": "M"},
+    {"input": "N", "quoted": "N"},
+    {"input": "O", "quoted": "O"},
+    {"input": "P", "quoted": "P"},
+    {"input": "Q", "quoted": "Q"},
+    {"input": "R", "quoted": "R"},
+    {"input": "S", "quoted": "S"},
+    {"input": "T", "quoted": "T"},
+    {"input": "U", "quoted": "U"},
+    {"input": "V", "quoted": "V"},
+    {"input": "W", "quoted": "W"},
+    {"input": "X", "quoted": "X"},
+    {"input": "Y", "quoted": "Y"},
+    {"input": "Z", "quoted": "Z"},
+    {"input": "[", "quoted": "%5B"},
+    {"input": "\\", "quoted": "%5C"},
+    {"input": "]", "quoted": "%5D"},
+    {"input": "^", "quoted": "%5E"},
+    {"input": "_", "quoted": "_"},
+    {"input": "`", "quoted": "%60"},
+    {"input": "a", "quoted": "a"},
+    {"input": "b", "quoted": "b"},
+    {"input": "c", "quoted": "c"},
+    {"input": "d", "quoted": "d"},
+    {"input": "e", "quoted": "e"},
+    {"input": "f", "quoted": "f"},
+    {"input": "g", "quoted": "g"},
+    {"input": "h", "quoted": "h"},
+    {"input": "i", "quoted": "i"},
+    {"input": "j", "quoted": "j"},
+    {"input": "k", "quoted": "k"},
+    {"input": "l", "quoted": "l"},
+    {"input": "m", "quoted": "m"},
+    {"input": "n", "quoted": "n"},
+    {"input": "o", "quoted": "o"},
+    {"input": "p", "quoted": "p"},
+    {"input": "q", "quoted": "q"},
+    {"input": "r", "quoted": "r"},
+    {"input": "s", "quoted": "s"},
+    {"input": "t", "quoted": "t"},
+    {"input": "u", "quoted": "u"},
+    {"input": "v", "quoted": "v"},
+    {"input": "w", "quoted": "w"},
+    {"input": "x", "quoted": "x"},
+    {"input": "y", "quoted": "y"},
+    {"input": "z", "quoted": "z"},
+    {"input": "{", "quoted": "%7B"},
+    {"input": "|", "quoted": "%7C"},
+    {"input": "}", "quoted": "%7D"},
+    {"input": "~", "quoted": "~"},
+    {"input": "", "quoted": "%7F"}
   ],
   "unquote": {
     "": "",
@@ -6523,57 +3358,10 @@
     "a%2Fb": "a/b"
   },
   "urlencode": [
-    {
-      "pairs": [],
-      "encoded": ""
-    },
-    {
-      "pairs": [
-        [
-          "version",
-          "CPV 2008 (ver. 2013)"
-        ]
-      ],
-      "encoded": "version=CPV+2008+%28ver.+2013%29"
-    },
-    {
-      "pairs": [
-        [
-          "version",
-          "HS6 2022"
-        ],
-        [
-          "top_k",
-          "25"
-        ],
-        [
-          "enhance_query",
-          "1"
-        ]
-      ],
-      "encoded": "version=HS6+2022&top_k=25&enhance_query=1"
-    },
-    {
-      "pairs": [
-        [
-          "q",
-          "a&b=c+d/é😀"
-        ],
-        [
-          "empty",
-          ""
-        ]
-      ],
-      "encoded": "q=a%26b%3Dc%2Bd%2F%C3%A9%F0%9F%98%80&empty="
-    },
-    {
-      "pairs": [
-        [
-          "key with space",
-          "~*'()!"
-        ]
-      ],
-      "encoded": "key+with+space=~%2A%27%28%29%21"
-    }
+    {"pairs": [], "encoded": ""},
+    {"pairs": [["version", "CPV 2008 (ver. 2013)"]], "encoded": "version=CPV+2008+%28ver.+2013%29"},
+    {"pairs": [["version", "HS6 2022"], ["top_k", "25"], ["enhance_query", "1"]], "encoded": "version=HS6+2022&top_k=25&enhance_query=1"},
+    {"pairs": [["q", "a&b=c+d/é😀"], ["empty", ""]], "encoded": "q=a%26b%3Dc%2Bd%2F%C3%A9%F0%9F%98%80&empty="},
+    {"pairs": [["key with space", "~*'()!"]], "encoded": "key+with+space=~%2A%27%28%29%21"}
   ]
 }

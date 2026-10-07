@@ -4669,1093 +4669,280 @@
     "FB17": "Մխ"
   },
   "title": [
-    {
-      "input": "",
-      "title": ""
-    },
-    {
-      "input": " ",
-      "title": " "
-    },
-    {
-      "input": "a",
-      "title": "A"
-    },
-    {
-      "input": "ab",
-      "title": "Ab"
-    },
-    {
-      "input": "Laptop computer",
-      "title": "Laptop Computer"
-    },
-    {
-      "input": "laptop_computer",
-      "title": "Laptop_Computer"
-    },
-    {
-      "input": "LED lamp",
-      "title": "Led Lamp"
-    },
-    {
-      "input": "office-chair",
-      "title": "Office-Chair"
-    },
-    {
-      "input": "IT services",
-      "title": "It Services"
-    },
-    {
-      "input": "  multiple   spaces\tand\ttabs\nnew lines  ",
-      "title": "  Multiple   Spaces\tAnd\tTabs\nNew Lines  "
-    },
-    {
-      "input": "Ноутбук Lenovo ThinkPad",
-      "title": "Ноутбук Lenovo Thinkpad"
-    },
-    {
-      "input": "кофе в зёрнах",
-      "title": "Кофе В Зёрнах"
-    },
-    {
-      "input": "商品编码 8471 笔记本电脑",
-      "title": "商品编码 8471 笔记本电脑"
-    },
-    {
-      "input": "ノートパソコン",
-      "title": "ノートパソコン"
-    },
-    {
-      "input": "노트북 컴퓨터",
-      "title": "노트북 컴퓨터"
-    },
-    {
-      "input": "😀 smiley face",
-      "title": "😀 Smiley Face"
-    },
-    {
-      "input": "👨‍👩‍👧 family",
-      "title": "👨‍👩‍👧 Family"
-    },
-    {
-      "input": "🇩🇪 flag",
-      "title": "🇩🇪 Flag"
-    },
-    {
-      "input": "👍🏽 thumbs",
-      "title": "👍🏽 Thumbs"
-    },
-    {
-      "input": "café éclair",
-      "title": "Café Éclair"
-    },
-    {
-      "input": "café éclair",
-      "title": "Café ÉClair"
-    },
-    {
-      "input": "Straße",
-      "title": "Straße"
-    },
-    {
-      "input": "STRASSE",
-      "title": "Strasse"
-    },
-    {
-      "input": "ß",
-      "title": "Ss"
-    },
-    {
-      "input": "ẞ",
-      "title": "ẞ"
-    },
-    {
-      "input": "İstanbul",
-      "title": "İstanbul"
-    },
-    {
-      "input": "ıi",
-      "title": "Ii"
-    },
-    {
-      "input": "IĞDIR iğdir",
-      "title": "Iğdir Iğdir"
-    },
-    {
-      "input": " nbsp value ",
-      "title": " Nbsp Value "
-    },
-    {
-      "input": "line separator",
-      "title": "Line Separator"
-    },
-    {
-      "input": "para separator",
-      "title": "Para Separator"
-    },
-    {
-      "input": "\u001cfile\u001dgroup\u001erecord\u001funit",
-      "title": "\u001cFile\u001dGroup\u001eRecord\u001fUnit"
-    },
-    {
-      "input": "next line",
-      "title": "Next Line"
-    },
-    {
-      "input": "﻿bom﻿",
-      "title": "﻿Bom﻿"
-    },
-    {
-      "input": "zero​width",
-      "title": "Zero​Width"
-    },
-    {
-      "input": "　ideographic　space　",
-      "title": "　Ideographic　Space　"
-    },
-    {
-      "input": " figure narrow",
-      "title": " Figure Narrow"
-    },
-    {
-      "input": "\u000bvertical\fform",
-      "title": "\u000bVertical\fForm"
-    },
-    {
-      "input": "%20encoded%20space",
-      "title": "%20Encoded%20Space"
-    },
-    {
-      "input": "%2520double",
-      "title": "%2520Double"
-    },
-    {
-      "input": "%252520triple",
-      "title": "%252520Triple"
-    },
-    {
-      "input": "100%",
-      "title": "100%"
-    },
-    {
-      "input": "%E2%9C%93 check",
-      "title": "%E2%9C%93 Check"
-    },
-    {
-      "input": "%C3%A9t%C3%A9",
-      "title": "%C3%A9T%C3%A9"
-    },
-    {
-      "input": "%C3",
-      "title": "%C3"
-    },
-    {
-      "input": "%zz",
-      "title": "%Zz"
-    },
-    {
-      "input": "%",
-      "title": "%"
-    },
-    {
-      "input": "a+b",
-      "title": "A+B"
-    },
-    {
-      "input": "a%2Bb",
-      "title": "A%2Bb"
-    },
-    {
-      "input": "%F0%9F%98%80",
-      "title": "%F0%9F%98%80"
-    },
-    {
-      "input": "%ED%A0%80",
-      "title": "%Ed%A0%80"
-    },
-    {
-      "input": "03111000-2",
-      "title": "03111000-2"
-    },
-    {
-      "input": "CPV 03111000-2",
-      "title": "Cpv 03111000-2"
-    },
-    {
-      "input": "4321.15.03",
-      "title": "4321.15.03"
-    },
-    {
-      "input": "8471.30.0100",
-      "title": "8471.30.0100"
-    },
-    {
-      "input": "EC000123",
-      "title": "Ec000123"
-    },
-    {
-      "input": "A01.1.1",
-      "title": "A01.1.1"
-    },
-    {
-      "input": "5965-01-234-5678",
-      "title": "5965-01-234-5678"
-    },
-    {
-      "input": "they're o'neill's",
-      "title": "They'Re O'Neill'S"
-    },
-    {
-      "input": "hello-world",
-      "title": "Hello-World"
-    },
-    {
-      "input": "3rd-party 2nd",
-      "title": "3Rd-Party 2Nd"
-    },
-    {
-      "input": "x² ①② ٠١٢٣ Ⅻ",
-      "title": "X² ①② ٠١٢٣ Ⅻ"
-    },
-    {
-      "input": "ﬁne ﬂour",
-      "title": "Fine Flour"
-    },
-    {
-      "input": "ǆungla ǈudi",
-      "title": "ǅungla ǈudi"
-    },
-    {
-      "input": "ΣΊΣΥΦΟΣ",
-      "title": "Σίσυφος"
-    },
-    {
-      "input": "ὈΔΥΣΣΕΎΣ",
-      "title": "Ὀδυσσεύς"
-    },
-    {
-      "input": "ᾳ ᾀ",
-      "title": "ᾼ ᾈ"
-    },
-    {
-      "input": "ŉ ǰ",
-      "title": "ʼN J̌"
-    },
-    {
-      "input": "ვეფხისტყაოსანი",
-      "title": "ვეფხისტყაოსანი"
-    },
-    {
-      "input": "<script>alert(1)</script>",
-      "title": "<Script>Alert(1)</Script>"
-    },
-    {
-      "input": "a/b/c",
-      "title": "A/B/C"
-    },
-    {
-      "input": "trailing///",
-      "title": "Trailing///"
-    },
-    {
-      "input": "under_score__double",
-      "title": "Under_Score__Double"
-    },
-    {
-      "input": "(parens) [brackets] {braces}",
-      "title": "(Parens) [Brackets] {Braces}"
-    },
-    {
-      "input": "quotes \"double\" 'single'",
-      "title": "Quotes \"Double\" 'Single'"
-    },
-    {
-      "input": "a&b=c#d!e@f",
-      "title": "A&B=C#D!E@F"
-    },
-    {
-      "input": "semi;colon:comma,dot.",
-      "title": "Semi;Colon:Comma,Dot."
-    },
-    {
-      "input": "back\\slash",
-      "title": "Back\\Slash"
-    },
-    {
-      "input": "tilde~`grave",
-      "title": "Tilde~`Grave"
-    },
-    {
-      "input": "dead beef cafe babe",
-      "title": "Dead Beef Cafe Babe"
-    },
-    {
-      "input": "deadbeefcafe0123",
-      "title": "Deadbeefcafe0123"
-    },
-    {
-      "input": "252525",
-      "title": "252525"
-    },
-    {
-      "input": "a\u0000nul",
-      "title": "A\u0000Nul"
-    },
-    {
-      "input": "hello world",
-      "title": "Hello World"
-    },
-    {
-      "input": "HELLO WORLD",
-      "title": "Hello World"
-    },
-    {
-      "input": "they're bill's friends",
-      "title": "They'Re Bill'S Friends"
-    },
-    {
-      "input": "3rd party 2nd 1st",
-      "title": "3Rd Party 2Nd 1St"
-    },
-    {
-      "input": "laptop-computer/desktop_computer",
-      "title": "Laptop-Computer/Desktop_Computer"
-    },
-    {
-      "input": "Σ",
-      "title": "Σ"
-    },
-    {
-      "input": "ΣΣ",
-      "title": "Σς"
-    },
-    {
-      "input": "aΣ",
-      "title": "Aς"
-    },
-    {
-      "input": "aΣb",
-      "title": "Aσb"
-    },
-    {
-      "input": "AΣ'",
-      "title": "Aς'"
-    },
-    {
-      "input": "AΣ'b",
-      "title": "Aσ'B"
-    },
-    {
-      "input": "AΣ.",
-      "title": "Aς."
-    },
-    {
-      "input": "ʰΣ",
-      "title": "ʰσ"
-    },
-    {
-      "input": "1ʰΣ",
-      "title": "1ʰσ"
-    },
-    {
-      "input": "áΣ",
-      "title": "Áς"
-    },
-    {
-      "input": "aͅΣ",
-      "title": "Aͅς"
-    },
-    {
-      "input": "İİ",
-      "title": "İi̇"
-    },
-    {
-      "input": "aİ",
-      "title": "Ai̇"
-    },
-    {
-      "input": "ǅǄǆ",
-      "title": "ǅǆǆ"
-    },
-    {
-      "input": "aǄ",
-      "title": "Aǆ"
-    },
-    {
-      "input": "ᾀᾀ ᾲᾷ",
-      "title": "ᾈᾀ Ὰͅᾷ"
-    },
-    {
-      "input": "ևև",
-      "title": "Եւև"
-    }
+    {"input": "", "title": ""},
+    {"input": " ", "title": " "},
+    {"input": "a", "title": "A"},
+    {"input": "ab", "title": "Ab"},
+    {"input": "Laptop computer", "title": "Laptop Computer"},
+    {"input": "laptop_computer", "title": "Laptop_Computer"},
+    {"input": "LED lamp", "title": "Led Lamp"},
+    {"input": "office-chair", "title": "Office-Chair"},
+    {"input": "IT services", "title": "It Services"},
+    {"input": "  multiple   spaces\tand\ttabs\nnew lines  ", "title": "  Multiple   Spaces\tAnd\tTabs\nNew Lines  "},
+    {"input": "Ноутбук Lenovo ThinkPad", "title": "Ноутбук Lenovo Thinkpad"},
+    {"input": "кофе в зёрнах", "title": "Кофе В Зёрнах"},
+    {"input": "商品编码 8471 笔记本电脑", "title": "商品编码 8471 笔记本电脑"},
+    {"input": "ノートパソコン", "title": "ノートパソコン"},
+    {"input": "노트북 컴퓨터", "title": "노트북 컴퓨터"},
+    {"input": "😀 smiley face", "title": "😀 Smiley Face"},
+    {"input": "👨‍👩‍👧 family", "title": "👨‍👩‍👧 Family"},
+    {"input": "🇩🇪 flag", "title": "🇩🇪 Flag"},
+    {"input": "👍🏽 thumbs", "title": "👍🏽 Thumbs"},
+    {"input": "café éclair", "title": "Café Éclair"},
+    {"input": "café éclair", "title": "Café ÉClair"},
+    {"input": "Straße", "title": "Straße"},
+    {"input": "STRASSE", "title": "Strasse"},
+    {"input": "ß", "title": "Ss"},
+    {"input": "ẞ", "title": "ẞ"},
+    {"input": "İstanbul", "title": "İstanbul"},
+    {"input": "ıi", "title": "Ii"},
+    {"input": "IĞDIR iğdir", "title": "Iğdir Iğdir"},
+    {"input": " nbsp value ", "title": " Nbsp Value "},
+    {"input": "line separator", "title": "Line Separator"},
+    {"input": "para separator", "title": "Para Separator"},
+    {"input": "\u001cfile\u001dgroup\u001erecord\u001funit", "title": "\u001cFile\u001dGroup\u001eRecord\u001fUnit"},
+    {"input": "next line", "title": "Next Line"},
+    {"input": "﻿bom﻿", "title": "﻿Bom﻿"},
+    {"input": "zero​width", "title": "Zero​Width"},
+    {"input": "　ideographic　space　", "title": "　Ideographic　Space　"},
+    {"input": " figure narrow", "title": " Figure Narrow"},
+    {"input": "\u000bvertical\fform", "title": "\u000bVertical\fForm"},
+    {"input": "%20encoded%20space", "title": "%20Encoded%20Space"},
+    {"input": "%2520double", "title": "%2520Double"},
+    {"input": "%252520triple", "title": "%252520Triple"},
+    {"input": "100%", "title": "100%"},
+    {"input": "%E2%9C%93 check", "title": "%E2%9C%93 Check"},
+    {"input": "%C3%A9t%C3%A9", "title": "%C3%A9T%C3%A9"},
+    {"input": "%C3", "title": "%C3"},
+    {"input": "%zz", "title": "%Zz"},
+    {"input": "%", "title": "%"},
+    {"input": "a+b", "title": "A+B"},
+    {"input": "a%2Bb", "title": "A%2Bb"},
+    {"input": "%F0%9F%98%80", "title": "%F0%9F%98%80"},
+    {"input": "%ED%A0%80", "title": "%Ed%A0%80"},
+    {"input": "03111000-2", "title": "03111000-2"},
+    {"input": "CPV 03111000-2", "title": "Cpv 03111000-2"},
+    {"input": "4321.15.03", "title": "4321.15.03"},
+    {"input": "8471.30.0100", "title": "8471.30.0100"},
+    {"input": "EC000123", "title": "Ec000123"},
+    {"input": "A01.1.1", "title": "A01.1.1"},
+    {"input": "5965-01-234-5678", "title": "5965-01-234-5678"},
+    {"input": "they're o'neill's", "title": "They'Re O'Neill'S"},
+    {"input": "hello-world", "title": "Hello-World"},
+    {"input": "3rd-party 2nd", "title": "3Rd-Party 2Nd"},
+    {"input": "x² ①② ٠١٢٣ Ⅻ", "title": "X² ①② ٠١٢٣ Ⅻ"},
+    {"input": "ﬁne ﬂour", "title": "Fine Flour"},
+    {"input": "ǆungla ǈudi", "title": "ǅungla ǈudi"},
+    {"input": "ΣΊΣΥΦΟΣ", "title": "Σίσυφος"},
+    {"input": "ὈΔΥΣΣΕΎΣ", "title": "Ὀδυσσεύς"},
+    {"input": "ᾳ ᾀ", "title": "ᾼ ᾈ"},
+    {"input": "ŉ ǰ", "title": "ʼN J̌"},
+    {"input": "ვეფხისტყაოსანი", "title": "ვეფხისტყაოსანი"},
+    {"input": "<script>alert(1)</script>", "title": "<Script>Alert(1)</Script>"},
+    {"input": "a/b/c", "title": "A/B/C"},
+    {"input": "trailing///", "title": "Trailing///"},
+    {"input": "under_score__double", "title": "Under_Score__Double"},
+    {"input": "(parens) [brackets] {braces}", "title": "(Parens) [Brackets] {Braces}"},
+    {"input": "quotes \"double\" 'single'", "title": "Quotes \"Double\" 'Single'"},
+    {"input": "a&b=c#d!e@f", "title": "A&B=C#D!E@F"},
+    {"input": "semi;colon:comma,dot.", "title": "Semi;Colon:Comma,Dot."},
+    {"input": "back\\slash", "title": "Back\\Slash"},
+    {"input": "tilde~`grave", "title": "Tilde~`Grave"},
+    {"input": "dead beef cafe babe", "title": "Dead Beef Cafe Babe"},
+    {"input": "deadbeefcafe0123", "title": "Deadbeefcafe0123"},
+    {"input": "252525", "title": "252525"},
+    {"input": "a\u0000nul", "title": "A\u0000Nul"},
+    {"input": "hello world", "title": "Hello World"},
+    {"input": "HELLO WORLD", "title": "Hello World"},
+    {"input": "they're bill's friends", "title": "They'Re Bill'S Friends"},
+    {"input": "3rd party 2nd 1st", "title": "3Rd Party 2Nd 1St"},
+    {"input": "laptop-computer/desktop_computer", "title": "Laptop-Computer/Desktop_Computer"},
+    {"input": "Σ", "title": "Σ"},
+    {"input": "ΣΣ", "title": "Σς"},
+    {"input": "aΣ", "title": "Aς"},
+    {"input": "aΣb", "title": "Aσb"},
+    {"input": "AΣ'", "title": "Aς'"},
+    {"input": "AΣ'b", "title": "Aσ'B"},
+    {"input": "AΣ.", "title": "Aς."},
+    {"input": "ʰΣ", "title": "ʰσ"},
+    {"input": "1ʰΣ", "title": "1ʰσ"},
+    {"input": "áΣ", "title": "Áς"},
+    {"input": "aͅΣ", "title": "Aͅς"},
+    {"input": "İİ", "title": "İi̇"},
+    {"input": "aİ", "title": "Ai̇"},
+    {"input": "ǅǄǆ", "title": "ǅǆǆ"},
+    {"input": "aǄ", "title": "Aǆ"},
+    {"input": "ᾀᾀ ᾲᾷ", "title": "ᾈᾀ Ὰͅᾷ"},
+    {"input": "ևև", "title": "Եւև"}
   ],
   "upper": [
-    {
-      "input": "",
-      "upper": ""
-    },
-    {
-      "input": " ",
-      "upper": " "
-    },
-    {
-      "input": "a",
-      "upper": "A"
-    },
-    {
-      "input": "ab",
-      "upper": "AB"
-    },
-    {
-      "input": "Laptop computer",
-      "upper": "LAPTOP COMPUTER"
-    },
-    {
-      "input": "laptop_computer",
-      "upper": "LAPTOP_COMPUTER"
-    },
-    {
-      "input": "LED lamp",
-      "upper": "LED LAMP"
-    },
-    {
-      "input": "office-chair",
-      "upper": "OFFICE-CHAIR"
-    },
-    {
-      "input": "IT services",
-      "upper": "IT SERVICES"
-    },
-    {
-      "input": "  multiple   spaces\tand\ttabs\nnew lines  ",
-      "upper": "  MULTIPLE   SPACES\tAND\tTABS\nNEW LINES  "
-    },
-    {
-      "input": "Ноутбук Lenovo ThinkPad",
-      "upper": "НОУТБУК LENOVO THINKPAD"
-    },
-    {
-      "input": "кофе в зёрнах",
-      "upper": "КОФЕ В ЗЁРНАХ"
-    },
-    {
-      "input": "商品编码 8471 笔记本电脑",
-      "upper": "商品编码 8471 笔记本电脑"
-    },
-    {
-      "input": "ノートパソコン",
-      "upper": "ノートパソコン"
-    },
-    {
-      "input": "노트북 컴퓨터",
-      "upper": "노트북 컴퓨터"
-    },
-    {
-      "input": "😀 smiley face",
-      "upper": "😀 SMILEY FACE"
-    },
-    {
-      "input": "👨‍👩‍👧 family",
-      "upper": "👨‍👩‍👧 FAMILY"
-    },
-    {
-      "input": "🇩🇪 flag",
-      "upper": "🇩🇪 FLAG"
-    },
-    {
-      "input": "👍🏽 thumbs",
-      "upper": "👍🏽 THUMBS"
-    },
-    {
-      "input": "café éclair",
-      "upper": "CAFÉ ÉCLAIR"
-    },
-    {
-      "input": "café éclair",
-      "upper": "CAFÉ ÉCLAIR"
-    },
-    {
-      "input": "Straße",
-      "upper": "STRASSE"
-    },
-    {
-      "input": "STRASSE",
-      "upper": "STRASSE"
-    },
-    {
-      "input": "ß",
-      "upper": "SS"
-    },
-    {
-      "input": "ẞ",
-      "upper": "ẞ"
-    },
-    {
-      "input": "İstanbul",
-      "upper": "İSTANBUL"
-    },
-    {
-      "input": "ıi",
-      "upper": "II"
-    },
-    {
-      "input": "IĞDIR iğdir",
-      "upper": "IĞDIR IĞDIR"
-    },
-    {
-      "input": " nbsp value ",
-      "upper": " NBSP VALUE "
-    },
-    {
-      "input": "line separator",
-      "upper": "LINE SEPARATOR"
-    },
-    {
-      "input": "para separator",
-      "upper": "PARA SEPARATOR"
-    },
-    {
-      "input": "\u001cfile\u001dgroup\u001erecord\u001funit",
-      "upper": "\u001cFILE\u001dGROUP\u001eRECORD\u001fUNIT"
-    },
-    {
-      "input": "next line",
-      "upper": "NEXT LINE"
-    },
-    {
-      "input": "﻿bom﻿",
-      "upper": "﻿BOM﻿"
-    },
-    {
-      "input": "zero​width",
-      "upper": "ZERO​WIDTH"
-    },
-    {
-      "input": "　ideographic　space　",
-      "upper": "　IDEOGRAPHIC　SPACE　"
-    },
-    {
-      "input": " figure narrow",
-      "upper": " FIGURE NARROW"
-    },
-    {
-      "input": "\u000bvertical\fform",
-      "upper": "\u000bVERTICAL\fFORM"
-    },
-    {
-      "input": "%20encoded%20space",
-      "upper": "%20ENCODED%20SPACE"
-    },
-    {
-      "input": "%2520double",
-      "upper": "%2520DOUBLE"
-    },
-    {
-      "input": "%252520triple",
-      "upper": "%252520TRIPLE"
-    },
-    {
-      "input": "100%",
-      "upper": "100%"
-    },
-    {
-      "input": "%E2%9C%93 check",
-      "upper": "%E2%9C%93 CHECK"
-    },
-    {
-      "input": "%C3%A9t%C3%A9",
-      "upper": "%C3%A9T%C3%A9"
-    },
-    {
-      "input": "%C3",
-      "upper": "%C3"
-    },
-    {
-      "input": "%zz",
-      "upper": "%ZZ"
-    },
-    {
-      "input": "%",
-      "upper": "%"
-    },
-    {
-      "input": "a+b",
-      "upper": "A+B"
-    },
-    {
-      "input": "a%2Bb",
-      "upper": "A%2BB"
-    },
-    {
-      "input": "%F0%9F%98%80",
-      "upper": "%F0%9F%98%80"
-    },
-    {
-      "input": "%ED%A0%80",
-      "upper": "%ED%A0%80"
-    },
-    {
-      "input": "03111000-2",
-      "upper": "03111000-2"
-    },
-    {
-      "input": "CPV 03111000-2",
-      "upper": "CPV 03111000-2"
-    },
-    {
-      "input": "4321.15.03",
-      "upper": "4321.15.03"
-    },
-    {
-      "input": "8471.30.0100",
-      "upper": "8471.30.0100"
-    },
-    {
-      "input": "EC000123",
-      "upper": "EC000123"
-    },
-    {
-      "input": "A01.1.1",
-      "upper": "A01.1.1"
-    },
-    {
-      "input": "5965-01-234-5678",
-      "upper": "5965-01-234-5678"
-    },
-    {
-      "input": "they're o'neill's",
-      "upper": "THEY'RE O'NEILL'S"
-    },
-    {
-      "input": "hello-world",
-      "upper": "HELLO-WORLD"
-    },
-    {
-      "input": "3rd-party 2nd",
-      "upper": "3RD-PARTY 2ND"
-    },
-    {
-      "input": "x² ①② ٠١٢٣ Ⅻ",
-      "upper": "X² ①② ٠١٢٣ Ⅻ"
-    },
-    {
-      "input": "ﬁne ﬂour",
-      "upper": "FINE FLOUR"
-    },
-    {
-      "input": "ǆungla ǈudi",
-      "upper": "ǄUNGLA ǇUDI"
-    },
-    {
-      "input": "ΣΊΣΥΦΟΣ",
-      "upper": "ΣΊΣΥΦΟΣ"
-    },
-    {
-      "input": "ὈΔΥΣΣΕΎΣ",
-      "upper": "ὈΔΥΣΣΕΎΣ"
-    },
-    {
-      "input": "ᾳ ᾀ",
-      "upper": "ΑΙ ἈΙ"
-    },
-    {
-      "input": "ŉ ǰ",
-      "upper": "ʼN J̌"
-    },
-    {
-      "input": "ვეფხისტყაოსანი",
-      "upper": "ᲕᲔᲤᲮᲘᲡᲢᲧᲐᲝᲡᲐᲜᲘ"
-    },
-    {
-      "input": "<script>alert(1)</script>",
-      "upper": "<SCRIPT>ALERT(1)</SCRIPT>"
-    },
-    {
-      "input": "a/b/c",
-      "upper": "A/B/C"
-    },
-    {
-      "input": "trailing///",
-      "upper": "TRAILING///"
-    },
-    {
-      "input": "under_score__double",
-      "upper": "UNDER_SCORE__DOUBLE"
-    },
-    {
-      "input": "(parens) [brackets] {braces}",
-      "upper": "(PARENS) [BRACKETS] {BRACES}"
-    },
-    {
-      "input": "quotes \"double\" 'single'",
-      "upper": "QUOTES \"DOUBLE\" 'SINGLE'"
-    },
-    {
-      "input": "a&b=c#d!e@f",
-      "upper": "A&B=C#D!E@F"
-    },
-    {
-      "input": "semi;colon:comma,dot.",
-      "upper": "SEMI;COLON:COMMA,DOT."
-    },
-    {
-      "input": "back\\slash",
-      "upper": "BACK\\SLASH"
-    },
-    {
-      "input": "tilde~`grave",
-      "upper": "TILDE~`GRAVE"
-    },
-    {
-      "input": "dead beef cafe babe",
-      "upper": "DEAD BEEF CAFE BABE"
-    },
-    {
-      "input": "deadbeefcafe0123",
-      "upper": "DEADBEEFCAFE0123"
-    },
-    {
-      "input": "252525",
-      "upper": "252525"
-    },
-    {
-      "input": "a\u0000nul",
-      "upper": "A\u0000NUL"
-    }
+    {"input": "", "upper": ""},
+    {"input": " ", "upper": " "},
+    {"input": "a", "upper": "A"},
+    {"input": "ab", "upper": "AB"},
+    {"input": "Laptop computer", "upper": "LAPTOP COMPUTER"},
+    {"input": "laptop_computer", "upper": "LAPTOP_COMPUTER"},
+    {"input": "LED lamp", "upper": "LED LAMP"},
+    {"input": "office-chair", "upper": "OFFICE-CHAIR"},
+    {"input": "IT services", "upper": "IT SERVICES"},
+    {"input": "  multiple   spaces\tand\ttabs\nnew lines  ", "upper": "  MULTIPLE   SPACES\tAND\tTABS\nNEW LINES  "},
+    {"input": "Ноутбук Lenovo ThinkPad", "upper": "НОУТБУК LENOVO THINKPAD"},
+    {"input": "кофе в зёрнах", "upper": "КОФЕ В ЗЁРНАХ"},
+    {"input": "商品编码 8471 笔记本电脑", "upper": "商品编码 8471 笔记本电脑"},
+    {"input": "ノートパソコン", "upper": "ノートパソコン"},
+    {"input": "노트북 컴퓨터", "upper": "노트북 컴퓨터"},
+    {"input": "😀 smiley face", "upper": "😀 SMILEY FACE"},
+    {"input": "👨‍👩‍👧 family", "upper": "👨‍👩‍👧 FAMILY"},
+    {"input": "🇩🇪 flag", "upper": "🇩🇪 FLAG"},
+    {"input": "👍🏽 thumbs", "upper": "👍🏽 THUMBS"},
+    {"input": "café éclair", "upper": "CAFÉ ÉCLAIR"},
+    {"input": "café éclair", "upper": "CAFÉ ÉCLAIR"},
+    {"input": "Straße", "upper": "STRASSE"},
+    {"input": "STRASSE", "upper": "STRASSE"},
+    {"input": "ß", "upper": "SS"},
+    {"input": "ẞ", "upper": "ẞ"},
+    {"input": "İstanbul", "upper": "İSTANBUL"},
+    {"input": "ıi", "upper": "II"},
+    {"input": "IĞDIR iğdir", "upper": "IĞDIR IĞDIR"},
+    {"input": " nbsp value ", "upper": " NBSP VALUE "},
+    {"input": "line separator", "upper": "LINE SEPARATOR"},
+    {"input": "para separator", "upper": "PARA SEPARATOR"},
+    {"input": "\u001cfile\u001dgroup\u001erecord\u001funit", "upper": "\u001cFILE\u001dGROUP\u001eRECORD\u001fUNIT"},
+    {"input": "next line", "upper": "NEXT LINE"},
+    {"input": "﻿bom﻿", "upper": "﻿BOM﻿"},
+    {"input": "zero​width", "upper": "ZERO​WIDTH"},
+    {"input": "　ideographic　space　", "upper": "　IDEOGRAPHIC　SPACE　"},
+    {"input": " figure narrow", "upper": " FIGURE NARROW"},
+    {"input": "\u000bvertical\fform", "upper": "\u000bVERTICAL\fFORM"},
+    {"input": "%20encoded%20space", "upper": "%20ENCODED%20SPACE"},
+    {"input": "%2520double", "upper": "%2520DOUBLE"},
+    {"input": "%252520triple", "upper": "%252520TRIPLE"},
+    {"input": "100%", "upper": "100%"},
+    {"input": "%E2%9C%93 check", "upper": "%E2%9C%93 CHECK"},
+    {"input": "%C3%A9t%C3%A9", "upper": "%C3%A9T%C3%A9"},
+    {"input": "%C3", "upper": "%C3"},
+    {"input": "%zz", "upper": "%ZZ"},
+    {"input": "%", "upper": "%"},
+    {"input": "a+b", "upper": "A+B"},
+    {"input": "a%2Bb", "upper": "A%2BB"},
+    {"input": "%F0%9F%98%80", "upper": "%F0%9F%98%80"},
+    {"input": "%ED%A0%80", "upper": "%ED%A0%80"},
+    {"input": "03111000-2", "upper": "03111000-2"},
+    {"input": "CPV 03111000-2", "upper": "CPV 03111000-2"},
+    {"input": "4321.15.03", "upper": "4321.15.03"},
+    {"input": "8471.30.0100", "upper": "8471.30.0100"},
+    {"input": "EC000123", "upper": "EC000123"},
+    {"input": "A01.1.1", "upper": "A01.1.1"},
+    {"input": "5965-01-234-5678", "upper": "5965-01-234-5678"},
+    {"input": "they're o'neill's", "upper": "THEY'RE O'NEILL'S"},
+    {"input": "hello-world", "upper": "HELLO-WORLD"},
+    {"input": "3rd-party 2nd", "upper": "3RD-PARTY 2ND"},
+    {"input": "x² ①② ٠١٢٣ Ⅻ", "upper": "X² ①② ٠١٢٣ Ⅻ"},
+    {"input": "ﬁne ﬂour", "upper": "FINE FLOUR"},
+    {"input": "ǆungla ǈudi", "upper": "ǄUNGLA ǇUDI"},
+    {"input": "ΣΊΣΥΦΟΣ", "upper": "ΣΊΣΥΦΟΣ"},
+    {"input": "ὈΔΥΣΣΕΎΣ", "upper": "ὈΔΥΣΣΕΎΣ"},
+    {"input": "ᾳ ᾀ", "upper": "ΑΙ ἈΙ"},
+    {"input": "ŉ ǰ", "upper": "ʼN J̌"},
+    {"input": "ვეფხისტყაოსანი", "upper": "ᲕᲔᲤᲮᲘᲡᲢᲧᲐᲝᲡᲐᲜᲘ"},
+    {"input": "<script>alert(1)</script>", "upper": "<SCRIPT>ALERT(1)</SCRIPT>"},
+    {"input": "a/b/c", "upper": "A/B/C"},
+    {"input": "trailing///", "upper": "TRAILING///"},
+    {"input": "under_score__double", "upper": "UNDER_SCORE__DOUBLE"},
+    {"input": "(parens) [brackets] {braces}", "upper": "(PARENS) [BRACKETS] {BRACES}"},
+    {"input": "quotes \"double\" 'single'", "upper": "QUOTES \"DOUBLE\" 'SINGLE'"},
+    {"input": "a&b=c#d!e@f", "upper": "A&B=C#D!E@F"},
+    {"input": "semi;colon:comma,dot.", "upper": "SEMI;COLON:COMMA,DOT."},
+    {"input": "back\\slash", "upper": "BACK\\SLASH"},
+    {"input": "tilde~`grave", "upper": "TILDE~`GRAVE"},
+    {"input": "dead beef cafe babe", "upper": "DEAD BEEF CAFE BABE"},
+    {"input": "deadbeefcafe0123", "upper": "DEADBEEFCAFE0123"},
+    {"input": "252525", "upper": "252525"},
+    {"input": "a\u0000nul", "upper": "A\u0000NUL"}
   ],
   "strip": [
-    {
-      "input": "",
-      "stripped": ""
-    },
-    {
-      "input": " ",
-      "stripped": ""
-    },
-    {
-      "input": "a",
-      "stripped": "a"
-    },
-    {
-      "input": "ab",
-      "stripped": "ab"
-    },
-    {
-      "input": "Laptop computer",
-      "stripped": "Laptop computer"
-    },
-    {
-      "input": "laptop_computer",
-      "stripped": "laptop_computer"
-    },
-    {
-      "input": "LED lamp",
-      "stripped": "LED lamp"
-    },
-    {
-      "input": "office-chair",
-      "stripped": "office-chair"
-    },
-    {
-      "input": "IT services",
-      "stripped": "IT services"
-    },
-    {
-      "input": "  multiple   spaces\tand\ttabs\nnew lines  ",
-      "stripped": "multiple   spaces\tand\ttabs\nnew lines"
-    },
-    {
-      "input": "Ноутбук Lenovo ThinkPad",
-      "stripped": "Ноутбук Lenovo ThinkPad"
-    },
-    {
-      "input": "кофе в зёрнах",
-      "stripped": "кофе в зёрнах"
-    },
-    {
-      "input": "商品编码 8471 笔记本电脑",
-      "stripped": "商品编码 8471 笔记本电脑"
-    },
-    {
-      "input": "ノートパソコン",
-      "stripped": "ノートパソコン"
-    },
-    {
-      "input": "노트북 컴퓨터",
-      "stripped": "노트북 컴퓨터"
-    },
-    {
-      "input": "😀 smiley face",
-      "stripped": "😀 smiley face"
-    },
-    {
-      "input": "👨‍👩‍👧 family",
-      "stripped": "👨‍👩‍👧 family"
-    },
-    {
-      "input": "🇩🇪 flag",
-      "stripped": "🇩🇪 flag"
-    },
-    {
-      "input": "👍🏽 thumbs",
-      "stripped": "👍🏽 thumbs"
-    },
-    {
-      "input": "café éclair",
-      "stripped": "café éclair"
-    },
-    {
-      "input": "café éclair",
-      "stripped": "café éclair"
-    },
-    {
-      "input": "Straße",
-      "stripped": "Straße"
-    },
-    {
-      "input": "STRASSE",
-      "stripped": "STRASSE"
-    },
-    {
-      "input": "ß",
-      "stripped": "ß"
-    },
-    {
-      "input": "ẞ",
-      "stripped": "ẞ"
-    },
-    {
-      "input": "İstanbul",
-      "stripped": "İstanbul"
-    },
-    {
-      "input": "ıi",
-      "stripped": "ıi"
-    },
-    {
-      "input": "IĞDIR iğdir",
-      "stripped": "IĞDIR iğdir"
-    },
-    {
-      "input": " nbsp value ",
-      "stripped": "nbsp value"
-    },
-    {
-      "input": "line separator",
-      "stripped": "line separator"
-    },
-    {
-      "input": "para separator",
-      "stripped": "para separator"
-    },
-    {
-      "input": "\u001cfile\u001dgroup\u001erecord\u001funit",
-      "stripped": "file\u001dgroup\u001erecord\u001funit"
-    },
-    {
-      "input": "next line",
-      "stripped": "next line"
-    },
-    {
-      "input": "﻿bom﻿",
-      "stripped": "﻿bom﻿"
-    },
-    {
-      "input": "zero​width",
-      "stripped": "zero​width"
-    },
-    {
-      "input": "　ideographic　space　",
-      "stripped": "ideographic　space"
-    },
-    {
-      "input": " figure narrow",
-      "stripped": "figure narrow"
-    },
-    {
-      "input": "\u000bvertical\fform",
-      "stripped": "vertical\fform"
-    },
-    {
-      "input": "%20encoded%20space",
-      "stripped": "%20encoded%20space"
-    },
-    {
-      "input": "%2520double",
-      "stripped": "%2520double"
-    },
-    {
-      "input": "%252520triple",
-      "stripped": "%252520triple"
-    },
-    {
-      "input": "100%",
-      "stripped": "100%"
-    },
-    {
-      "input": "%E2%9C%93 check",
-      "stripped": "%E2%9C%93 check"
-    },
-    {
-      "input": "%C3%A9t%C3%A9",
-      "stripped": "%C3%A9t%C3%A9"
-    },
-    {
-      "input": "%C3",
-      "stripped": "%C3"
-    },
-    {
-      "input": "%zz",
-      "stripped": "%zz"
-    },
-    {
-      "input": "%",
-      "stripped": "%"
-    },
-    {
-      "input": "a+b",
-      "stripped": "a+b"
-    },
-    {
-      "input": "a%2Bb",
-      "stripped": "a%2Bb"
-    },
-    {
-      "input": "%F0%9F%98%80",
-      "stripped": "%F0%9F%98%80"
-    },
-    {
-      "input": "%ED%A0%80",
-      "stripped": "%ED%A0%80"
-    },
-    {
-      "input": "03111000-2",
-      "stripped": "03111000-2"
-    },
-    {
-      "input": "CPV 03111000-2",
-      "stripped": "CPV 03111000-2"
-    },
-    {
-      "input": "4321.15.03",
-      "stripped": "4321.15.03"
-    },
-    {
-      "input": "8471.30.0100",
-      "stripped": "8471.30.0100"
-    },
-    {
-      "input": "EC000123",
-      "stripped": "EC000123"
-    },
-    {
-      "input": "A01.1.1",
-      "stripped": "A01.1.1"
-    },
-    {
-      "input": "5965-01-234-5678",
-      "stripped": "5965-01-234-5678"
-    },
-    {
-      "input": "they're o'neill's",
-      "stripped": "they're o'neill's"
-    },
-    {
-      "input": "hello-world",
-      "stripped": "hello-world"
-    },
-    {
-      "input": "3rd-party 2nd",
-      "stripped": "3rd-party 2nd"
-    },
-    {
-      "input": "x² ①② ٠١٢٣ Ⅻ",
-      "stripped": "x² ①② ٠١٢٣ Ⅻ"
-    },
-    {
-      "input": "ﬁne ﬂour",
-      "stripped": "ﬁne ﬂour"
-    },
-    {
-      "input": "ǆungla ǈudi",
-      "stripped": "ǆungla ǈudi"
-    },
-    {
-      "input": "ΣΊΣΥΦΟΣ",
-      "stripped": "ΣΊΣΥΦΟΣ"
-    },
-    {
-      "input": "ὈΔΥΣΣΕΎΣ",
-      "stripped": "ὈΔΥΣΣΕΎΣ"
-    },
-    {
-      "input": "ᾳ ᾀ",
-      "stripped": "ᾳ ᾀ"
-    },
-    {
-      "input": "ŉ ǰ",
-      "stripped": "ŉ ǰ"
-    },
-    {
-      "input": "ვეფხისტყაოსანი",
-      "stripped": "ვეფხისტყაოსანი"
-    },
-    {
-      "input": "<script>alert(1)</script>",
-      "stripped": "<script>alert(1)</script>"
-    },
-    {
-      "input": "a/b/c",
-      "stripped": "a/b/c"
-    },
-    {
-      "input": "trailing///",
-      "stripped": "trailing///"
-    },
-    {
-      "input": "under_score__double",
-      "stripped": "under_score__double"
-    },
-    {
-      "input": "(parens) [brackets] {braces}",
-      "stripped": "(parens) [brackets] {braces}"
-    },
-    {
-      "input": "quotes \"double\" 'single'",
-      "stripped": "quotes \"double\" 'single'"
-    },
-    {
-      "input": "a&b=c#d!e@f",
-      "stripped": "a&b=c#d!e@f"
-    },
-    {
-      "input": "semi;colon:comma,dot.",
-      "stripped": "semi;colon:comma,dot."
-    },
-    {
-      "input": "back\\slash",
-      "stripped": "back\\slash"
-    },
-    {
-      "input": "tilde~`grave",
-      "stripped": "tilde~`grave"
-    },
-    {
-      "input": "dead beef cafe babe",
-      "stripped": "dead beef cafe babe"
-    },
-    {
-      "input": "deadbeefcafe0123",
-      "stripped": "deadbeefcafe0123"
-    },
-    {
-      "input": "252525",
-      "stripped": "252525"
-    },
-    {
-      "input": "a\u0000nul",
-      "stripped": "a\u0000nul"
-    }
+    {"input": "", "stripped": ""},
+    {"input": " ", "stripped": ""},
+    {"input": "a", "stripped": "a"},
+    {"input": "ab", "stripped": "ab"},
+    {"input": "Laptop computer", "stripped": "Laptop computer"},
+    {"input": "laptop_computer", "stripped": "laptop_computer"},
+    {"input": "LED lamp", "stripped": "LED lamp"},
+    {"input": "office-chair", "stripped": "office-chair"},
+    {"input": "IT services", "stripped": "IT services"},
+    {"input": "  multiple   spaces\tand\ttabs\nnew lines  ", "stripped": "multiple   spaces\tand\ttabs\nnew lines"},
+    {"input": "Ноутбук Lenovo ThinkPad", "stripped": "Ноутбук Lenovo ThinkPad"},
+    {"input": "кофе в зёрнах", "stripped": "кофе в зёрнах"},
+    {"input": "商品编码 8471 笔记本电脑", "stripped": "商品编码 8471 笔记本电脑"},
+    {"input": "ノートパソコン", "stripped": "ノートパソコン"},
+    {"input": "노트북 컴퓨터", "stripped": "노트북 컴퓨터"},
+    {"input": "😀 smiley face", "stripped": "😀 smiley face"},
+    {"input": "👨‍👩‍👧 family", "stripped": "👨‍👩‍👧 family"},
+    {"input": "🇩🇪 flag", "stripped": "🇩🇪 flag"},
+    {"input": "👍🏽 thumbs", "stripped": "👍🏽 thumbs"},
+    {"input": "café éclair", "stripped": "café éclair"},
+    {"input": "café éclair", "stripped": "café éclair"},
+    {"input": "Straße", "stripped": "Straße"},
+    {"input": "STRASSE", "stripped": "STRASSE"},
+    {"input": "ß", "stripped": "ß"},
+    {"input": "ẞ", "stripped": "ẞ"},
+    {"input": "İstanbul", "stripped": "İstanbul"},
+    {"input": "ıi", "stripped": "ıi"},
+    {"input": "IĞDIR iğdir", "stripped": "IĞDIR iğdir"},
+    {"input": " nbsp value ", "stripped": "nbsp value"},
+    {"input": "line separator", "stripped": "line separator"},
+    {"input": "para separator", "stripped": "para separator"},
+    {"input": "\u001cfile\u001dgroup\u001erecord\u001funit", "stripped": "file\u001dgroup\u001erecord\u001funit"},
+    {"input": "next line", "stripped": "next line"},
+    {"input": "﻿bom﻿", "stripped": "﻿bom﻿"},
+    {"input": "zero​width", "stripped": "zero​width"},
+    {"input": "　ideographic　space　", "stripped": "ideographic　space"},
+    {"input": " figure narrow", "stripped": "figure narrow"},
+    {"input": "\u000bvertical\fform", "stripped": "vertical\fform"},
+    {"input": "%20encoded%20space", "stripped": "%20encoded%20space"},
+    {"input": "%2520double", "stripped": "%2520double"},
+    {"input": "%252520triple", "stripped": "%252520triple"},
+    {"input": "100%", "stripped": "100%"},
+    {"input": "%E2%9C%93 check", "stripped": "%E2%9C%93 check"},
+    {"input": "%C3%A9t%C3%A9", "stripped": "%C3%A9t%C3%A9"},
+    {"input": "%C3", "stripped": "%C3"},
+    {"input": "%zz", "stripped": "%zz"},
+    {"input": "%", "stripped": "%"},
+    {"input": "a+b", "stripped": "a+b"},
+    {"input": "a%2Bb", "stripped": "a%2Bb"},
+    {"input": "%F0%9F%98%80", "stripped": "%F0%9F%98%80"},
+    {"input": "%ED%A0%80", "stripped": "%ED%A0%80"},
+    {"input": "03111000-2", "stripped": "03111000-2"},
+    {"input": "CPV 03111000-2", "stripped": "CPV 03111000-2"},
+    {"input": "4321.15.03", "stripped": "4321.15.03"},
+    {"input": "8471.30.0100", "stripped": "8471.30.0100"},
+    {"input": "EC000123", "stripped": "EC000123"},
+    {"input": "A01.1.1", "stripped": "A01.1.1"},
+    {"input": "5965-01-234-5678", "stripped": "5965-01-234-5678"},
+    {"input": "they're o'neill's", "stripped": "they're o'neill's"},
+    {"input": "hello-world", "stripped": "hello-world"},
+    {"input": "3rd-party 2nd", "stripped": "3rd-party 2nd"},
+    {"input": "x² ①② ٠١٢٣ Ⅻ", "stripped": "x² ①② ٠١٢٣ Ⅻ"},
+    {"input": "ﬁne ﬂour", "stripped": "ﬁne ﬂour"},
+    {"input": "ǆungla ǈudi", "stripped": "ǆungla ǈudi"},
+    {"input": "ΣΊΣΥΦΟΣ", "stripped": "ΣΊΣΥΦΟΣ"},
+    {"input": "ὈΔΥΣΣΕΎΣ", "stripped": "ὈΔΥΣΣΕΎΣ"},
+    {"input": "ᾳ ᾀ", "stripped": "ᾳ ᾀ"},
+    {"input": "ŉ ǰ", "stripped": "ŉ ǰ"},
+    {"input": "ვეფხისტყაოსანი", "stripped": "ვეფხისტყაოსანი"},
+    {"input": "<script>alert(1)</script>", "stripped": "<script>alert(1)</script>"},
+    {"input": "a/b/c", "stripped": "a/b/c"},
+    {"input": "trailing///", "stripped": "trailing///"},
+    {"input": "under_score__double", "stripped": "under_score__double"},
+    {"input": "(parens) [brackets] {braces}", "stripped": "(parens) [brackets] {braces}"},
+    {"input": "quotes \"double\" 'single'", "stripped": "quotes \"double\" 'single'"},
+    {"input": "a&b=c#d!e@f", "stripped": "a&b=c#d!e@f"},
+    {"input": "semi;colon:comma,dot.", "stripped": "semi;colon:comma,dot."},
+    {"input": "back\\slash", "stripped": "back\\slash"},
+    {"input": "tilde~`grave", "stripped": "tilde~`grave"},
+    {"input": "dead beef cafe babe", "stripped": "dead beef cafe babe"},
+    {"input": "deadbeefcafe0123", "stripped": "deadbeefcafe0123"},
+    {"input": "252525", "stripped": "252525"},
+    {"input": "a\u0000nul", "stripped": "a\u0000nul"}
   ]
 }

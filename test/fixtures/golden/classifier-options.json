@@ -1,0 +1,88 @@
+{
+  "versions": {
+    "ETIM": [
+      "ETIM version 10.0 (2024-12-10)"
+    ],
+    "UNSPSC": [
+      "UNSPSC UNv260801.1 (18 March 2025)"
+    ],
+    "GPC": [
+      "GPC as of May 2026 (v20260520)"
+    ],
+    "EMDN": [
+      "EMDN v2026 (English)"
+    ],
+    "NAICS": [
+      "2022 NAICS"
+    ],
+    "ISIC": [
+      "ISIC Rev. 4",
+      "ISIC Rev. 5"
+    ],
+    "HS": [
+      "HS6 2022"
+    ],
+    "CN": [
+      "CN 2026"
+    ],
+    "NACE": [
+      "NACE Rev. 2.1"
+    ],
+    "CPV": [
+      "CPV 2008 (ver. 2013)",
+      "CPV 2008 Supplementary codes"
+    ],
+    "NSN": [
+      "NSN extract (February 22, 2023)"
+    ],
+    "HTS": [
+      "2026 HTS Revision 11 (July 1, 2026)"
+    ]
+  },
+  "classifierTypes": [
+    {"input": "naics", "status": 200, "upperType": "NAICS"},
+    {"input": "NAICS", "status": 200, "upperType": "NAICS"},
+    {"input": " cpv ", "status": 200, "upperType": "CPV"},
+    {"input": "HS", "status": 200, "upperType": "HS"},
+    {"input": "﻿HS", "status": 404},
+    {"input": "gmdn", "status": 410},
+    {"input": " GMDN", "status": 410},
+    {"input": "ısic", "status": 200, "upperType": "ISIC"},
+    {"input": "unknown", "status": 404},
+    {"input": "", "status": 404},
+    {"input": "ﬀ", "status": 404},
+    {"input": "Hts", "status": 200, "upperType": "HTS"},
+    {"input": "nace", "status": 200, "upperType": "NACE"},
+    {"input": "unspsc ", "status": 200, "upperType": "UNSPSC"}
+  ],
+  "options": [
+    {"type": "CPV", "version": null, "topK": null, "allowInvalidVersion": false, "resolved": ["CPV 2008 (ver. 2013)", 10, "CPV 2008 (ver. 2013)"]},
+    {"type": "CPV", "version": null, "topK": null, "allowInvalidVersion": true, "resolved": ["CPV 2008 (ver. 2013)", 10, "CPV 2008 (ver. 2013)"]},
+    {"type": "CPV", "version": "CPV 2008 Supplementary codes", "topK": 5, "allowInvalidVersion": false, "resolved": ["CPV 2008 Supplementary codes", 5, "CPV 2008 (ver. 2013)"]},
+    {"type": "CPV", "version": "CPV 2008 Supplementary codes", "topK": 5, "allowInvalidVersion": true, "resolved": ["CPV 2008 Supplementary codes", 5, "CPV 2008 (ver. 2013)"]},
+    {"type": "CPV", "version": "unknown version", "topK": 100, "allowInvalidVersion": false, "resolved": ["CPV 2008 (ver. 2013)", 100, "CPV 2008 (ver. 2013)"]},
+    {"type": "CPV", "version": "unknown version", "topK": 100, "allowInvalidVersion": true, "resolved": ["unknown version", 100, "CPV 2008 (ver. 2013)"]},
+    {"type": "CPV", "version": "", "topK": 0, "allowInvalidVersion": false, "resolved": ["CPV 2008 (ver. 2013)", 10, "CPV 2008 (ver. 2013)"]},
+    {"type": "CPV", "version": "", "topK": 0, "allowInvalidVersion": true, "resolved": ["", 10, "CPV 2008 (ver. 2013)"]},
+    {"type": "CPV", "version": null, "topK": 101, "allowInvalidVersion": false, "resolved": ["CPV 2008 (ver. 2013)", 10, "CPV 2008 (ver. 2013)"]},
+    {"type": "CPV", "version": null, "topK": 101, "allowInvalidVersion": true, "resolved": ["CPV 2008 (ver. 2013)", 10, "CPV 2008 (ver. 2013)"]},
+    {"type": "CPV", "version": null, "topK": -3, "allowInvalidVersion": false, "resolved": ["CPV 2008 (ver. 2013)", 10, "CPV 2008 (ver. 2013)"]},
+    {"type": "CPV", "version": null, "topK": -3, "allowInvalidVersion": true, "resolved": ["CPV 2008 (ver. 2013)", 10, "CPV 2008 (ver. 2013)"]},
+    {"type": "CPV", "version": null, "topK": 1, "allowInvalidVersion": false, "resolved": ["CPV 2008 (ver. 2013)", 1, "CPV 2008 (ver. 2013)"]},
+    {"type": "CPV", "version": null, "topK": 1, "allowInvalidVersion": true, "resolved": ["CPV 2008 (ver. 2013)", 1, "CPV 2008 (ver. 2013)"]},
+    {"type": "HS", "version": null, "topK": null, "allowInvalidVersion": false, "resolved": ["HS6 2022", 10, "HS6 2022"]},
+    {"type": "HS", "version": null, "topK": null, "allowInvalidVersion": true, "resolved": ["HS6 2022", 10, "HS6 2022"]},
+    {"type": "HS", "version": "CPV 2008 Supplementary codes", "topK": 5, "allowInvalidVersion": false, "resolved": ["HS6 2022", 5, "HS6 2022"]},
+    {"type": "HS", "version": "CPV 2008 Supplementary codes", "topK": 5, "allowInvalidVersion": true, "resolved": ["CPV 2008 Supplementary codes", 5, "HS6 2022"]},
+    {"type": "HS", "version": "unknown version", "topK": 100, "allowInvalidVersion": false, "resolved": ["HS6 2022", 100, "HS6 2022"]},
+    {"type": "HS", "version": "unknown version", "topK": 100, "allowInvalidVersion": true, "resolved": ["unknown version", 100, "HS6 2022"]},
+    {"type": "HS", "version": "", "topK": 0, "allowInvalidVersion": false, "resolved": ["HS6 2022", 10, "HS6 2022"]},
+    {"type": "HS", "version": "", "topK": 0, "allowInvalidVersion": true, "resolved": ["", 10, "HS6 2022"]},
+    {"type": "HS", "version": null, "topK": 101, "allowInvalidVersion": false, "resolved": ["HS6 2022", 10, "HS6 2022"]},
+    {"type": "HS", "version": null, "topK": 101, "allowInvalidVersion": true, "resolved": ["HS6 2022", 10, "HS6 2022"]},
+    {"type": "HS", "version": null, "topK": -3, "allowInvalidVersion": false, "resolved": ["HS6 2022", 10, "HS6 2022"]},
+    {"type": "HS", "version": null, "topK": -3, "allowInvalidVersion": true, "resolved": ["HS6 2022", 10, "HS6 2022"]},
+    {"type": "HS", "version": null, "topK": 1, "allowInvalidVersion": false, "resolved": ["HS6 2022", 1, "HS6 2022"]},
+    {"type": "HS", "version": null, "topK": 1, "allowInvalidVersion": true, "resolved": ["HS6 2022", 1, "HS6 2022"]}
+  ]
+}
