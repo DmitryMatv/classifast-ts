@@ -13,9 +13,22 @@ runs two Vitest projects: `assets` (frontend, jsdom, `app/assets/ts`) and
 Vite and Vitest configs).
 
 The NestJS app in `src/` is an early migration scaffold. Start it with
-`npm run start:dev`. It does not serve the site yet; production still runs the
+`npm run start:dev`. It serves only `/health` so far; production still runs the
 FastAPI app. The root `test/` directory holds Nest e2e specs for Vitest; the
 Python suite lives in `tests/`.
+
+The Nest app listens on `HOST` and `PORT` (default `0.0.0.0:8001`), the same
+port as the Python app. Set `PORT` to run both at once. Like Python's
+`load_dotenv()`, it loads the repository-root `.env` when the file exists, and
+variables already in the environment win. A worktree has no `.env`, so pass
+`node --env-file=<path> dist/main.js` there. `src/config/app-config.ts` parses
+every variable the Python app reads; add new variables to that schema instead
+of reading `process.env` elsewhere. `Dockerfile.node` builds the Nest image;
+production still uses `Dockerfile`.
+
+The Qdrant JS client requests `GET /` to check the server version when it is
+constructed, and logs a warning when that fails. Fake Qdrant servers in tests
+must answer `GET /` with a compatible `version` to keep the output clean.
 
 Always use `pytest` for backend tests. The suite retains `unittest`-compatible
 test classes and standard-library mocks, but pytest is the official runner.
