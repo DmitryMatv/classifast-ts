@@ -2,11 +2,13 @@ import { readFileSync } from "node:fs";
 import { z } from "zod";
 import {
   normalizeOriginalIdForLookup,
+  originalIdLookupText,
   reverseNormalizedId,
 } from "./id-lookup.js";
 
 const goldenSchema = z.object({
   normalize: z.array(z.object({ input: z.string(), normalized: z.string() })),
+  payloadIds: z.array(z.object({ json: z.string(), normalized: z.string() })),
   reverse: z.array(z.object({ input: z.string(), reversed: z.string() })),
   nonAsciiFolds: z.array(
     z.object({ codePoint: z.number().int(), normalized: z.string() }),
@@ -29,6 +31,38 @@ describe("ID lookup normalization matches the Python golden fixtures", () => {
       expect(normalizeOriginalIdForLookup(input)).toBe(normalized);
     },
   );
+
+  it.each(
+    golden.payloadIds.filter(
+      ({ json }) => originalIdLookupText(JSON.parse(json)) !== undefined,
+    ),
+  )(
+    "normalizes the payload value $json to $normalized",
+    ({ json, normalized }) => {
+      const text = originalIdLookupText(JSON.parse(json));
+      expect(text && normalizeOriginalIdForLookup(text)).toBe(normalized);
+    },
+  );
+
+  it("refuses only the payload values whose Python str() it cannot reproduce", () => {
+    expect(
+      golden.payloadIds
+        .filter(
+          ({ json }) => originalIdLookupText(JSON.parse(json)) === undefined,
+        )
+        .map(({ json }) => json),
+    ).toEqual([
+      "0",
+      "0.0",
+      "-0.0",
+      "0.00001",
+      "1e16",
+      "9007199254740993",
+      "1.5e300",
+      '["A", 1]',
+      '{"a": 1}',
+    ]);
+  });
 
   it.each(golden.reverse)(
     "reverses $input to $reversed",

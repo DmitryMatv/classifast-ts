@@ -850,6 +850,108 @@
       "normalized": ""
     }
   ],
+  "payloadIds": [
+    {
+      "json": "true",
+      "normalized": "true"
+    },
+    {
+      "json": "false",
+      "normalized": "false"
+    },
+    {
+      "json": "4300",
+      "normalized": "43"
+    },
+    {
+      "json": "-4300",
+      "normalized": "43"
+    },
+    {
+      "json": "12.0",
+      "normalized": "12"
+    },
+    {
+      "json": "-12.0",
+      "normalized": "12"
+    },
+    {
+      "json": "12.5",
+      "normalized": "125"
+    },
+    {
+      "json": "-12.5",
+      "normalized": "125"
+    },
+    {
+      "json": "101.21",
+      "normalized": "10121"
+    },
+    {
+      "json": "4321.1503",
+      "normalized": "43211503"
+    },
+    {
+      "json": "0.10203004",
+      "normalized": "1020304"
+    },
+    {
+      "json": "0.0001",
+      "normalized": "1"
+    },
+    {
+      "json": "1e-4",
+      "normalized": "1"
+    },
+    {
+      "json": "999999999999999.9",
+      "normalized": "9999999999999999"
+    },
+    {
+      "json": "1000000000000000.0",
+      "normalized": "1"
+    },
+    {
+      "json": "9007199254740991",
+      "normalized": "9007199254740991"
+    },
+    {
+      "json": "0",
+      "normalized": "0"
+    },
+    {
+      "json": "0.0",
+      "normalized": "00"
+    },
+    {
+      "json": "-0.0",
+      "normalized": "00"
+    },
+    {
+      "json": "0.00001",
+      "normalized": "1e05"
+    },
+    {
+      "json": "1e16",
+      "normalized": "1e16"
+    },
+    {
+      "json": "9007199254740993",
+      "normalized": "9007199254740993"
+    },
+    {
+      "json": "1.5e300",
+      "normalized": "15e3"
+    },
+    {
+      "json": "[\"A\", 1]",
+      "normalized": "a1"
+    },
+    {
+      "json": "{\"a\": 1}",
+      "normalized": "a1"
+    }
+  ],
   "reverse": [
     {
       "input": "",

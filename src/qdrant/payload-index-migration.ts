@@ -8,6 +8,7 @@ import {
   ORIGINAL_ID_FIELD,
   ORIGINAL_ID_NORMALIZED_FIELD,
   ORIGINAL_ID_NORMALIZED_REVERSED_FIELD,
+  originalIdLookupText,
   reverseNormalizedId,
 } from "./id-lookup.js";
 import {
@@ -118,12 +119,6 @@ async function restorePreviousIndex(
   }
 }
 
-function originalIdText(value: unknown): string | undefined {
-  if (typeof value === "string") return value;
-  if (Number.isSafeInteger(value)) return String(value);
-  return undefined;
-}
-
 function nextScrollOffset(
   offset: Schemas["ScrollResult"]["next_page_offset"],
 ): PointId | undefined {
@@ -193,7 +188,7 @@ export async function backfillNormalizedIdPayloads(
           missingOriginalId += 1;
           continue;
         }
-        const originalIdValue = originalIdText(originalId);
+        const originalIdValue = originalIdLookupText(originalId);
         if (originalIdValue === undefined) {
           console.log(
             `  ! Point ${point.id} has an unsupported original_id: ${JSON.stringify(originalId)}`,

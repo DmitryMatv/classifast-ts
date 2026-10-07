@@ -56,6 +56,10 @@ The ID normalization that `apply` writes into Qdrant
 casefolds, so `ß` becomes `ss`; JavaScript's `toLowerCase` does not. After
 changing either side, rerun `python utilities/export_golden_fixtures.py` and
 `npm test`. The fixture covers every code point that Python folds to ASCII.
+Python normalizes `str()` of any `original_id` payload value.
+`originalIdLookupText` converts only the JSON values whose `String()` matches
+it after normalization, and `apply` fails on the rest, including `0`, because
+`JSON.parse` reads Python's `0.0` as `0`.
 
 ## Project Snapshot
 

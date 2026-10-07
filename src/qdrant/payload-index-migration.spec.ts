@@ -374,10 +374,15 @@ describe("backfillNormalizedIdPayloads", () => {
     expect(client.batchUpdate).toHaveBeenCalledTimes(2);
   });
 
-  it("refuses to normalize an original_id that is not a string or an integer", async () => {
+  it("backfills the other points but fails when an original_id cannot match Python", async () => {
     const client = fakeQdrant();
     client.scroll.mockResolvedValueOnce({
-      points: [{ id: 1, payload: { original_id: ["A", 1] } }],
+      points: [
+        { id: 1, payload: { original_id: ["A", 1] } },
+        { id: 2, payload: { original_id: 0 } },
+        { id: 3, payload: { original_id: 101.21 } },
+        { id: 4, payload: { original_id: true } },
+      ],
       next_page_offset: null,
     });
 
@@ -385,7 +390,36 @@ describe("backfillNormalizedIdPayloads", () => {
       false,
     );
 
-    expect(client.batchUpdate).not.toHaveBeenCalled();
+    expect(client.batchUpdate.mock.calls).toEqual([
+      [
+        "products",
+        {
+          operations: [
+            {
+              set_payload: {
+                payload: {
+                  original_id_normalized: "10121",
+                  original_id_normalized_reversed: "12101",
+                },
+                points: [3],
+              },
+            },
+            {
+              set_payload: {
+                payload: {
+                  original_id_normalized: "true",
+                  original_id_normalized_reversed: "eurt",
+                },
+                points: [4],
+              },
+            },
+          ],
+          wait: true,
+        },
+      ],
+    ]);
+    expect(logged()).toContain("Point 1 has an unsupported original_id");
+    expect(logged()).toContain("Point 2 has an unsupported original_id: 0");
   });
 });
 

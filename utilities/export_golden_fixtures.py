@@ -109,6 +109,36 @@ ID_INPUTS = [
     "ǅ",
 ]
 
+# JSON text, as Qdrant returns a non-string original_id payload. The text
+# keeps 12.0 apart from 12, which JSON.parse cannot.
+PAYLOAD_ID_JSON_INPUTS = [
+    "true",
+    "false",
+    "4300",
+    "-4300",
+    "12.0",
+    "-12.0",
+    "12.5",
+    "-12.5",
+    "101.21",
+    "4321.1503",
+    "0.10203004",
+    "0.0001",
+    "1e-4",
+    "999999999999999.9",
+    "1000000000000000.0",
+    "9007199254740991",
+    "0",
+    "0.0",
+    "-0.0",
+    "0.00001",
+    "1e16",
+    "9007199254740993",
+    "1.5e300",
+    '["A", 1]',
+    '{"a": 1}',
+]
+
 REVERSE_INPUTS = [
     "",
     "a",
@@ -144,6 +174,13 @@ def build_fixture() -> dict[str, object]:
         "normalize": [
             {"input": value, "normalized": normalize_original_id_for_lookup(value)}
             for value in [*ID_INPUTS, *(chr(code_point) for code_point in range(128))]
+        ],
+        "payloadIds": [
+            {
+                "json": text,
+                "normalized": normalize_original_id_for_lookup(json.loads(text)),
+            }
+            for text in PAYLOAD_ID_JSON_INPUTS
         ],
         "reverse": [
             {"input": value, "reversed": reverse_normalized_id(value)}

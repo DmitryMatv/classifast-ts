@@ -40,6 +40,22 @@ function foldToAsciiAlnum(value: string): string {
   return folded;
 }
 
+// Python normalizes str(original_id) for any payload value. String() matches
+// it after normalization only for these JSON values. JSON.parse reads 0.0 as
+// 0 although Python writes "00" for it, writes 1e-05 and 1e+16 in exponent
+// form, and parses integers past 2^53 exactly.
+export function originalIdLookupText(value: unknown): string | undefined {
+  if (typeof value === "string" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (typeof value !== "number" || value === 0) return undefined;
+  if (Number.isSafeInteger(value)) return String(value);
+  const magnitude = Math.abs(value);
+  return magnitude >= 1e-4 && magnitude < 1e16 && !Number.isInteger(value)
+    ? String(value)
+    : undefined;
+}
+
 function stripZeros(value: string): string {
   return value.replace(/^0+/, "").replace(/0+$/, "");
 }
