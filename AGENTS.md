@@ -44,11 +44,18 @@ as `common.test.ts` does for `ResultCopier`.
 
 `utilities/qdrant_config.py` is an executable migration-style script, not passive configuration. Importing or running it updates a hardcoded Qdrant collection, so review it carefully before execution.
 
-`utilities/sync_payload_indexes.py check` is read-only.
-`utilities/sync_payload_indexes.py apply` is a migration-style command that
+`npm run qdrant:indexes -- check` is read-only.
+`npm run qdrant:indexes -- apply` is a migration-style command that
 backfills payloads and creates or replaces indexes in configured Qdrant
 collections. Runtime startup must validate Qdrant without creating, replacing,
-or deleting indexes.
+or deleting indexes. The CLI lives in `src/cli/sync-payload-indexes.ts`; the
+Python `utilities/sync_payload_indexes.py` no longer exists.
+
+The ID normalization that `apply` writes into Qdrant
+(`src/qdrant/id-lookup.ts`) must match `app/id_lookup.py` exactly. Python
+casefolds, so `ß` becomes `ss`; JavaScript's `toLowerCase` does not. After
+changing either side, rerun `python utilities/export_golden_fixtures.py` and
+`npm test`. The fixture covers every code point that Python folds to ASCII.
 
 ## Project Snapshot
 
