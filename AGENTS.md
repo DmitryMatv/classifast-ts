@@ -17,6 +17,28 @@ The NestJS app in `src/` is an early migration scaffold. Start it with
 FastAPI app. The root `test/` directory holds Nest e2e specs for Vitest; the
 Python suite lives in `tests/`.
 
+`npm run test:contract` runs the HTTP contract suite in `test/contract/`
+against the server at `BASE_URL`, which is required. `npm test` does not run
+it. Point it at a public-mode Python instance from the verify driver. Set
+`CONTRACT_MODE=full` only against a server with Qdrant, Redis, and
+embeddings. `CONTRACT_POLAR_WEBHOOK_SECRET` and `CONTRACT_RAPIDAPI_SECRET`
+enable the signed-webhook and RapidAPI JSON cases. With
+`CONTRACT_TARGET=nest`, the `retiredRoutes` table expects 404 instead of
+Python's status. Inside test files Vitest replaces `process.env.BASE_URL`
+with Vite's base path, so the config passes the URL on as
+`CONTRACT_BASE_URL`.
+
+The public-mode cases expect a server without `POLAR_WEBHOOK_SECRET`,
+`RAPIDAPI_SECRET`, or Redis. The app's `load_dotenv()` searches upward from
+`app/`, so a worktree nested under the main checkout also loads the main
+checkout's `.env`. A key added there changes what a public-mode instance
+answers.
+
+Python declares HEAD only on page routes. HEAD on a GET-only route, such as
+`/robots.txt` or `/health`, falls through to the classifier catch-all and
+answers 404. HEAD on `/{TYPE}/fragment` answers 301. The contract suite pins
+this behavior.
+
 Always use `pytest` for backend tests. The suite retains `unittest`-compatible
 test classes and standard-library mocks, but pytest is the official runner.
 
