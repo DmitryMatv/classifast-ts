@@ -201,6 +201,42 @@ describe("ClassificationQueue", () => {
     expect(work).not.toHaveBeenCalled();
   });
 
+  it("aborting right after run returns never starts work", async () => {
+    const job = submit(queue, "aborted", ran);
+    job.controller.abort(new Error("gone"));
+
+    await expect(job.result).rejects.toThrow("gone");
+    await settle();
+    expect(ran).toEqual([]);
+    await expect(enqueue("next")).resolves.toBeDefined();
+    expect(ran).toEqual(["next"]);
+  });
+
+  it.each(Array.from({ length: 8 }, (_, depth) => depth))(
+    "aborting a waiting job %i microtasks into its handoff never starts work on an aborted signal",
+    async (depth) => {
+      const active = await enqueue("active");
+      const controller = new AbortController();
+      const startedAborted: boolean[] = [];
+      const waiting = queue.run(controller.signal, async (signal) => {
+        startedAborted.push(signal.aborted);
+        return "waiting";
+      });
+      waiting.catch(() => {});
+      await settle();
+
+      active.release();
+      for (let tick = 0; tick < depth; tick += 1) await Promise.resolve();
+      controller.abort(new Error("gone"));
+
+      await waiting.catch(() => {});
+      await settle();
+      expect(startedAborted).not.toContain(true);
+      await enqueue("next");
+      expect(ran).toEqual(["active", "next"]);
+    },
+  );
+
   it("cancelled active response keeps capacity until work settles", async () => {
     const accepted = await fillQueue();
     const reason = new Error("client left");

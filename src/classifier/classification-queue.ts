@@ -53,7 +53,10 @@ export class ClassificationQueue {
       const job: WaitingJob = {
         start: () => {
           this.#active = Promise.resolve()
-            .then(() => work(signal))
+            .then(() => {
+              signal.throwIfAborted();
+              return work(signal);
+            })
             .then(resolve, reject)
             .finally(() => {
               signal.removeEventListener("abort", onAbort);
