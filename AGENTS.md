@@ -137,6 +137,16 @@ markup moves to a new directory, add a `@source` line for it.
   for new IP-dependent code.
 - `paywall.ts` is wrapped in a parse guard on purpose (class declarations
   re-execute on bfcache/history-restore re-parsing). Do not remove the guard.
+- System classification retries must use `requestCurrentClassifierSubmission`
+  so the current classifier owner can submit a remembered example after the
+  required textarea clears. Native `requestSubmit` stops at validation before
+  HTMX can supply the query; mocked `requestSubmit` hides this failure.
+- HTMX 4's submit handler does not check `defaultPrevented`. The auth-readiness
+  gate must capture submission and stop immediate propagation until auth is ready,
+  even when HTMX processed the form before the classifier mounted.
+- Vendored HTMX tests in jsdom need an explicit XPath result type, `CSS.escape`,
+  and `includeIndicatorCSS: false`. `paywall-retry.test.ts` supplies these while
+  retaining native form validation and recording final request parameters.
 - HTMX 4 history restore preserves `document.body` and replaces its children.
   Initialize restored controls after the BODY `htmx:after:swap` with
   `HX-History-Restore-Request`, and retire handlers for the previous form.

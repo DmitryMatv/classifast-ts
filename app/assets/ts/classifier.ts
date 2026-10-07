@@ -1,4 +1,5 @@
 import { ShareLink } from "./common";
+import { CLASSIFIER_SUBMISSION_REQUEST } from "./classifier-submission";
 
 const BASE_SCORE_BAR_DELAY_MS = 0;
 const SCORE_BAR_STAGGER_MS = 100;
@@ -62,6 +63,7 @@ class ClassifierPage {
     this.setupDescriptionToggle();
     this.setupAutoloadCancellationListeners();
     this.setupQueryStateTracking();
+    this.setupSystemSubmissionRequests();
     this.attachShareButtonListener();
     this.animateScoreBars(document);
     this.ensureResultsSectionVisible();
@@ -297,6 +299,17 @@ class ClassifierPage {
     }
   }
 
+  private setupSystemSubmissionRequests(): void {
+    const form = this.form;
+    form.addEventListener(
+      CLASSIFIER_SUBMISSION_REQUEST,
+      () => {
+        if (form.isConnected) this.submitForm(form);
+      },
+      { signal: this.lifecycle.signal },
+    );
+  }
+
   private setupInitialResultsAutoload(): void {
     const config = this.getAutoloadConfig();
     if (!config?.enabled) {
@@ -360,6 +373,7 @@ class ClassifierPage {
         }
 
         event.preventDefault();
+        event.stopImmediatePropagation();
         if (this.pendingAuthReadySubmission) {
           return;
         }
@@ -381,7 +395,7 @@ class ClassifierPage {
           { once: true, signal: this.lifecycle.signal },
         );
       },
-      { signal: this.lifecycle.signal },
+      { capture: true, signal: this.lifecycle.signal },
     );
   }
 

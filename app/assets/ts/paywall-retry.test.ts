@@ -117,11 +117,11 @@ async function restoreClassifierForm(
 }
 
 async function initializeClearedExample(): Promise<HTMLFormElement> {
+  const form = classifierForm();
+  window.htmx?.process(form);
   await import("./classifier");
   const { initPaywall } = await import("./paywall");
   initPaywall();
-  const form = classifierForm();
-  window.htmx?.process(form);
   await vi.advanceTimersByTimeAsync(100);
 
   expect(requests).toEqual([
