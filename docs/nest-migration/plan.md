@@ -115,15 +115,17 @@ setup that the scaffold adds. The user asked to start with the scaffold.
 
 - [x] Show a Sign In button and the Clerk avatar in the mobile header
       (current app).
-- [ ] Stop the base classifier page from submitting an empty form. When
+- [x] Stop the base classifier page from submitting an empty form. When
       `/{TYPE}/` cannot server-render its example results (an SSR failure or a
       full queue), the script clears the example text and then auto-submits.
       `getEffectiveQuery` in `classifier.ts` falls back to the example, but
       htmx calls `form.reportValidity()` first and the textarea is `required`,
       so no request goes out. The browser shows "Please fill in this field"
       and the results stay at "Loading...". Reproduced in public mode;
-      the production trigger is inferred from the code. Decision 3 covers
-      sitemap query pages, not this base-page path; Phase 2 replaces it.
+      the production trigger is inferred from the code. Changing Top-K after
+      the example clears hit the same block. Fixed in `classifier.ts`
+      `submitForm`, which skips htmx validation only when the query lives
+      outside the textarea.
 - [ ] Charge the quota after the query passes validation, not before.
 - [ ] Check whether a Cloudflare cache rule covers `/api/v1/rapid/*`. Those
       responses are public for 7 days and do not vary on the proxy secret.

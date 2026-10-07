@@ -278,7 +278,23 @@ class ClassifierPage {
     this.pendingAutoloadRequestConfig = { suppressUrlChange };
     this.autoloadRequestInFlight = true;
     this.suppressNextHistoryUpdate = suppressUrlChange;
-    window.htmx.trigger(form, "submit");
+    this.submitForm(form);
+  }
+
+  // The default example query lives here, not in the textarea, once the
+  // example text is cleared. htmx validates the required textarea before
+  // htmx:config:request can supply that query, so skip validation then.
+  private submitForm(form: HTMLFormElement): void {
+    const textarea = this.getProductDescriptionArea();
+    const queryOutsideTextarea =
+      !textarea?.value.trim() && Boolean(this.getEffectiveQuery());
+    const noValidate = form.noValidate;
+    form.noValidate = noValidate || queryOutsideTextarea;
+    try {
+      window.htmx?.trigger(form, "submit");
+    } finally {
+      form.noValidate = noValidate;
+    }
   }
 
   private setupInitialResultsAutoload(): void {
@@ -360,7 +376,7 @@ class ClassifierPage {
             }
 
             this.pendingAuthReadySubmission = false;
-            window.htmx?.trigger(form, "submit");
+            this.submitForm(form);
           },
           { once: true, signal: this.lifecycle.signal },
         );
@@ -538,10 +554,7 @@ class ClassifierPage {
           submitBtn.classList.remove("active", "scale-95");
         }, 150);
       }
-      // Use HTMX to trigger the form submission
-      if (window.htmx) {
-        window.htmx.trigger(form, "submit");
-      }
+      this.submitForm(form);
     }
   }
 
