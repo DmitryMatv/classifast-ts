@@ -1,0 +1,969 @@
+{
+  "unicodeVersion": "16.0.0",
+  "normalize": [
+    {
+      "input": "",
+      "normalized": ""
+    },
+    {
+      "input": " ",
+      "normalized": ""
+    },
+    {
+      "input": "0",
+      "normalized": "0"
+    },
+    {
+      "input": "00",
+      "normalized": "00"
+    },
+    {
+      "input": "000000000",
+      "normalized": "000000000"
+    },
+    {
+      "input": "100",
+      "normalized": "1"
+    },
+    {
+      "input": "001",
+      "normalized": "1"
+    },
+    {
+      "input": "10101",
+      "normalized": "10101"
+    },
+    {
+      "input": "EC000123",
+      "normalized": "ec000123"
+    },
+    {
+      "input": "ec000123",
+      "normalized": "ec000123"
+    },
+    {
+      "input": "EC-000-123",
+      "normalized": "ec000123"
+    },
+    {
+      "input": "  ec 000 123  ",
+      "normalized": "ec000123"
+    },
+    {
+      "input": "03111000-2",
+      "normalized": "3111002"
+    },
+    {
+      "input": "03111000",
+      "normalized": "3111"
+    },
+    {
+      "input": "031110002",
+      "normalized": "3111002"
+    },
+    {
+      "input": "031110020",
+      "normalized": "3111002"
+    },
+    {
+      "input": "031110000",
+      "normalized": "3111"
+    },
+    {
+      "input": "131110002",
+      "normalized": "131110002"
+    },
+    {
+      "input": "03111000-20",
+      "normalized": "31110002"
+    },
+    {
+      "input": "0311100-2",
+      "normalized": "3111002"
+    },
+    {
+      "input": "003111000-2",
+      "normalized": "31110002"
+    },
+    {
+      "input": "0000000012",
+      "normalized": "12"
+    },
+    {
+      "input": "000000102",
+      "normalized": "0000012"
+    },
+    {
+      "input": "000000002",
+      "normalized": "0000002"
+    },
+    {
+      "input": "100000002",
+      "normalized": "100000002"
+    },
+    {
+      "input": "43211503",
+      "normalized": "43211503"
+    },
+    {
+      "input": "4321.15.03",
+      "normalized": "43211503"
+    },
+    {
+      "input": "0101.21.00",
+      "normalized": "10121"
+    },
+    {
+      "input": "8471.30.0100",
+      "normalized": "84713001"
+    },
+    {
+      "input": "A01.1.1",
+      "normalized": "a0111"
+    },
+    {
+      "input": "a01.1.1",
+      "normalized": "a0111"
+    },
+    {
+      "input": "C10.1",
+      "normalized": "c101"
+    },
+    {
+      "input": "62.01",
+      "normalized": "6201"
+    },
+    {
+      "input": "541511",
+      "normalized": "541511"
+    },
+    {
+      "input": "2042-00-123-4567",
+      "normalized": "2042001234567"
+    },
+    {
+      "input": "5965-01-234-5678",
+      "normalized": "5965012345678"
+    },
+    {
+      "input": "10003847",
+      "normalized": "10003847"
+    },
+    {
+      "input": "EC_000_123",
+      "normalized": "ec000123"
+    },
+    {
+      "input": "ec/000\\123",
+      "normalized": "ec000123"
+    },
+    {
+      "input": "(045)",
+      "normalized": "45"
+    },
+    {
+      "input": "#1!@#$%^&*()",
+      "normalized": "1"
+    },
+    {
+      "input": "tab\tnew\nline\rcr",
+      "normalized": "tabnewlinecr"
+    },
+    {
+      "input": " 031 110​002",
+      "normalized": "3111002"
+    },
+    {
+      "input": "STRASSE",
+      "normalized": "strasse"
+    },
+    {
+      "input": "Straße",
+      "normalized": "strasse"
+    },
+    {
+      "input": "STRAẞE",
+      "normalized": "strasse"
+    },
+    {
+      "input": "ß",
+      "normalized": "ss"
+    },
+    {
+      "input": "ẞ",
+      "normalized": "ss"
+    },
+    {
+      "input": "ſ",
+      "normalized": "s"
+    },
+    {
+      "input": "İstanbul",
+      "normalized": "istanbul"
+    },
+    {
+      "input": "ISTANBUL",
+      "normalized": "istanbul"
+    },
+    {
+      "input": "ıi",
+      "normalized": "i"
+    },
+    {
+      "input": "Iı",
+      "normalized": "i"
+    },
+    {
+      "input": "ΣΊΣΥΦΟΣ",
+      "normalized": ""
+    },
+    {
+      "input": "σς",
+      "normalized": ""
+    },
+    {
+      "input": "ﬁ01",
+      "normalized": "fi01"
+    },
+    {
+      "input": "ﬀ-ﬄ",
+      "normalized": "ffffl"
+    },
+    {
+      "input": "ﬅﬆ",
+      "normalized": "stst"
+    },
+    {
+      "input": "ŉ",
+      "normalized": "n"
+    },
+    {
+      "input": "ǰ",
+      "normalized": "j"
+    },
+    {
+      "input": "ẖẗẘẙẚ",
+      "normalized": "htwya"
+    },
+    {
+      "input": "K12",
+      "normalized": "k12"
+    },
+    {
+      "input": "Å1",
+      "normalized": "1"
+    },
+    {
+      "input": "ＡＢＣ１２３",
+      "normalized": ""
+    },
+    {
+      "input": "Код-123",
+      "normalized": "123"
+    },
+    {
+      "input": "ОКПД 01.11.11",
+      "normalized": "11111"
+    },
+    {
+      "input": "商品编码 8471",
+      "normalized": "8471"
+    },
+    {
+      "input": "分類０１２",
+      "normalized": ""
+    },
+    {
+      "input": "コード-0012",
+      "normalized": "12"
+    },
+    {
+      "input": "😀",
+      "normalized": ""
+    },
+    {
+      "input": "😀123😀",
+      "normalized": "123"
+    },
+    {
+      "input": "👍🏽-007",
+      "normalized": "7"
+    },
+    {
+      "input": "éclair",
+      "normalized": "clair"
+    },
+    {
+      "input": "éclair",
+      "normalized": "eclair"
+    },
+    {
+      "input": "Ä",
+      "normalized": ""
+    },
+    {
+      "input": "Ä",
+      "normalized": "a"
+    },
+    {
+      "input": "Ⅻ",
+      "normalized": ""
+    },
+    {
+      "input": "①②③",
+      "normalized": ""
+    },
+    {
+      "input": "٠١٢٣",
+      "normalized": ""
+    },
+    {
+      "input": "١٢٣abc",
+      "normalized": "abc"
+    },
+    {
+      "input": "x²",
+      "normalized": "x"
+    },
+    {
+      "input": "0x1F",
+      "normalized": "x1f"
+    },
+    {
+      "input": "Ǆ",
+      "normalized": ""
+    },
+    {
+      "input": "ǅ",
+      "normalized": ""
+    },
+    {
+      "input": "\u0000",
+      "normalized": ""
+    },
+    {
+      "input": "\u0001",
+      "normalized": ""
+    },
+    {
+      "input": "\u0002",
+      "normalized": ""
+    },
+    {
+      "input": "\u0003",
+      "normalized": ""
+    },
+    {
+      "input": "\u0004",
+      "normalized": ""
+    },
+    {
+      "input": "\u0005",
+      "normalized": ""
+    },
+    {
+      "input": "\u0006",
+      "normalized": ""
+    },
+    {
+      "input": "\u0007",
+      "normalized": ""
+    },
+    {
+      "input": "\b",
+      "normalized": ""
+    },
+    {
+      "input": "\t",
+      "normalized": ""
+    },
+    {
+      "input": "\n",
+      "normalized": ""
+    },
+    {
+      "input": "\u000b",
+      "normalized": ""
+    },
+    {
+      "input": "\f",
+      "normalized": ""
+    },
+    {
+      "input": "\r",
+      "normalized": ""
+    },
+    {
+      "input": "\u000e",
+      "normalized": ""
+    },
+    {
+      "input": "\u000f",
+      "normalized": ""
+    },
+    {
+      "input": "\u0010",
+      "normalized": ""
+    },
+    {
+      "input": "\u0011",
+      "normalized": ""
+    },
+    {
+      "input": "\u0012",
+      "normalized": ""
+    },
+    {
+      "input": "\u0013",
+      "normalized": ""
+    },
+    {
+      "input": "\u0014",
+      "normalized": ""
+    },
+    {
+      "input": "\u0015",
+      "normalized": ""
+    },
+    {
+      "input": "\u0016",
+      "normalized": ""
+    },
+    {
+      "input": "\u0017",
+      "normalized": ""
+    },
+    {
+      "input": "\u0018",
+      "normalized": ""
+    },
+    {
+      "input": "\u0019",
+      "normalized": ""
+    },
+    {
+      "input": "\u001a",
+      "normalized": ""
+    },
+    {
+      "input": "\u001b",
+      "normalized": ""
+    },
+    {
+      "input": "\u001c",
+      "normalized": ""
+    },
+    {
+      "input": "\u001d",
+      "normalized": ""
+    },
+    {
+      "input": "\u001e",
+      "normalized": ""
+    },
+    {
+      "input": "\u001f",
+      "normalized": ""
+    },
+    {
+      "input": " ",
+      "normalized": ""
+    },
+    {
+      "input": "!",
+      "normalized": ""
+    },
+    {
+      "input": "\"",
+      "normalized": ""
+    },
+    {
+      "input": "#",
+      "normalized": ""
+    },
+    {
+      "input": "$",
+      "normalized": ""
+    },
+    {
+      "input": "%",
+      "normalized": ""
+    },
+    {
+      "input": "&",
+      "normalized": ""
+    },
+    {
+      "input": "'",
+      "normalized": ""
+    },
+    {
+      "input": "(",
+      "normalized": ""
+    },
+    {
+      "input": ")",
+      "normalized": ""
+    },
+    {
+      "input": "*",
+      "normalized": ""
+    },
+    {
+      "input": "+",
+      "normalized": ""
+    },
+    {
+      "input": ",",
+      "normalized": ""
+    },
+    {
+      "input": "-",
+      "normalized": ""
+    },
+    {
+      "input": ".",
+      "normalized": ""
+    },
+    {
+      "input": "/",
+      "normalized": ""
+    },
+    {
+      "input": "0",
+      "normalized": "0"
+    },
+    {
+      "input": "1",
+      "normalized": "1"
+    },
+    {
+      "input": "2",
+      "normalized": "2"
+    },
+    {
+      "input": "3",
+      "normalized": "3"
+    },
+    {
+      "input": "4",
+      "normalized": "4"
+    },
+    {
+      "input": "5",
+      "normalized": "5"
+    },
+    {
+      "input": "6",
+      "normalized": "6"
+    },
+    {
+      "input": "7",
+      "normalized": "7"
+    },
+    {
+      "input": "8",
+      "normalized": "8"
+    },
+    {
+      "input": "9",
+      "normalized": "9"
+    },
+    {
+      "input": ":",
+      "normalized": ""
+    },
+    {
+      "input": ";",
+      "normalized": ""
+    },
+    {
+      "input": "<",
+      "normalized": ""
+    },
+    {
+      "input": "=",
+      "normalized": ""
+    },
+    {
+      "input": ">",
+      "normalized": ""
+    },
+    {
+      "input": "?",
+      "normalized": ""
+    },
+    {
+      "input": "@",
+      "normalized": ""
+    },
+    {
+      "input": "A",
+      "normalized": "a"
+    },
+    {
+      "input": "B",
+      "normalized": "b"
+    },
+    {
+      "input": "C",
+      "normalized": "c"
+    },
+    {
+      "input": "D",
+      "normalized": "d"
+    },
+    {
+      "input": "E",
+      "normalized": "e"
+    },
+    {
+      "input": "F",
+      "normalized": "f"
+    },
+    {
+      "input": "G",
+      "normalized": "g"
+    },
+    {
+      "input": "H",
+      "normalized": "h"
+    },
+    {
+      "input": "I",
+      "normalized": "i"
+    },
+    {
+      "input": "J",
+      "normalized": "j"
+    },
+    {
+      "input": "K",
+      "normalized": "k"
+    },
+    {
+      "input": "L",
+      "normalized": "l"
+    },
+    {
+      "input": "M",
+      "normalized": "m"
+    },
+    {
+      "input": "N",
+      "normalized": "n"
+    },
+    {
+      "input": "O",
+      "normalized": "o"
+    },
+    {
+      "input": "P",
+      "normalized": "p"
+    },
+    {
+      "input": "Q",
+      "normalized": "q"
+    },
+    {
+      "input": "R",
+      "normalized": "r"
+    },
+    {
+      "input": "S",
+      "normalized": "s"
+    },
+    {
+      "input": "T",
+      "normalized": "t"
+    },
+    {
+      "input": "U",
+      "normalized": "u"
+    },
+    {
+      "input": "V",
+      "normalized": "v"
+    },
+    {
+      "input": "W",
+      "normalized": "w"
+    },
+    {
+      "input": "X",
+      "normalized": "x"
+    },
+    {
+      "input": "Y",
+      "normalized": "y"
+    },
+    {
+      "input": "Z",
+      "normalized": "z"
+    },
+    {
+      "input": "[",
+      "normalized": ""
+    },
+    {
+      "input": "\\",
+      "normalized": ""
+    },
+    {
+      "input": "]",
+      "normalized": ""
+    },
+    {
+      "input": "^",
+      "normalized": ""
+    },
+    {
+      "input": "_",
+      "normalized": ""
+    },
+    {
+      "input": "`",
+      "normalized": ""
+    },
+    {
+      "input": "a",
+      "normalized": "a"
+    },
+    {
+      "input": "b",
+      "normalized": "b"
+    },
+    {
+      "input": "c",
+      "normalized": "c"
+    },
+    {
+      "input": "d",
+      "normalized": "d"
+    },
+    {
+      "input": "e",
+      "normalized": "e"
+    },
+    {
+      "input": "f",
+      "normalized": "f"
+    },
+    {
+      "input": "g",
+      "normalized": "g"
+    },
+    {
+      "input": "h",
+      "normalized": "h"
+    },
+    {
+      "input": "i",
+      "normalized": "i"
+    },
+    {
+      "input": "j",
+      "normalized": "j"
+    },
+    {
+      "input": "k",
+      "normalized": "k"
+    },
+    {
+      "input": "l",
+      "normalized": "l"
+    },
+    {
+      "input": "m",
+      "normalized": "m"
+    },
+    {
+      "input": "n",
+      "normalized": "n"
+    },
+    {
+      "input": "o",
+      "normalized": "o"
+    },
+    {
+      "input": "p",
+      "normalized": "p"
+    },
+    {
+      "input": "q",
+      "normalized": "q"
+    },
+    {
+      "input": "r",
+      "normalized": "r"
+    },
+    {
+      "input": "s",
+      "normalized": "s"
+    },
+    {
+      "input": "t",
+      "normalized": "t"
+    },
+    {
+      "input": "u",
+      "normalized": "u"
+    },
+    {
+      "input": "v",
+      "normalized": "v"
+    },
+    {
+      "input": "w",
+      "normalized": "w"
+    },
+    {
+      "input": "x",
+      "normalized": "x"
+    },
+    {
+      "input": "y",
+      "normalized": "y"
+    },
+    {
+      "input": "z",
+      "normalized": "z"
+    },
+    {
+      "input": "{",
+      "normalized": ""
+    },
+    {
+      "input": "|",
+      "normalized": ""
+    },
+    {
+      "input": "}",
+      "normalized": ""
+    },
+    {
+      "input": "~",
+      "normalized": ""
+    },
+    {
+      "input": "",
+      "normalized": ""
+    }
+  ],
+  "reverse": [
+    {
+      "input": "",
+      "reversed": ""
+    },
+    {
+      "input": "a",
+      "reversed": "a"
+    },
+    {
+      "input": "ab",
+      "reversed": "ba"
+    },
+    {
+      "input": "3111002",
+      "reversed": "2001113"
+    },
+    {
+      "input": "ec000123",
+      "reversed": "321000ce"
+    },
+    {
+      "input": "ab😀cd",
+      "reversed": "dc😀ba"
+    },
+    {
+      "input": "éx",
+      "reversed": "x́e"
+    },
+    {
+      "input": "商品编码",
+      "reversed": "码编品商"
+    },
+    {
+      "input": "👨‍👩",
+      "reversed": "👩‍👨"
+    }
+  ],
+  "nonAsciiFolds": [
+    {
+      "codePoint": 223,
+      "normalized": "ss"
+    },
+    {
+      "codePoint": 304,
+      "normalized": "i"
+    },
+    {
+      "codePoint": 329,
+      "normalized": "n"
+    },
+    {
+      "codePoint": 383,
+      "normalized": "s"
+    },
+    {
+      "codePoint": 496,
+      "normalized": "j"
+    },
+    {
+      "codePoint": 7830,
+      "normalized": "h"
+    },
+    {
+      "codePoint": 7831,
+      "normalized": "t"
+    },
+    {
+      "codePoint": 7832,
+      "normalized": "w"
+    },
+    {
+      "codePoint": 7833,
+      "normalized": "y"
+    },
+    {
+      "codePoint": 7834,
+      "normalized": "a"
+    },
+    {
+      "codePoint": 7838,
+      "normalized": "ss"
+    },
+    {
+      "codePoint": 8490,
+      "normalized": "k"
+    },
+    {
+      "codePoint": 64256,
+      "normalized": "ff"
+    },
+    {
+      "codePoint": 64257,
+      "normalized": "fi"
+    },
+    {
+      "codePoint": 64258,
+      "normalized": "fl"
+    },
+    {
+      "codePoint": 64259,
+      "normalized": "ffi"
+    },
+    {
+      "codePoint": 64260,
+      "normalized": "ffl"
+    },
+    {
+      "codePoint": 64261,
+      "normalized": "st"
+    },
+    {
+      "codePoint": 64262,
+      "normalized": "st"
+    }
+  ]
+}
