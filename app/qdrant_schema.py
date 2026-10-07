@@ -194,18 +194,6 @@ def _resolve_config_source(classifier_config: dict | None) -> dict:
     return CLASSIFIER_CONFIG if classifier_config is None else classifier_config
 
 
-def get_all_collection_names(classifier_config: dict | None = None) -> list[str]:
-    config_source = _resolve_config_source(classifier_config)
-    return sorted(
-        {
-            collection_name
-            for config in config_source.values()
-            for version_config in config.get("versions", {}).values()
-            if (collection_name := version_config.get("collection_name"))
-        }
-    )
-
-
 def _is_valid_embed_dims(embed_dims: Any) -> bool:
     return (
         isinstance(embed_dims, int)
