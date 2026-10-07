@@ -13,6 +13,7 @@ export type Reply = {
   status: number;
   headers: Headers;
   body: string;
+  bytes: Buffer;
 };
 
 type SendOptions = {
@@ -34,11 +35,13 @@ export async function send(
     body: options.body,
     redirect: "manual",
   });
+  const bytes = Buffer.from(await response.arrayBuffer());
   const reply: Reply = {
     label: `${method} ${path.length > 100 ? `${path.slice(0, 100)}...` : path}`,
     status: response.status,
     headers: response.headers,
-    body: await response.text(),
+    body: bytes.toString("utf8"),
+    bytes,
   };
   expect(reply.headers.getSetCookie(), `${reply.label} Set-Cookie`).toEqual([]);
   for (const [name, value] of Object.entries(securityHeaders)) {
