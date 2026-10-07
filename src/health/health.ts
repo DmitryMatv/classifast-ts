@@ -5,8 +5,6 @@ export interface HealthInputs {
   readonly probeQdrant: () => Promise<unknown>;
 }
 
-// Mirrors Python's /health: both clients must exist, then Qdrant must answer
-// within five seconds.
 export async function isHealthy(
   { embeddingReady, probeQdrant }: HealthInputs,
   timeoutMs = HEALTH_PROBE_TIMEOUT_MS,

@@ -1,11 +1,8 @@
 import { z } from "zod";
 import { resolveQdrantUrl } from "../qdrant/qdrant-connection.js";
 
-// Variable names, defaults, and parsing follow the Python app in app/*.py.
-// Python requires no variable at boot. It fails at boot only when an
-// integer it converts at import or startup is malformed; those variables use
-// `integer` here. Missing secrets disable a feature, as in Python, and
-// variables that Python reads leniently fall back to their defaults.
+// Like Python, boot requires no variable. Only a malformed value that Python
+// converts with int() at import or startup fails boot (`integer` below).
 
 export const APP_CONFIG = Symbol("APP_CONFIG");
 
@@ -59,7 +56,6 @@ function flag(fallback: "true" | "false") {
     .transform((value) => TRUE_ENV_VALUES.has(value.trim().toLowerCase()));
 }
 
-// Python tests secrets with `if not value`, so an empty value means unset.
 const secret = z
   .string()
   .optional()
@@ -74,7 +70,6 @@ function commaList(value: string): string[] {
     .filter(Boolean);
 }
 
-// Python disables the client when its timeout is not a positive number.
 function positiveSeconds(name: string, raw: string) {
   const seconds = Number(raw.trim());
   return raw.trim() !== "" && seconds > 0
@@ -316,7 +311,6 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-// Messages name variables but never echo their values, which may be secrets.
 function describeIssue(issue: z.core.$ZodIssue): string {
   const variable = issue.path.at(-1);
   return `${String(variable)} ${issue.message}`;
