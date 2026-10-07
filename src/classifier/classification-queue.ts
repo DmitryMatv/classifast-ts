@@ -1,4 +1,4 @@
-export const QUEUE_CAPACITY = 5; // one active classification plus four waiting
+export const QUEUE_CAPACITY = 5;
 
 export class ClassificationQueueFull extends Error {
   constructor() {
@@ -20,8 +20,8 @@ interface WaitingJob {
 }
 
 /**
- * Serializes complete classifications: one active job and up to four waiting
- * jobs, started in arrival order.
+ * Serializes complete classifications. It admits up to `QUEUE_CAPACITY` jobs,
+ * one active and the rest waiting, and starts them in arrival order.
  *
  * Aborting `signal` while a job waits removes it without running `work`.
  * Aborting it while the job is active rejects the caller at once, but the job
