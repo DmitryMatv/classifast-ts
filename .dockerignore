@@ -7,6 +7,9 @@
 node_modules/
 app/static/js/
 app/static/css/
+dist/
+coverage/
+*.tsbuildinfo
 
 # Data files (not needed in container)
 data/

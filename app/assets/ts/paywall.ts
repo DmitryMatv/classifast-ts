@@ -1,5 +1,6 @@
 import "./types/globals";
 import { ClerkHelpers } from "./clerk-helpers";
+import { requestCurrentClassifierSubmission } from "./classifier-submission";
 
 export function initPaywall(): void {
   window.__initPaywall?.();
@@ -270,7 +271,7 @@ if (!window.__paywallScriptParsed) {
         !this.recovery &&
         document.getElementById("paywall-warning")
       ) {
-        ClerkHelpers.submitForm();
+        requestCurrentClassifierSubmission();
       }
     }
 
@@ -321,7 +322,7 @@ if (!window.__paywallScriptParsed) {
           this.stopRecovery();
           this.startRecovery(returnUrl, Date.now() + RECOVERY_DURATION_MS);
           if (this.recovery) void this.requestRecovery(this.recovery);
-        } else ClerkHelpers.submitForm();
+        } else requestCurrentClassifierSubmission();
       }
     }
 

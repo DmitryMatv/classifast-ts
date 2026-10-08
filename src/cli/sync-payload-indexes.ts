@@ -5,6 +5,7 @@ import {
   getAllCollectionNames,
   type ClassifierConfigMap,
 } from "../classifier/classifier-config.js";
+import { loadEnvFileIfPresent } from "../config/env-file.js";
 import {
   migrateConfiguredCollections,
   type QdrantIndexClient,
@@ -47,13 +48,7 @@ export interface CliDeps {
 
 export const defaultDeps: CliDeps = {
   env: process.env,
-  loadEnvFile: () => {
-    try {
-      process.loadEnvFile(ENV_FILE);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    }
-  },
+  loadEnvFile: () => loadEnvFileIfPresent(ENV_FILE),
   createClient: (env) => createQdrantClient(env, MAINTENANCE_TIMEOUT_MS),
 };
 
