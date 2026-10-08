@@ -189,6 +189,7 @@ describe("paywall retries after the default example clears", () => {
         </select>
         <button id="classify-button" type="submit">Classify</button>
       </form>
+      <div id="loading-indicator"></div>
       <section id="results-section"><div id="results-container">
         <div id="paywall-warning"><p>Free trial limit reached</p>
           <div id="paywall-buttons"><button id="signin-button">Sign In</button></div>
@@ -279,6 +280,59 @@ describe("paywall retries after the default example clears", () => {
     document.body.dispatchEvent(new CustomEvent("htmx:authReady"));
     await vi.advanceTimersByTimeAsync(0);
     expectRetryRequest(form, "Industrial pump");
+    expect(form.noValidate).toBe(false);
+  });
+
+  it.each(["manual submission", "remembered retry"])(
+    "clears loading when a pending %s becomes empty before auth readiness",
+    async (caller) => {
+      const form = await initializeClearedExample();
+      const area = textarea();
+      const indicator = document.getElementById("loading-indicator");
+      window.__authReady = false;
+      if (caller === "manual submission") {
+        area.value = "Manual pump";
+        area.dispatchEvent(new Event("input", { bubbles: true }));
+        clickButton("classify-button");
+      } else {
+        retry("Try again");
+      }
+      await vi.advanceTimersByTimeAsync(0);
+      expect(requests).toEqual([]);
+      expect(indicator?.classList.contains("htmx-request")).toBe(true);
+
+      area.value = "";
+      area.dispatchEvent(new Event("input", { bubbles: true }));
+      window.__authReady = true;
+      document.body.dispatchEvent(new CustomEvent("htmx:authReady"));
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(requests).toEqual([]);
+      expect(invalidTargets).toEqual([area]);
+      expect(form.noValidate).toBe(false);
+      expect(indicator?.classList.contains("htmx-request")).toBe(false);
+    },
+  );
+
+  it("replays the current valid query after editing while auth readiness is pending", async () => {
+    const form = await initializeClearedExample();
+    const area = textarea();
+    area.value = "Manual pump";
+    area.dispatchEvent(new Event("input", { bubbles: true }));
+    window.__authReady = false;
+    clickButton("classify-button");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(requests).toEqual([]);
+
+    area.value = "Edited pump";
+    area.dispatchEvent(new Event("input", { bubbles: true }));
+    window.__authReady = true;
+    document.body.dispatchEvent(new CustomEvent("htmx:authReady"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expectRetryRequest(form, "Edited pump");
+    expect(area.value).toBe("Edited pump");
+    expect(invalidTargets).toEqual([]);
     expect(form.noValidate).toBe(false);
   });
 
