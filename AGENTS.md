@@ -13,9 +13,26 @@ runs two Vitest projects: `assets` (frontend, jsdom, `app/assets/ts`) and
 Vite and Vitest configs).
 
 The NestJS app in `src/` is an early migration scaffold. Start it with
-`npm run start:dev`. It does not serve the site yet; production still runs the
+`npm run start:dev`. It serves only `/health` so far; production still runs the
 FastAPI app. The root `test/` directory holds Nest e2e specs for Vitest; the
 Python suite lives in `tests/`.
+
+The Nest app listens on `HOST` and `PORT` (default `0.0.0.0:8001`), the same
+port as the Python app. Set `PORT` to run both at once. Like Python's
+`load_dotenv()`, it loads the repository-root `.env` when the file exists, and
+variables already in the environment win. A worktree has no `.env`, so pass
+`node --env-file=<path> dist/main.js` there. Node's `.env` grammar differs
+from python-dotenv: it does not expand `${VAR}`, and it treats `#` as a
+comment start in more places. On 2026-10-08 every key in the local `.env`
+parsed the same under both. Production is unaffected, because the image has
+no `.env` and compose supplies the variables. `src/config/app-config.ts` parses
+every variable the Python app reads; add new variables to that schema instead
+of reading `process.env` elsewhere. `Dockerfile.node` builds the Nest image;
+production still uses `Dockerfile`.
+
+The Qdrant JS client requests `GET /` to check the server version when it is
+constructed, and logs a warning when that fails. Fake Qdrant servers in tests
+must answer `GET /` with a compatible `version` to keep the output clean.
 
 Always use `pytest` for backend tests. The suite retains `unittest`-compatible
 test classes and standard-library mocks, but pytest is the official runner.
@@ -158,6 +175,16 @@ markup moves to a new directory, add a `@source` line for it.
   for new IP-dependent code.
 - `paywall.ts` is wrapped in a parse guard on purpose (class declarations
   re-execute on bfcache/history-restore re-parsing). Do not remove the guard.
+- System classification retries must use `requestCurrentClassifierSubmission`
+  so the current classifier owner can submit a remembered example after the
+  required textarea clears. Native `requestSubmit` stops at validation before
+  HTMX can supply the query; mocked `requestSubmit` hides this failure.
+- HTMX 4's submit handler does not check `defaultPrevented`. The auth-readiness
+  gate must capture submission and stop immediate propagation until auth is ready,
+  even when HTMX processed the form before the classifier mounted.
+- Vendored HTMX tests in jsdom need an explicit XPath result type, `CSS.escape`,
+  and `includeIndicatorCSS: false`. `paywall-retry.test.ts` supplies these while
+  retaining native form validation and recording final request parameters.
 - HTMX 4 history restore preserves `document.body` and replaces its children.
   Initialize restored controls after the BODY `htmx:after:swap` with
   `HX-History-Restore-Request`, and retire handlers for the previous form.
@@ -230,6 +257,16 @@ markup moves to a new directory, add a `@source` line for it.
   Cancelling the active one returns immediately, but the job keeps its slot
   until the running thread stage finishes. Shutdown cancels waiting jobs and
   drains the active one before shared clients close.
+- The Nest port of the executor is `ClassificationQueue`
+  (`src/classifier/classification-queue.ts`). It cancels through an
+  `AbortSignal` and has no threads, so it cannot see stage boundaries. An
+  aborted active job keeps its slot until the promise returned by `work`
+  settles. Pass the signal to every abortable call, such as `fetch`, and call
+  `signal.throwIfAborted()` between stages. A stage that ignores the signal
+  holds the slot until it finishes, as a Python thread stage does. Waiting
+  jobs rejected at shutdown and `run` calls made after shutdown begins both
+  fail with `ClassificationQueueClosed`. Python raises `CancelledError` for
+  the first case and `RuntimeError` for the second.
 - Python 3.14's `asyncio.shield` logs a late failure of the shielded future
   after its waiter is cancelled, even when code retrieves that failure. The
   executor waits with `_wait_through_cancellation` (`asyncio.wait` plus

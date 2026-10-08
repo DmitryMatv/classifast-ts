@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, vi } from "vitest";
 
+export const nativeRequestSubmit = HTMLFormElement.prototype.requestSubmit;
+
 function createMatchMediaMock(): typeof window.matchMedia {
   return vi.fn((query: string): MediaQueryList => {
     return {

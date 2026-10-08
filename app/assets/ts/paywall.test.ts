@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { CLASSIFIER_SUBMISSION_REQUEST } from "./classifier-submission";
+
+const submissionRequests = vi.fn();
 
 function form(): HTMLFormElement {
   const element = document.querySelector("form[hx-get]");
@@ -95,10 +98,11 @@ describe("paywall.ts", () => {
     vi.resetModules();
     vi.useFakeTimers();
     document.body.replaceWith(document.createElement("body"));
-    document.body.innerHTML = `<form hx-get="/NAICS/fragment" hx-target="#results-container">
+    document.body.innerHTML = `<form id="classifier-form" hx-get="/NAICS/fragment" hx-target="#results-container">
       <textarea name="product_description">coffee</textarea><input name="top_k" value="5"></form>
       <div id="results-container"></div>`;
     renderPaywall();
+    form().addEventListener(CLASSIFIER_SUBMISSION_REQUEST, submissionRequests);
     window.history.replaceState({}, "", "/");
     sessionStorage.clear();
     delete window.__checkoutReturnUrl;
@@ -116,12 +120,12 @@ describe("paywall.ts", () => {
     init();
     init();
     button("retry-button").click();
-    expect(form().requestSubmit).toHaveBeenCalledTimes(1);
+    expect(submissionRequests).toHaveBeenCalledTimes(1);
     renderPaywall();
     emit("htmx:after:swap", request());
     await vi.advanceTimersByTimeAsync(0);
     button("retry-button").click();
-    expect(form().requestSubmit).toHaveBeenCalledTimes(2);
+    expect(submissionRequests).toHaveBeenCalledTimes(2);
   });
 
   it("continues anonymous Upgrade once after a usable session without retrying classification", async () => {
@@ -136,7 +140,7 @@ describe("paywall.ts", () => {
     notify(user);
     await flush();
     expect(fetch).not.toHaveBeenCalled();
-    expect(form().requestSubmit).not.toHaveBeenCalled();
+    expect(submissionRequests).not.toHaveBeenCalled();
     document.getElementById("results-container")?.replaceChildren();
     init();
     const session = { getToken: vi.fn(async () => "token-123") };
@@ -144,7 +148,7 @@ describe("paywall.ts", () => {
     notify(user, session);
     await flush();
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(form().requestSubmit).not.toHaveBeenCalled();
+    expect(submissionRequests).not.toHaveBeenCalled();
     expect(fetch).toHaveBeenCalledWith(
       "/api/create-checkout",
       expect.objectContaining({
@@ -195,10 +199,10 @@ describe("paywall.ts", () => {
     expect(sessionStorage.length).toBe(0);
     const user = { id: "user_123" };
     notify(user);
-    expect(form().requestSubmit).not.toHaveBeenCalled();
+    expect(submissionRequests).not.toHaveBeenCalled();
     notify(user, { getToken: vi.fn(async () => "token") });
     notify(user, window.Clerk?.session);
-    expect(form().requestSubmit).toHaveBeenCalledTimes(1);
+    expect(submissionRequests).toHaveBeenCalledTimes(1);
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -309,7 +313,7 @@ describe("paywall.ts", () => {
       headerSignIn.click();
       await flush();
       expect(fetch).not.toHaveBeenCalled();
-      expect(form().requestSubmit).toHaveBeenCalledTimes(1);
+      expect(submissionRequests).toHaveBeenCalledTimes(1);
       expect(sessionStorage.length).toBe(0);
     },
   );
@@ -346,7 +350,7 @@ describe("paywall.ts", () => {
     await flush();
     expect(sessionStorage.length).toBe(0);
     expect(fetch).not.toHaveBeenCalled();
-    expect(form().requestSubmit).toHaveBeenCalledTimes(1);
+    expect(submissionRequests).toHaveBeenCalledTimes(1);
   });
 
   it("observes initial autoload and serializes pending activation retries without checkout", async () => {
@@ -505,7 +509,7 @@ describe("paywall.ts", () => {
       );
       expect(sessionStorage.length).toBe(0);
       button("retry-button").click();
-      expect(form().requestSubmit).toHaveBeenCalledTimes(1);
+      expect(submissionRequests).toHaveBeenCalledTimes(1);
     },
   );
 
