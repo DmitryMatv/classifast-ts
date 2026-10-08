@@ -12,6 +12,26 @@ const MAX_RECONNECT_DELAY_MS = 2_000;
 const logger = new Logger("Redis");
 
 /**
+ * Fails a Redis call whose reply takes longer than redis-py's
+ * socket_timeout. node-redis stops timing a command once it is written, so a
+ * Redis that accepts commands and never answers would hang the caller.
+ */
+export async function withReplyTimeout<T>(reply: Promise<T>): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timedOut = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`Redis did not reply within ${TIMEOUT_MS} ms`)),
+      TIMEOUT_MS,
+    );
+  });
+  try {
+    return await Promise.race([reply, timedOut]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * Connects like app/main.py: if the first connection fails, the process runs
  * without Redis and every metered request fails closed until a restart.
  * Commands fail at once while a later reconnect is pending, instead of
@@ -32,7 +52,6 @@ export async function connectRedis(
     username: config.auth?.username,
     password: config.auth?.password,
     disableOfflineQueue: true,
-    commandOptions: { timeout: TIMEOUT_MS },
   });
   client.on("error", (error: unknown) => {
     if (connected) logger.warn(`Redis connection error: ${String(error)}`);
@@ -40,8 +59,8 @@ export async function connectRedis(
 
   logger.log(`Connecting to Redis at ${config.host}:${config.port}...`);
   try {
-    await client.connect();
-    await client.ping();
+    await withReplyTimeout(client.connect());
+    await withReplyTimeout(client.ping());
   } catch (error) {
     logger.warn(
       `Redis not available, usage tracking disabled: ${String(error)}`,

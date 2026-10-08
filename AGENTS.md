@@ -44,6 +44,11 @@ node-redis waits forever by default: `connect()` retries until it succeeds and
 commands queue while the client is disconnected. `src/redis/redis-client.ts`
 stops the first connection attempt on failure and sets `disableOfflineQueue`,
 so metered requests fail closed at once, as they do in Python.
+node-redis's command `timeout` stops counting once a command is written, and
+its `socketTimeout` is an idle timeout. Neither fails a command that a hung
+Redis never answers. Wrap every Redis call in `withReplyTimeout`, which fails
+it after redis-py's five-second `socket_timeout`. Without it, a hung Redis
+would block the charge, which holds the only classification turn.
 
 Python's `check_usage` and `reserve_usage` each call
 `get_or_create_tracking_id`. A request without a valid `cf_track` cookie

@@ -1,7 +1,7 @@
 import { Logger } from "@nestjs/common";
 import { RESP_TYPES } from "redis";
 import type { Clerk, TierResolution } from "../auth/clerk.js";
-import type { RedisClient } from "../redis/redis-client.js";
+import { withReplyTimeout, type RedisClient } from "../redis/redis-client.js";
 
 const logger = new Logger("ProAccess");
 
@@ -98,10 +98,12 @@ export class ProAccess {
     if (!this.redis) return resolution;
     try {
       const { value, ttlSeconds } = cacheEntry(resolution);
-      await this.redis.set(tierKey(userId), value, {
-        expiration: { type: "EX", value: ttlSeconds },
-        condition: "NX",
-      });
+      await withReplyTimeout(
+        this.redis.set(tierKey(userId), value, {
+          expiration: { type: "EX", value: ttlSeconds },
+          condition: "NX",
+        }),
+      );
       return (await this.#readTier(userId)) ?? resolution;
     } catch {
       return resolution;
@@ -112,9 +114,11 @@ export class ProAccess {
   // read instead of becoming a tier name.
   async #readTier(userId: string): Promise<TierResolution | undefined> {
     if (!this.redis) return undefined;
-    const raw = await this.redis
-      .withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer })
-      .get(tierKey(userId));
+    const raw = await withReplyTimeout(
+      this.redis
+        .withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer })
+        .get(tierKey(userId)),
+    );
     return raw === null
       ? undefined
       : resolutionFromCache(strictUtf8.decode(raw));
@@ -129,7 +133,9 @@ export class ProAccess {
     if (!userId || !this.redis) return;
     const value = tier === "pro" ? "pro" : "free";
     try {
-      await this.redis.setEx(tierKey(userId), TIER_CACHE_TTL_SECONDS, value);
+      await withReplyTimeout(
+        this.redis.setEx(tierKey(userId), TIER_CACHE_TTL_SECONDS, value),
+      );
     } catch (error) {
       logger.warn(
         `Failed to sync tier cache for user_id=${userId}: ${String(error)}`,
@@ -137,7 +143,9 @@ export class ProAccess {
     }
     if (value !== "pro") return;
     try {
-      await this.redis.setEx(graceKey(userId), this.graceTtlSeconds, "1");
+      await withReplyTimeout(
+        this.redis.setEx(graceKey(userId), this.graceTtlSeconds, "1"),
+      );
     } catch (error) {
       logger.error(`Failed to set checkout grace period: ${String(error)}`);
     }
@@ -146,7 +154,7 @@ export class ProAccess {
   async #hasActiveGrace(userId: string): Promise<boolean> {
     if (!userId || !this.redis) return false;
     try {
-      return (await this.redis.exists(graceKey(userId))) > 0;
+      return (await withReplyTimeout(this.redis.exists(graceKey(userId)))) > 0;
     } catch (error) {
       logger.error(`Failed to check checkout grace period: ${String(error)}`);
       return false;

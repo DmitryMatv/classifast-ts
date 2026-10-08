@@ -8,6 +8,7 @@ import {
 import {
   closedRedis,
   connectTestRedis,
+  hungRedis,
   uniqueId,
 } from "../../test/support/redis.js";
 import { Clerk, type TierResolution } from "../auth/clerk.js";
@@ -29,6 +30,10 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await redis.close();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 function tierResponse(tier: string | undefined): Response {
@@ -362,6 +367,24 @@ describe("ProAccess.isPro", () => {
     const { access } = proAccess(userId, clerkRoute(resolution));
 
     expect(await access.isPro(userId, hint)).toBe(expected);
+  });
+
+  it("asks Clerk when Redis stops answering", async () => {
+    const userId = uniqueId("user");
+    const { client, close } = await hungRedis();
+    const { access, http } = proAccess(
+      userId,
+      () => tierResponse("pro"),
+      client,
+    );
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+
+    const isPro = access.isPro(userId, undefined);
+    await vi.advanceTimersByTimeAsync(20_000);
+
+    expect(await isPro).toBe(true);
+    expect(http.fetch).toHaveBeenCalledOnce();
+    await close();
   });
 
   it("test_redis_unavailable_short_circuits_before_tier_or_grace_checks", async () => {

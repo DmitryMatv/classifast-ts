@@ -1,7 +1,7 @@
 import { Logger } from "@nestjs/common";
 import type { AppConfig } from "../config/app-config.js";
 import { HttpStatusError } from "../http-status-error.js";
-import type { RedisClient } from "../redis/redis-client.js";
+import { withReplyTimeout, type RedisClient } from "../redis/redis-client.js";
 import { hashIp } from "../usage/client-identity.js";
 
 const logger = new Logger("CheckoutRateLimit");
@@ -44,11 +44,13 @@ export class CheckoutRateLimit {
     // stranded without a TTL one, without extending a running window.
     let count: number;
     try {
-      const [incremented] = await this.redis
-        .multi()
-        .incr(key)
-        .expire(key, this.config.checkoutRateLimitWindowSeconds, "NX")
-        .exec();
+      const [incremented] = await withReplyTimeout(
+        this.redis
+          .multi()
+          .incr(key)
+          .expire(key, this.config.checkoutRateLimitWindowSeconds, "NX")
+          .exec(),
+      );
       count = Number(incremented);
     } catch (cause) {
       logger.error(

@@ -1,7 +1,9 @@
 import { setTimeout as sleep } from "node:timers/promises";
+import { vi } from "vitest";
 import {
   closedRedis,
   connectTestRedis,
+  hungRedis,
   uniqueId,
 } from "../../test/support/redis.js";
 import type { RedisClient } from "../redis/redis-client.js";
@@ -22,6 +24,10 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await redis.close();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 function limiter(limit = 10, client: RedisClient | null = redis) {
@@ -142,5 +148,16 @@ describe("CheckoutRateLimit", () => {
     );
 
     expect(error).toBeInstanceOf(CheckoutRateLimitUnavailableError);
+  });
+
+  it("fails closed when Redis stops answering", async () => {
+    const { client, close } = await hungRedis();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+
+    const error = rejection(limiter(10, client).enforce(uniqueId("ip")));
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect(await error).toBeInstanceOf(CheckoutRateLimitUnavailableError);
+    await close();
   });
 });

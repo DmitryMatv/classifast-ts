@@ -1,6 +1,11 @@
 import { createServer } from "node:net";
-import { inject } from "vitest";
-import { connectRedis } from "./redis-client.js";
+import { inject, vi } from "vitest";
+import { hangingRedisServer, hungRedis } from "../../test/support/redis.js";
+import { connectRedis, withReplyTimeout } from "./redis-client.js";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 async function closedPort(): Promise<number> {
   const server = createServer();
@@ -9,6 +14,11 @@ async function closedPort(): Promise<number> {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   if (address === null || typeof address === "string") throw new Error();
   return address.port;
+}
+
+function redisAddress() {
+  const { hostname, port } = new URL(inject("redisUrl"));
+  return { host: hostname, port: Number(port) };
 }
 
 describe("connectRedis", () => {
@@ -36,5 +46,50 @@ describe("connectRedis", () => {
 
     expect(client).toBeNull();
     expect(Date.now() - started).toBeLessThan(2_000);
+  });
+
+  it("returns null when Redis accepts the connection but never answers", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const server = await hangingRedisServer();
+    server.hang();
+
+    const client = connectRedis({
+      host: "127.0.0.1",
+      port: server.port,
+      auth: undefined,
+    });
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect(await client).toBeNull();
+    await server.close();
+  });
+});
+
+describe("withReplyTimeout", () => {
+  it("fails a call that Redis leaves unanswered for five seconds", async () => {
+    const { client, close } = await hungRedis();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let settled = false;
+
+    const reply = withReplyTimeout(client.incr("counter")).finally(() => {
+      settled = true;
+    });
+    await vi.advanceTimersByTimeAsync(4_999);
+    const settledEarly = settled;
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(settledEarly).toBe(false);
+    await expect(reply).rejects.toThrow("Redis did not reply within 5000 ms");
+    await close();
+  });
+
+  it("passes a prompt reply through", async () => {
+    const client = await connectRedis({
+      ...redisAddress(),
+      auth: undefined,
+    });
+
+    expect(await withReplyTimeout(client!.ping())).toBe("PONG");
+    await client?.close();
   });
 });

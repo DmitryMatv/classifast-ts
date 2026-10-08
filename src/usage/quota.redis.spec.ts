@@ -9,9 +9,11 @@ import {
   signToken,
   type Route,
 } from "../../test/support/clerk.js";
+import { vi } from "vitest";
 import {
   closedRedis,
   connectTestRedis,
+  hungRedis,
   uniqueId,
 } from "../../test/support/redis.js";
 import { parseAppConfig } from "../config/app-config.js";
@@ -39,6 +41,10 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await redis.close();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 const proTier: Route = () =>
@@ -585,6 +591,23 @@ describe("Quota.charge", () => {
 
     await quotaFailure(quota.charge(caller));
   });
+});
+
+describe("Quota with a Redis that stops answering", () => {
+  it.each(["check", "charge"] as const)(
+    "fails closed on %s",
+    async (method) => {
+      const { client, close } = await hungRedis();
+      const { quota } = await setup({ client });
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+
+      const failure = quotaFailure(quota[method](anonymous()));
+      await vi.advanceTimersByTimeAsync(5_000);
+
+      await failure;
+      await close();
+    },
+  );
 });
 
 describe("Quota races", () => {
