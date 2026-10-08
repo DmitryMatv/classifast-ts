@@ -1,6 +1,10 @@
 import { createServer } from "node:net";
 import { inject, vi } from "vitest";
-import { hangingRedisServer, hungRedis } from "../../test/support/redis.js";
+import {
+  connectTestRedis,
+  hangingRedisServer,
+  hungRedis,
+} from "../../test/support/redis.js";
 import { connectRedis, withReplyTimeout } from "./redis-client.js";
 
 afterEach(() => {
@@ -14,11 +18,6 @@ async function closedPort(): Promise<number> {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   if (address === null || typeof address === "string") throw new Error();
   return address.port;
-}
-
-function redisAddress() {
-  const { hostname, port } = new URL(inject("redisUrl"));
-  return { host: hostname, port: Number(port) };
 }
 
 describe("connectRedis", () => {
@@ -84,12 +83,9 @@ describe("withReplyTimeout", () => {
   });
 
   it("passes a prompt reply through", async () => {
-    const client = await connectRedis({
-      ...redisAddress(),
-      auth: undefined,
-    });
+    const client = await connectTestRedis();
 
-    expect(await withReplyTimeout(client!.ping())).toBe("PONG");
-    await client?.close();
+    expect(await withReplyTimeout(client.ping())).toBe("PONG");
+    await client.close();
   });
 });
