@@ -8,7 +8,9 @@ changing a function it exports, or the Python version, and commit the
 regenerated fixtures.
 """
 
+import asyncio
 import json
+import logging
 import math
 import os
 import random
@@ -30,7 +32,10 @@ from jinja2 import Template
 dotenv.load_dotenv = lambda *args, **kwargs: False
 
 from fastapi import HTTPException
+from starlette.requests import Request
+from starlette.responses import Response
 
+from app import classifier_page_delivery
 from app.classifier import (
     QueryFormat,
     _default_rerank_document,
@@ -38,7 +43,6 @@ from app.classifier import (
     build_rerank_query_text,
     sanitize_query_text,
 )
-from app import classifier_page_delivery
 from app.classifier_config import CLASSIFIER_CONFIG
 from app.classifier_page_delivery import (
     SITEMAP_QUERY_PATHS,
@@ -57,9 +61,13 @@ from app.classifier_page_delivery import (
 )
 from app.dependencies import group_original_id_tokens, templates
 from app.id_lookup import normalize_original_id_for_lookup, reverse_normalized_id
+from app.main import QueryNormalizationMiddleware, URLEncodingValidationMiddleware
 from app.mapping_store import list_mapping_products
 from app.query_enhancer import _is_code_like
 from app.web import build_mapping_canonical_url
+
+# The middleware under test logs each redirect and rejection.
+logging.disable(logging.CRITICAL)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE_DIR = REPO_ROOT / "test" / "fixtures" / "golden"
@@ -1077,6 +1085,144 @@ def build_mapping_urls_fixture() -> dict[str, object]:
     }
 
 
+# Raw query strings as Starlette sees them: the request bytes decoded as
+# Latin-1.
+RAW_QUERY_INPUTS = [
+    "",
+    "a=1",
+    "q=laptop",
+    "q=%20laptop%20",
+    "q=+laptop+",
+    "q=a++b",
+    "q=a%09b",
+    "q=a%C2%A0b",
+    "q=a%E2%80%8Bb",
+    "q=a%1Cb",
+    "q=a%C2%85b",
+    "q=%85x%20",
+    "q=%EF%BB%BFx",
+    "q=x%EF%BB%BF",
+    "q=%E3%80%80x",
+    "&&a=%201&&",
+    "=%20x",
+    "x=",
+    "x",
+    "%20x",
+    "a=1=%202",
+    "a=%20&a=%20b",
+    "k%20ey=%20v",
+    "q=(a),b*c:d%20",
+    "q=a/b?c%20",
+    "q=caf%C3%A9%20",
+    "q=\xe9%20",
+    "q=\xc3\xa9%20",
+    "version=CPV+2008+(ver.+2013)&top_k=5",
+    "version=CPV%202008%20%20(ver.%202013)&top_k=5",
+    "q=%2B%20",
+    "q=%",
+    "q=%zz%20",
+    "q=%25%20",
+    "top_k=10&q=%E5%95%86%E5%93%81%20",
+    "q=%F0%9F%98%80%20",
+    "q=%E2%80%A8x",
+    "a=%20;b=1",
+]
+
+SUSPICIOUS_URL_INPUTS = [
+    ("/", ""),
+    ("/HS/laptop_computer/", "top_k=12"),
+    ("/HS/" + "12" * 20 + "/", ""),
+    ("/HS/" + "1234" * 16 + "/", ""),
+    ("/HS/" + "1" * 49 + "/", ""),
+    ("/HS/" + "1" * 50 + "/", ""),
+    ("/HS/" + "\u0661" * 50 + "/", ""),
+    ("/HS/" + "\uff11" * 50 + "/", ""),
+    ("/HS/" + "\u00b9" * 50 + "/", ""),
+    ("/HS/", "q=" + "%31" * 50),
+    ("/HS/", "q=" + "%31" * 50 + "&q=x"),
+    ("/HS/", "q=x&q=" + "%31" * 50),
+    ("/HS/", "a=" + "1" * 25 + "&b=" + "1" * 25),
+    ("/HS/", "q=%25%25%25"),
+    ("/HS/", "q=%2525%2525%2525"),
+    ("/HS/%25%25", ""),
+    ("/HS/", "q=%3c%3c"),
+    ("/HS/", "q=%3C%3C"),
+    ("/HS/", "q=%3e%3e"),
+    ("/HS/<<", ""),
+    ("/HS/" + "a" * 64 + "/", ""),
+    ("/HS/" + "a" * 63 + "/", ""),
+    ("/HS/g" + "a" * 64 + "/", ""),
+    ("/HS/_" + "a" * 64 + "_/", ""),
+    ("/HS/\u00e9" + "a" * 64 + "/", ""),
+    ("/HS/", "x=cfRLUnblockHandlers"),
+    ("/HS/", "x=UnblockHandler"),
+    ("/HS/", "copyOriginalId"),
+    ("/HS/", "x=copy%4FriginalId"),
+    ("/HS/" + "x" * 3990, "q=123456"),
+    ("/HS/" + "x" * 3990, "q=1234"),
+    ("/HS/" + "\U0001f600" * 2100, ""),
+    ("/HS/" + "\U0001f600" * 4000, ""),
+]
+
+
+def starlette_request(path: str, query: str) -> Request:
+    return Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": path,
+            "query_string": query.encode("latin-1"),
+            "headers": [(b"host", b"classifast.com")],
+            "scheme": "https",
+            "server": ("classifast.com", 443),
+            "root_path": "",
+        }
+    )
+
+
+async def passed_through(_request: Request) -> Response:
+    return Response("passed")
+
+
+def canonical_query(query: str) -> dict[str, str | None]:
+    middleware = QueryNormalizationMiddleware(app=None)
+    try:
+        response = asyncio.run(
+            middleware.dispatch(starlette_request("/HS/", query), passed_through)
+        )
+    except UnicodeDecodeError:
+        # Starlette decodes the redirect URL's query bytes as UTF-8.
+        return {"pythonError": "UnicodeDecodeError"}
+    if response.status_code != 308:
+        return {"canonicalQuery": None}
+    return {"canonicalQuery": response.headers["location"].split("?", 1)[1]}
+
+
+def is_suspicious(path: str, query: str) -> bool:
+    middleware = URLEncodingValidationMiddleware(app=None)
+    response = asyncio.run(
+        middleware.dispatch(starlette_request(path, query), passed_through)
+    )
+    return response.status_code == 400
+
+
+def build_request_url_fixture() -> dict[str, object]:
+    return {
+        "queries": [
+            {
+                "query": query,
+                "items": starlette_request("/", query).query_params.multi_items(),
+                **canonical_query(query),
+            }
+            for query in RAW_QUERY_INPUTS
+        ],
+        "suspicious": [
+            {"path": path, "query": query, "suspicious": is_suspicious(path, query)}
+            for path, query in SUSPICIOUS_URL_INPUTS
+        ],
+    }
+
+
 CLASSIFIER_TYPE_INPUTS = [
     "naics",
     "NAICS",
@@ -1202,6 +1348,7 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "sitemap.json": build_sitemap_fixture,
     "popular-lookups.json": build_popular_lookups_fixture,
     "mapping-urls.json": build_mapping_urls_fixture,
+    "request-url.json": build_request_url_fixture,
 }
 
 

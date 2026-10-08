@@ -1,0 +1,77 @@
+import { codePointLength, collapseWhitespace } from "../python/str.js";
+import { quote, unquotePlus } from "../python/urllib.js";
+
+export type QueryItem = readonly [name: string, value: string];
+
+// Starlette decodes the raw query bytes as Latin-1 and parses them with
+// parse_qsl(query, keep_blank_values=True).
+export function parseQueryString(query: string): QueryItem[] {
+  return query
+    .split("&")
+    .filter(Boolean)
+    .map((field) => {
+      const equals = field.indexOf("=");
+      return equals === -1
+        ? [unquotePlus(field), ""]
+        : [
+            unquotePlus(field.slice(0, equals)),
+            unquotePlus(field.slice(equals + 1)),
+          ];
+    });
+}
+
+const QUERY_COMPONENT_SAFE = "()*,:";
+
+// QueryNormalizationMiddleware: the query of the 308 redirect target, or
+// undefined when no value has whitespace to collapse.
+export function canonicalQuery(
+  items: readonly QueryItem[],
+): string | undefined {
+  const normalized = items.map(
+    ([name, value]) => [name, collapseWhitespace(value)] as const,
+  );
+  if (normalized.every(([, value], index) => value === items[index]![1])) {
+    return undefined;
+  }
+  return normalized
+    .map(
+      ([name, value]) =>
+        `${quote(name, QUERY_COMPONENT_SAFE)}=${quote(value, QUERY_COMPONENT_SAFE)}`,
+    )
+    .join("&");
+}
+
+const MAX_URL_LENGTH = 4000;
+const SPAM_SIGNATURES = [
+  "cfRLUnblockHandlers",
+  "UnblockHandlers",
+  "copyOriginalId",
+];
+// Python's pattern also has (\d{2,4})\1{15,}, whose \1 names the (%25) group
+// of another branch. Python never matches it; JavaScript would match any two
+// digits, because a backreference to an unset group matches the empty string.
+const ATTACK_PATTERN =
+  /(?:%25){3,}|\p{Nd}{50,}|%3c%3c|%3e%3e|(?<![a-zA-Z0-9])[0-9A-Fa-f]{64,}(?![a-zA-Z0-9])/u;
+
+// Starlette's query_params.values() keeps the last value of each name, in
+// the order the names first appear.
+function lastValuePerName(items: readonly QueryItem[]): string[] {
+  const values = new Map<string, string>();
+  for (const [name, value] of items) values.set(name, value);
+  return [...values.values()];
+}
+
+// URLEncodingValidationMiddleware: path is the percent-decoded request path
+// and query the raw query string.
+export function isSuspiciousRequestUrl(path: string, query: string): boolean {
+  if (codePointLength(path + query) > MAX_URL_LENGTH) return true;
+  const checked = [
+    path,
+    query,
+    ...lastValuePerName(parseQueryString(query)),
+  ].join("");
+  return (
+    ATTACK_PATTERN.test(checked) ||
+    SPAM_SIGNATURES.some((signature) => checked.includes(signature))
+  );
+}
