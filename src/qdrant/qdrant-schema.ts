@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import type { Schemas } from "@qdrant/js-client-rest";
-import type { ClassifierConfigMap } from "../classifier/classifier-config.js";
+import type { CollectionLayout } from "../classifier/classifier-config.js";
 import {
   ORIGINAL_ID_FIELD,
   ORIGINAL_ID_NORMALIZED_FIELD,
@@ -159,7 +159,7 @@ interface CollectionRequirement {
 }
 
 function buildCollectionRequirements(
-  config: ClassifierConfigMap,
+  config: CollectionLayout,
   collectionNames: ReadonlySet<string> | undefined,
 ): { requirements: CollectionRequirement[]; issues: QdrantValidationIssue[] } {
   const dimensionsByCollection = new Map<string, Set<number>>();
@@ -240,7 +240,7 @@ export function errorMessage(error: unknown): string {
 
 export async function inspectConfiguredCollections(
   client: QdrantSchemaReader,
-  config: ClassifierConfigMap,
+  config: CollectionLayout,
   collectionNames?: ReadonlySet<string>,
 ): Promise<QdrantValidationReport> {
   const { requirements, issues } = buildCollectionRequirements(
