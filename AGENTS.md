@@ -34,6 +34,54 @@ The Qdrant JS client requests `GET /` to check the server version when it is
 constructed, and logs a warning when that fails. Fake Qdrant servers in tests
 must answer `GET /` with a compatible `version` to keep the output clean.
 
+`npm run test:contract` runs the HTTP contract suite in `test/contract/`
+against the server at `BASE_URL`, which is required. `npm test` does not run
+it. The suite refuses a `BASE_URL` host other than `localhost`, `127.0.0.0/8`,
+or `::1`, because its checkout probes increment Redis rate-limit counters and
+full mode charges quota and runs live classifications. Set
+`CONTRACT_ALLOW_NON_LOOPBACK=1` to target another host deliberately. Point it
+at a public-mode Python instance from the verify driver. Set
+`CONTRACT_MODE=full` only against a server with Qdrant, Redis, and
+embeddings. A full-mode case that needs more server configuration runs only
+when a variable declares that the server has it, and otherwise reports the
+missing variable as its skip reason:
+
+- `CONTRACT_RAPIDAPI_SECRET` holds the server's `RAPIDAPI_SECRET`. It enables
+  the RapidAPI 401 and JSON cases.
+- `CONTRACT_POLAR_WEBHOOK_SECRET` holds the server's `POLAR_WEBHOOK_SECRET`.
+  It enables the unsigned and signed webhook cases.
+- `CONTRACT_POLAR_PRO_PRODUCT_ID` holds the server's `POLAR_PRO_PRODUCT_ID`.
+  It enables the signed event for another product, which Python answers with
+  500 when the server has no Pro product.
+- `CONTRACT_NO_OPENROUTER_KEY=1` declares a server without
+  `OPENROUTER_API_KEY`. It enables the failed query enhancement case. That
+  server has no enhancer, so every enhanced lookup fails without calling
+  OpenRouter. No request makes a configured enhancer fail deterministically.
+- `CONTRACT_ANON_LIMIT` and `CONTRACT_CHECKOUT_RATE_LIMIT` default to 10 and
+  must equal the server's `ANON_LIMIT` and `CHECKOUT_RATE_LIMIT`.
+
+Two properties stay outside the suite because HTTP cannot observe them. The
+queue overflow case checks that at least five lookups in a burst succeed and
+some are refused, but staggered admission hides the exact capacity;
+`ClassificationQueue`'s specs pin it. The signed non-Pro webhook carries no
+user, so it cannot show that a missing product filter would grant Pro.
+
+With `CONTRACT_TARGET=nest`, the `retiredRoutes` table expects 404 instead of
+Python's status. Inside test files Vitest replaces `process.env.BASE_URL`
+with Vite's base path, so the config passes the URL on as
+`CONTRACT_BASE_URL`.
+
+The public-mode cases expect a server without `POLAR_WEBHOOK_SECRET`,
+`RAPIDAPI_SECRET`, or Redis. The app's `load_dotenv()` searches upward from
+`app/`, so a worktree nested under the main checkout also loads the main
+checkout's `.env`. A key added there changes what a public-mode instance
+answers.
+
+Python declares HEAD only on page routes. HEAD on a GET-only route, such as
+`/robots.txt` or `/health`, falls through to the classifier catch-all and
+answers 404. HEAD on `/{TYPE}/fragment` answers 301. The contract suite pins
+this behavior.
+
 Always use `pytest` for backend tests. The suite retains `unittest`-compatible
 test classes and standard-library mocks, but pytest is the official runner.
 
