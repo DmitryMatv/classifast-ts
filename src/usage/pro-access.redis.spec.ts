@@ -13,14 +13,11 @@ import {
 } from "../../test/support/redis.js";
 import { Clerk, type TierResolution } from "../auth/clerk.js";
 import type { RedisClient } from "../redis/redis-client.js";
-import {
-  NEGATIVE_TIER_CACHE_TTL_SECONDS,
-  ProAccess,
-  TIER_CACHE_SENTINELS,
-  TIER_CACHE_TTL_SECONDS,
-} from "./pro-access.js";
+import { ProAccess } from "./pro-access.js";
 
 const GRACE_TTL_SECONDS = 300;
+const TIER_CACHE_TTL_SECONDS = 3600;
+const NEGATIVE_TIER_CACHE_TTL_SECONDS = 60;
 
 let redis: RedisClient;
 
@@ -133,10 +130,7 @@ describe("ProAccess.lookUpTier racing a webhook", () => {
 describe("ProAccess.lookUpTier", () => {
   it("test_get_cached_user_tier_uses_negative_cache_sentinel", async () => {
     const userId = uniqueId("user");
-    await redis.set(
-      `user_tier:${userId}`,
-      TIER_CACHE_SENTINELS.explicit_negative,
-    );
+    await redis.set(`user_tier:${userId}`, "__sentinel:explicit_negative");
     const { access, http } = proAccess(userId, () => tierResponse("pro"));
 
     expect(await access.lookUpTier(userId)).toEqual({
@@ -148,12 +142,9 @@ describe("ProAccess.lookUpTier", () => {
   it.each<[string, TierResolution]>([
     ["pro", { status: "confirmed_pro" }],
     ["free", { status: "confirmed_non_pro", tier: "free" }],
-    [TIER_CACHE_SENTINELS.non_pro, { status: "confirmed_non_pro" }],
-    [TIER_CACHE_SENTINELS.explicit_negative, { status: "explicit_negative" }],
-    [
-      TIER_CACHE_SENTINELS.transient_unavailable,
-      { status: "transient_unavailable" },
-    ],
+    ["__sentinel:non_pro", { status: "confirmed_non_pro" }],
+    ["__sentinel:explicit_negative", { status: "explicit_negative" }],
+    ["__sentinel:transient_unavailable", { status: "transient_unavailable" }],
   ])(
     "reads the cached value %s without asking Clerk",
     async (value, expected) => {
@@ -182,19 +173,19 @@ describe("ProAccess.lookUpTier", () => {
     [
       "caches a missing tier as the non-Pro sentinel",
       { status: "confirmed_non_pro" },
-      TIER_CACHE_SENTINELS.non_pro,
+      "__sentinel:non_pro",
       TIER_CACHE_TTL_SECONDS,
     ],
     [
       "test_get_cached_user_tier_negative_result_is_cached",
       { status: "explicit_negative" },
-      TIER_CACHE_SENTINELS.explicit_negative,
+      "__sentinel:explicit_negative",
       NEGATIVE_TIER_CACHE_TTL_SECONDS,
     ],
     [
       "test_get_cached_user_tier_transient_result_is_cached",
       { status: "transient_unavailable" },
-      TIER_CACHE_SENTINELS.transient_unavailable,
+      "__sentinel:transient_unavailable",
       NEGATIVE_TIER_CACHE_TTL_SECONDS,
     ],
   ])("%s", async (_name, resolution, cachedValue, ttl) => {

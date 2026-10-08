@@ -14,7 +14,7 @@ import type { ProAccess } from "./pro-access.js";
 
 const logger = new Logger("UsageTracker");
 
-export const USAGE_TTL_SECONDS = 365 * 24 * 60 * 60;
+const USAGE_TTL_SECONDS = 365 * 24 * 60 * 60;
 
 export class QuotaUnavailableError extends HttpStatusError {
   readonly status = 503;

@@ -25,7 +25,6 @@ import {
   Quota,
   quotaHeaders,
   QuotaUnavailableError,
-  USAGE_TTL_SECONDS,
   type AnonymousCaller,
   type CallerCredentials,
   type FreeCaller,
@@ -33,6 +32,7 @@ import {
 
 const ANON_LIMIT = 10;
 const FREE_USER_LIMIT = 30;
+const USAGE_TTL_SECONDS = 365 * 24 * 60 * 60;
 
 let redis: RedisClient;
 

@@ -5,10 +5,10 @@ import { withReplyTimeout, type RedisClient } from "../redis/redis-client.js";
 
 const logger = new Logger("ProAccess");
 
-export const TIER_CACHE_TTL_SECONDS = 3600;
-export const NEGATIVE_TIER_CACHE_TTL_SECONDS = 60;
+const TIER_CACHE_TTL_SECONDS = 3600;
+const NEGATIVE_TIER_CACHE_TTL_SECONDS = 60;
 
-export const TIER_CACHE_SENTINELS = {
+const TIER_CACHE_SENTINELS = {
   non_pro: "__sentinel:non_pro",
   explicit_negative: "__sentinel:explicit_negative",
   transient_unavailable: "__sentinel:transient_unavailable",
