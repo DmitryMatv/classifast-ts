@@ -104,8 +104,6 @@ function classifierRegions(query: {
   ];
 }
 
-// The product page posts its canonical production URL as the checkout return
-// URL; the index uses the request origin.
 function buyButton(
   slug: string,
   returnUrl: "canonical" | "same-origin",
@@ -239,10 +237,6 @@ describe(
   },
 );
 
-// Python sets data-autoload-enabled="true" exactly when the page has a query
-// or example to classify but rendered no results. The base page seeds the
-// example's results whenever classification works; a query page seeds only
-// for verified Google crawlers.
 const autoloadCases: { path: string; seeded: Record<ContractMode, boolean> }[] =
   [
     { path: "/UNSPSC/", seeded: { public: false, full: true } },

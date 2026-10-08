@@ -135,8 +135,6 @@ function originalIds(reply: Reply): (string | null)[] {
   );
 }
 
-// No request makes enhancement fail deterministically; a server without
-// OPENROUTER_API_KEY has no enhancer, so every enhanced lookup fails.
 describe.runIf(meets("noOpenRouterKey"))(
   "failed query enhancement",
   { timeout: classificationTimeout(2) },
@@ -204,11 +202,6 @@ describe.runIf(fullMode)(
   "queue overflow",
   { timeout: classificationTimeout(queueCapacity) },
   () => {
-    // Each of the first six admissions finds at most five jobs queued, so a
-    // capacity above five admits a sixth request whatever the timing. A
-    // capacity below five admits five only if a job finishes before the last
-    // request reaches the queue, which needs one request's pre-queue checks
-    // to outlast a whole live classification.
     it("a burst admits one active and four waiting and refuses the rest", async () => {
       const run = randomUUID().slice(0, 8);
       const started = performance.now();

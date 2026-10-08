@@ -70,8 +70,6 @@ export const contract = {
 
 export const fullMode = contract.mode === "full";
 
-// Server configuration a full-mode case needs beyond Qdrant, Redis and
-// embeddings, each declared by the variable that tells the suite it holds.
 const prerequisites = {
   rapidApiSecret: {
     met: contract.rapidApiSecret !== undefined,
@@ -105,9 +103,9 @@ export function meets(...requires: Prerequisite[]): boolean {
   return fullMode && unmetPrerequisites(requires).length === 0;
 }
 
-// A live classification may wait on a cold embedding endpoint, then on the
-// reranker's 30-second timeout.
-const classificationBudgetMs = 45_000;
+const rerankTimeoutMs = 30_000;
+const coldEmbeddingAllowanceMs = 15_000;
+const classificationBudgetMs = rerankTimeoutMs + coldEmbeddingAllowanceMs;
 
 export function classificationTimeout(classifications: number): number {
   return classifications * classificationBudgetMs;
