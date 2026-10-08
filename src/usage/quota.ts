@@ -6,6 +6,7 @@ import {
   type ClerkIdentity,
 } from "../auth/clerk.js";
 import type { AppConfig } from "../config/app-config.js";
+import { parsePythonInt } from "../config/python-number.js";
 import { HttpStatusError } from "../http-status-error.js";
 import type { RedisClient } from "../redis/redis-client.js";
 import { hashIp, trackingId } from "./client-identity.js";
@@ -85,6 +86,17 @@ function usageKeys(caller: MeteredCaller): string[] {
         `anon:ip:${caller.ipHash}:usage_count`,
       ]
     : [`user:${caller.userId}:usage_count`];
+}
+
+// Python reads a counter with int(); a value it rejects fails the request
+// as an unexpected error, not as a quota outage.
+function storedCount(value: string | null): number {
+  if (!value) return 0;
+  const count = parsePythonInt(value);
+  if (count === undefined) {
+    throw new Error(`Usage counter is not an integer: ${value}`);
+  }
+  return count;
 }
 
 /**
@@ -171,7 +183,7 @@ export class Quota {
       logger.error(`Redis error checking usage: ${String(cause)}`);
       throw new QuotaUnavailableError({ cause });
     }
-    const count = Math.max(...stored.map((value) => Number(value ?? 0)));
+    const count = Math.max(...stored.map(storedCount));
     return this.#metered(caller, count, count < this.#limit(caller));
   }
 

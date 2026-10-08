@@ -394,6 +394,33 @@ describe("Quota.check", () => {
     },
   );
 
+  it("reads a counter with Python's int() grammar", async () => {
+    const { quota } = await setup();
+    const caller = free();
+    await redis.set(userKey(caller.userId), " 2_9 ");
+
+    expect(await quota.check(caller)).toMatchObject({
+      allowed: true,
+      remaining: 1,
+    });
+  });
+
+  it.each(["not-a-number", "1e3", "0x10"])(
+    "fails as Python's int() does on the stored counter %j",
+    async (stored) => {
+      const { quota } = await setup();
+      const caller = free();
+      await redis.set(userKey(caller.userId), stored);
+
+      const error = await quota
+        .check(caller)
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(Error);
+      expect(error).not.toBeInstanceOf(QuotaUnavailableError);
+    },
+  );
+
   it("test_check_usage_for_pro_caller_does_not_touch_redis", async () => {
     const { quota } = await setup({ client: closedRedis() });
     const caller = { kind: "pro", userId: "user-123" } as const;
