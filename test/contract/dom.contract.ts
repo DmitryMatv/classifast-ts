@@ -1,6 +1,11 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { contract, repoRoot, type ContractMode } from "./support/env.js";
+import {
+  classificationTimeout,
+  contract,
+  repoRoot,
+  type ContractMode,
+} from "./support/env.js";
 import {
   expectStatus,
   parseHtml,
@@ -197,34 +202,42 @@ function documentAt(path: string): Promise<Document> {
   return document;
 }
 
-describe("DOM regions the scripts depend on", () => {
-  it.each(regionChecks)(
-    "$path $selector",
-    async ({ path, selector, count, attributes, sameOriginPaths, text }) => {
-      const elements = [...(await documentAt(path)).querySelectorAll(selector)];
-      if (count === "some") {
-        expect(elements.length, selector).toBeGreaterThan(0);
-      } else {
-        expect(elements.length, selector).toBe(count ?? 1);
-      }
-      for (const element of elements) {
-        for (const [name, value] of Object.entries(attributes ?? {})) {
-          expect(element.getAttribute(name), `${selector} ${name}`).toBe(value);
+describe(
+  "DOM regions the scripts depend on",
+  { timeout: classificationTimeout(1) },
+  () => {
+    it.each(regionChecks)(
+      "$path $selector",
+      async ({ path, selector, count, attributes, sameOriginPaths, text }) => {
+        const elements = [
+          ...(await documentAt(path)).querySelectorAll(selector),
+        ];
+        if (count === "some") {
+          expect(elements.length, selector).toBeGreaterThan(0);
+        } else {
+          expect(elements.length, selector).toBe(count ?? 1);
         }
-        for (const [name, value] of Object.entries(sameOriginPaths ?? {})) {
-          const label = `${path} ${selector} ${name}`;
-          expect(
-            sameOriginPath(element.getAttribute(name) ?? "", label),
-            label,
-          ).toBe(value);
+        for (const element of elements) {
+          for (const [name, value] of Object.entries(attributes ?? {})) {
+            expect(element.getAttribute(name), `${selector} ${name}`).toBe(
+              value,
+            );
+          }
+          for (const [name, value] of Object.entries(sameOriginPaths ?? {})) {
+            const label = `${path} ${selector} ${name}`;
+            expect(
+              sameOriginPath(element.getAttribute(name) ?? "", label),
+              label,
+            ).toBe(value);
+          }
+          if (text !== undefined) {
+            expect(element.textContent?.trim()).toBe(text);
+          }
         }
-        if (text !== undefined) {
-          expect(element.textContent?.trim()).toBe(text);
-        }
-      }
-    },
-  );
-});
+      },
+    );
+  },
+);
 
 // Python sets data-autoload-enabled="true" exactly when the page has a query
 // or example to classify but rendered no results. The base page seeds the
@@ -239,22 +252,26 @@ const autoloadCases: { path: string; seeded: Record<ContractMode, boolean> }[] =
     },
   ];
 
-describe("classifier autoload follows the server-rendered results", () => {
-  it.each(autoloadCases)("$path", async ({ path, seeded }) => {
-    const document = await documentAt(path);
-    const results = document.querySelectorAll(
-      '#results-container [role="listitem"]',
-    );
-    expect(results.length > 0, "server-rendered results").toBe(
-      seeded[contract.mode],
-    );
-    expect(
-      document
-        .querySelector("#classifier-form")
-        ?.getAttribute("data-autoload-enabled"),
-    ).toBe(String(!seeded[contract.mode]));
-  });
-});
+describe(
+  "classifier autoload follows the server-rendered results",
+  { timeout: classificationTimeout(1) },
+  () => {
+    it.each(autoloadCases)("$path", async ({ path, seeded }) => {
+      const document = await documentAt(path);
+      const results = document.querySelectorAll(
+        '#results-container [role="listitem"]',
+      );
+      expect(results.length > 0, "server-rendered results").toBe(
+        seeded[contract.mode],
+      );
+      expect(
+        document
+          .querySelector("#classifier-form")
+          ?.getAttribute("data-autoload-enabled"),
+      ).toBe(String(!seeded[contract.mode]));
+    });
+  },
+);
 
 describe("same-origin scripts and stylesheets load", () => {
   it.each(pageDoms.map(({ path }) => path))("%s", async (path) => {

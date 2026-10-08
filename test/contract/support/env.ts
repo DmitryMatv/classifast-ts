@@ -60,6 +60,14 @@ export const contract = {
 
 export const fullMode = contract.mode === "full";
 
+// A live classification may wait on a cold embedding endpoint, then on the
+// reranker's 30-second timeout.
+const classificationBudgetMs = 45_000;
+
+export function classificationTimeout(classifications: number): number {
+  return classifications * classificationBudgetMs;
+}
+
 export const repoRoot = join(import.meta.dirname, "../../..");
 
 export function readRepoFile(relativePath: string): Buffer {

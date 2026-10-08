@@ -1,4 +1,9 @@
-import { readRepoFile, runsInMode, type ContractMode } from "./support/env.js";
+import {
+  classificationTimeout,
+  readRepoFile,
+  runsInMode,
+  type ContractMode,
+} from "./support/env.js";
 import type { CacheProfileName } from "./support/headers.js";
 import {
   expectCacheProfile,
@@ -94,7 +99,7 @@ function expectPageHeaders(
   );
 }
 
-describe("HTML pages", () => {
+describe("HTML pages", { timeout: classificationTimeout(1) }, () => {
   it.each(pageRequests)(
     "$method $path",
     async ({ path, method, canonical, profile, robots }) => {

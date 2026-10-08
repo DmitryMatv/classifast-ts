@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { contract, fullMode } from "./support/env.js";
+import { classificationTimeout, contract, fullMode } from "./support/env.js";
 import {
   expectCacheProfile,
   expectStatus,
@@ -246,48 +246,55 @@ const classifyBody = z.strictObject({
   processing_time: z.number(),
 });
 
-describe.runIf(fullMode && contract.rapidApiSecret)("RapidAPI JSON", () => {
-  const authorized = () => ({
-    "x-rapidapi-proxy-secret": contract.rapidApiSecret ?? "",
-  });
-
-  it("GET /standards", async () => {
-    const reply = await send("/api/v1/rapid/standards", {
-      headers: authorized(),
+describe.runIf(fullMode && contract.rapidApiSecret)(
+  "RapidAPI JSON",
+  { timeout: classificationTimeout(1) },
+  () => {
+    const authorized = () => ({
+      "x-rapidapi-proxy-secret": contract.rapidApiSecret ?? "",
     });
-    expectStatus(reply, 200);
-    expectCacheProfile(reply, "CLASSIFICATION_RESULT");
-    expect(
-      Object.keys(standardsBody.parse(parseJson(reply)).standards),
-    ).toContain("UNSPSC");
-  });
 
-  it("GET /classify", async () => {
-    const reply = await send(
-      "/api/v1/rapid/classify?query=laptop%20computer&standard=unspsc&top_k=3",
-      { headers: authorized() },
-    );
-    expectStatus(reply, 200);
-    expectCacheProfile(reply, "CLASSIFICATION_RESULT");
-    classifyBody.parse(parseJson(reply));
-  });
-
-  it("GET /classify with an empty query is 400", async () => {
-    const reply = await send("/api/v1/rapid/classify?query=&standard=UNSPSC", {
-      headers: authorized(),
+    it("GET /standards", async () => {
+      const reply = await send("/api/v1/rapid/standards", {
+        headers: authorized(),
+      });
+      expectStatus(reply, 200);
+      expectCacheProfile(reply, "CLASSIFICATION_RESULT");
+      expect(
+        Object.keys(standardsBody.parse(parseJson(reply)).standards),
+      ).toContain("UNSPSC");
     });
-    expectStatus(reply, 400);
-    expect(parseJson(reply)).toEqual({ detail: "Query cannot be empty" });
-  });
 
-  it("GET /classify with top_k=0 is 422", async () => {
-    const reply = await send(
-      "/api/v1/rapid/classify?query=laptop&standard=UNSPSC&top_k=0",
-      { headers: authorized() },
-    );
-    expectStatus(reply, 422);
-  });
-});
+    it("GET /classify", async () => {
+      const reply = await send(
+        "/api/v1/rapid/classify?query=laptop%20computer&standard=unspsc&top_k=3",
+        { headers: authorized() },
+      );
+      expectStatus(reply, 200);
+      expectCacheProfile(reply, "CLASSIFICATION_RESULT");
+      classifyBody.parse(parseJson(reply));
+    });
+
+    it("GET /classify with an empty query is 400", async () => {
+      const reply = await send(
+        "/api/v1/rapid/classify?query=&standard=UNSPSC",
+        {
+          headers: authorized(),
+        },
+      );
+      expectStatus(reply, 400);
+      expect(parseJson(reply)).toEqual({ detail: "Query cannot be empty" });
+    });
+
+    it("GET /classify with top_k=0 is 422", async () => {
+      const reply = await send(
+        "/api/v1/rapid/classify?query=laptop&standard=UNSPSC&top_k=0",
+        { headers: authorized() },
+      );
+      expectStatus(reply, 422);
+    });
+  },
+);
 
 type WebhookCase = {
   name: string;
