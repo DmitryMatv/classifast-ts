@@ -9,7 +9,9 @@ regenerated fixtures.
 """
 
 import json
+import math
 import os
+import random
 import re
 import sys
 import unicodedata
@@ -20,6 +22,7 @@ from urllib.parse import quote, quote_plus, unquote, unquote_plus, urlencode
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import dotenv
+from jinja2 import Template
 
 # app.classifier_config calls load_dotenv() at import. The fixtures must not
 # depend on a developer's .env, so the exporter never loads one.
@@ -42,7 +45,7 @@ from app.classifier_page_delivery import (
     should_ssr,
     slugify,
 )
-from app.dependencies import group_original_id_tokens
+from app.dependencies import group_original_id_tokens, templates
 from app.id_lookup import normalize_original_id_for_lookup, reverse_normalized_id
 from app.query_enhancer import _is_code_like
 
@@ -495,6 +498,158 @@ def build_python_urllib_fixture() -> dict[str, object]:
     }
 
 
+NUMBER_INPUTS = [
+    "",
+    " ",
+    "0",
+    "-0",
+    "+0",
+    "007",
+    "10",
+    "-10",
+    "+10",
+    "  42  ",
+    "\t42\n",
+    "\x0b42\x0c",
+    "\x1c42",
+    "42\x1f",
+    "\x8542\x85",
+    "\u00a042\u3000",
+    "\u200b42",
+    "\ufeff42",
+    "4 2",
+    "1_000",
+    "1__000",
+    "_1000",
+    "1000_",
+    "+_1",
+    "-1_0",
+    "1_0.5",
+    "1._5",
+    "1_.5",
+    "1e1_0",
+    "1_e5",
+    "1e_5",
+    "0x10",
+    "0o17",
+    "0b11",
+    "1.0",
+    "1.",
+    ".5",
+    ".",
+    "5e3",
+    "5E+3",
+    "5e-3",
+    "-.5e-3",
+    "1e",
+    "e5",
+    "1e500",
+    "-1e500",
+    "1e-400",
+    "inf",
+    "-Inf",
+    "+INFINITY",
+    "infinit",
+    "nan",
+    "-NaN",
+    "nan1",
+    "Infinity",
+    "9007199254740993",
+    "123456789012345678901234567890",
+    "1" * 4300,
+    "1" * 4301,
+    "0.1",
+    "2.675",
+    "0.30000000000000004",
+    "\u0661\u0662",
+    "1\u0662",
+    "\u0661.\u0665",
+    "\uff11\uff12\uff13",
+    "\U0001d7ce\U0001d7cf",
+    "\u00b2",
+    "\u2460",
+    "\u216b",
+    "\u00bd",
+    "\u4e00",
+    "12abc",
+    "true",
+]
+
+
+def python_number(parse: Callable[[str], object], value: str) -> str | None:
+    try:
+        return repr(parse(value))
+    except ValueError:
+        return None
+
+
+def round_inputs() -> list[float]:
+    # Every multiple of 1/1024 holds the exact binary ties that round(x, 4)
+    # and "%.2f" resolve to even; the seeded values look like model scores.
+    rng = random.Random(20261008)
+    values = [k / 1024 for k in range(-64, 1100)]
+    values += [rng.random() for _ in range(500)]
+    values += [0.0, -0.0, 2.675, 0.125, 0.375, 1.005, 1e-7, 0.99995, 123.45675]
+    values += [1e22, 1.5e300, 5e-324, -5e-324, 0.5, 1.5, 2.5, -2.5]
+    return values
+
+
+def build_python_numbers_fixture() -> dict[str, object]:
+    return {
+        "parse": [
+            {
+                "input": value,
+                "int": python_number(int, value),
+                "float": python_number(float, value),
+            }
+            for value in NUMBER_INPUTS
+        ],
+        "intSuffixValues": code_point_map(
+            lambda character: python_number(int, "1" + character)
+        ),
+        "round": [
+            {
+                "value": value,
+                "round4": round(value, 4),
+                "round2": round(value, 2),
+                "fixed2": "%.2f" % value,
+            }
+            for value in round_inputs()
+        ],
+        "nonFinite": [
+            {
+                "repr": repr(value),
+                "round4": repr(round(value, 4)),
+                "fixed2": "%.2f" % value,
+            }
+            for value in [math.inf, -math.inf, math.nan]
+        ],
+    }
+
+
+def score_width_template() -> Template:
+    # The data-score-width expression of results.html, rendered by Jinja.
+    source = (REPO_ROOT / "app" / "templates" / "results.html").read_text()
+    match = re.search(r"\{%-\s*set score_pct = (.*?)-%\}", source, re.DOTALL)
+    assert match, "results.html no longer sets score_pct"
+    output = "{{ '%.2f'|format(score_pct) }}"
+    assert f'data-score-width="{output}"' in source
+    return templates.env.from_string(
+        "{% set score_pct = " + match.group(1) + " %}" + output
+    )
+
+
+def build_result_score_fixture() -> dict[str, object]:
+    template = score_width_template()
+    scores = [None, *round_inputs(), 1.0001, 1.5, 100.0, -1.0, -0.5]
+    return {
+        "scoreWidths": [
+            {"score": score, "width": template.render(result={"score": score})}
+            for score in scores
+        ],
+    }
+
+
 SANITIZE_INPUTS = [
     *TEXT_INPUTS,
     "  laptop computer//",
@@ -845,10 +1000,12 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "id-lookup.json": build_id_lookup_fixture,
     "python-str.json": build_python_str_fixture,
     "python-urllib.json": build_python_urllib_fixture,
+    "python-numbers.json": build_python_numbers_fixture,
     "query-text.json": build_query_text_fixture,
     "classifier-urls.json": build_classifier_urls_fixture,
     "classifier-options.json": build_classifier_options_fixture,
     "original-id-tokens.json": build_original_id_tokens_fixture,
+    "result-score.json": build_result_score_fixture,
 }
 
 
