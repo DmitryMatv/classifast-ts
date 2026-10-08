@@ -388,6 +388,28 @@ describe("ClassificationQueue", () => {
     await closing;
   });
 
+  it.each(["in progress", "completed"])(
+    "rejects an already aborted signal while shutdown is %s",
+    async (shutdown) => {
+      const active = await enqueue("active");
+      const closing = queue.close();
+      if (shutdown === "completed") {
+        active.release();
+        await closing;
+      }
+      const controller = new AbortController();
+      controller.abort(new Error("gone before admission"));
+      const work = vi.fn(async () => "never");
+
+      await expect(queue.run(controller.signal, work)).rejects.toBeInstanceOf(
+        ClassificationQueueClosed,
+      );
+      expect(work).not.toHaveBeenCalled();
+      active.release();
+      await closing;
+    },
+  );
+
   it("close waits for active work and cancels queued work", async () => {
     const accepted = await fillQueue();
     let closed = false;
