@@ -43,8 +43,13 @@ missing variable as its skip reason:
 - `CONTRACT_ANON_LIMIT` and `CONTRACT_CHECKOUT_RATE_LIMIT` default to 10 and
   must equal the server's `ANON_LIMIT` and `CHECKOUT_RATE_LIMIT`.
 
-With
-`CONTRACT_TARGET=nest`, the `retiredRoutes` table expects 404 instead of
+Two properties stay outside the suite because HTTP cannot observe them. The
+queue overflow case checks that at least five lookups in a burst succeed and
+some are refused, but staggered admission hides the exact capacity;
+`ClassificationQueue`'s specs pin it. The signed non-Pro webhook carries no
+user, so it cannot show that a missing product filter would grant Pro.
+
+With `CONTRACT_TARGET=nest`, the `retiredRoutes` table expects 404 instead of
 Python's status. Inside test files Vitest replaces `process.env.BASE_URL`
 with Vite's base path, so the config passes the URL on as
 `CONTRACT_BASE_URL`.

@@ -103,9 +103,9 @@ export function meets(...requires: Prerequisite[]): boolean {
   return fullMode && unmetPrerequisites(requires).length === 0;
 }
 
-const rerankTimeoutMs = 30_000;
-const coldEmbeddingAllowanceMs = 15_000;
-const classificationBudgetMs = rerankTimeoutMs + coldEmbeddingAllowanceMs;
+const outboundBudgetMs = 60_000;
+const requestOverheadMs = 15_000;
+const classificationBudgetMs = outboundBudgetMs + requestOverheadMs;
 
 export function classificationTimeout(classifications: number): number {
   return classifications * classificationBudgetMs;
