@@ -47,6 +47,6 @@ USER node
 EXPOSE 8001
 
 HEALTHCHECK --interval=10m --timeout=30s --start-period=60s --retries=3 \
-    CMD ["curl", "-f", "http://localhost:8001/health"]
+    CMD ["node", "--input-type=module", "-e", "import { parsePythonInt } from './dist/config/python-number.js'; import { execFileSync } from 'node:child_process'; const port = parsePythonInt(process.env.PORT ?? '8001'); if (port === undefined) process.exit(1); execFileSync('curl', ['-f', 'http://localhost:' + port + '/health'], { stdio: 'inherit' });"]
 
 CMD ["node", "dist/main.js"]
