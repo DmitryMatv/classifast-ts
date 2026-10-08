@@ -109,6 +109,7 @@ describe("ProAccess.lookUpTier racing a webhook", () => {
       expect(await redis.ttl(`user_tier:${userId}`)).toBe(
         TIER_CACHE_TTL_SECONDS,
       );
+      await redis.del(`checkout_grace:${userId}`);
       expect(await access.isPro(userId, "free")).toBe(true);
     },
   );

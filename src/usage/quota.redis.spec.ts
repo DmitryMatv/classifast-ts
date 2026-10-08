@@ -14,6 +14,7 @@ import {
   connectTestRedis,
   uniqueId,
 } from "../../test/support/redis.js";
+import { parseAppConfig } from "../config/app-config.js";
 import type { RedisClient } from "../redis/redis-client.js";
 import { hashIp } from "./client-identity.js";
 import { ProAccess } from "./pro-access.js";
@@ -555,6 +556,20 @@ describe("Quota.charge", () => {
     const error = await quotaFailure(quota.charge(caller()));
 
     expect(error.cause).toBeInstanceOf(Error);
+  });
+
+  it("test_quota_fail_open_is_not_available", async () => {
+    const { clerk } = await clerkWithKey();
+    const config = parseAppConfig({ QUOTA_FAIL_OPEN: "true" });
+    const quota = new Quota(
+      null,
+      clerk,
+      new ProAccess(null, clerk, 300),
+      config.quota,
+    );
+
+    await quotaFailure(quota.check(anonymous()));
+    await quotaFailure(quota.charge(anonymous()));
   });
 
   it("test_redis_unavailable_raises_quota_unavailable", async () => {
