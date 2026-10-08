@@ -453,12 +453,21 @@ def build_python_str_fixture() -> dict[str, object]:
                 title if (title := character.title()) != character.upper() else None
             )
         ),
+        "casefoldMappings": code_point_map(
+            lambda character: (
+                folded if (folded := character.casefold()) != character else None
+            )
+        ),
         "title": [
             {"input": value, "title": value.title()}
             for value in [*SHORT_TEXT_INPUTS, *TITLE_INPUTS]
         ],
         "upper": [
             {"input": value, "upper": value.upper()} for value in SHORT_TEXT_INPUTS
+        ],
+        "casefold": [
+            {"input": value, "casefold": value.casefold()}
+            for value in SHORT_TEXT_INPUTS
         ],
         "strip": [
             {
