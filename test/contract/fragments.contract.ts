@@ -22,6 +22,27 @@ function expectHtmlFragment(reply: Reply) {
   expect(reply.headers.get("link")).toBeNull();
 }
 
+function expectStatusFragment(reply: Reply, message: string) {
+  expectStatus(reply, 503);
+  expectHtmlFragment(reply);
+  expectCacheProfile(reply, "NO_STORE");
+  expect(reply.headers.get("cache-tag")).toBeNull();
+  expect(reply.headers.get("hx-push-url")).toBeNull();
+  expect(parseHtml(reply).body.textContent?.trim()).toBe(message);
+}
+
+describe.runIf(contract.mode === "public")(
+  "fragment without usage tracking",
+  () => {
+    it("a description gets 503 before any classification", async () => {
+      expectStatusFragment(
+        await fragment("laptop computer"),
+        "Usage tracking is temporarily unavailable",
+      );
+    });
+  },
+);
+
 describe("empty fragment", () => {
   it("an empty description renders the prompt without a classification", async () => {
     const reply = await fragment("");
