@@ -61,6 +61,22 @@ Python normalizes `str()` of any `original_id` payload value.
 it after normalization, and `apply` fails on the rest, including `0`, because
 `JSON.parse` reads Python's `0.0` as `0`.
 
+Ports of Python text, URL and number logic must use `src/python/` (`str.ts`,
+`urllib.ts`, `numbers.ts`) instead of JavaScript built-ins. JavaScript's `\s`,
+`\w`, `\d`, `trim`, `encodeURIComponent`, `Number()` and `toFixed` all
+disagree with Python on some inputs. Each ported function has a spec that
+reads a fixture written by `python utilities/export_golden_fixtures.py`
+(about 45 seconds, one file per area). The exporter refuses to run if its
+source contains a non-ASCII character, because editors can NFC-normalize
+literals such as `e` plus U+0301; write such inputs as escapes. Code-point
+sweeps skip code points that Python's Unicode version leaves unassigned,
+because Node's ICU can be newer. Two Python quirks surprised the port. In
+`URLEncodingValidationMiddleware`, `(\d{2,4})\1{15,}` refers back to the
+`(%25)` group and never matches; a verbatim JavaScript copy rejects any URL
+with two adjacent digits. `QueryNormalizationMiddleware` answers 500 when the
+redirect would carry a non-Latin-1 path or the raw query bytes are not UTF-8,
+and its `Location` holds the percent-decoded path.
+
 ## Project Snapshot
 
 Classifast is a classification service web application that uses embeddings and vector search (Qdrant) to classify any text input (mostly product descriptions) into categories of various industry standard classifications, like UNSPSC, NAICS, CN/HS codes, ISIC, ETIM, CPV, etc.
