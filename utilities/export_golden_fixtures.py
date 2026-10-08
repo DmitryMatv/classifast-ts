@@ -30,7 +30,13 @@ dotenv.load_dotenv = lambda *args, **kwargs: False
 
 from fastapi import HTTPException
 
-from app.classifier import sanitize_query_text
+from app.classifier import (
+    QueryFormat,
+    _default_rerank_document,
+    build_query_embedding_text,
+    build_rerank_query_text,
+    sanitize_query_text,
+)
 from app.classifier_config import CLASSIFIER_CONFIG
 from app.classifier_page_delivery import (
     SITEMAP_QUERY_PATHS,
@@ -758,6 +764,75 @@ def build_query_text_fixture() -> dict[str, object]:
     }
 
 
+MODEL_QUERY_INPUTS = [
+    "",
+    "Laptop computer",
+    "  padded query  ",
+    "line\nbreak",
+    "\u043a\u043e\u0444\u0435 \u0432 \u0437\u0451\u0440\u043d\u0430\u0445",
+    "\U0001f468\u200d\U0001f469\u200d\U0001f467 family",
+]
+
+
+def model_instructions() -> list[str | None]:
+    configured = {
+        instruction
+        for config in CLASSIFIER_CONFIG.values()
+        for instruction in (
+            config["query_instruction"],
+            config.get("rerank_instruction"),
+        )
+        if instruction
+    }
+    return [
+        None,
+        "",
+        "  ",
+        "\x1c\x85\u2028",
+        "\ufeffBOM is not whitespace\ufeff",
+        "\x1c Find codes \u3000",
+        *sorted(configured),
+    ]
+
+
+RERANK_PAYLOADS = [
+    {},
+    {"class_name": "Pumps"},
+    {"definition": "Devices that move fluids"},
+    {"class_name": "Pumps", "definition": "Devices that move fluids"},
+    {"class_name": "", "definition": ""},
+    {"class_name": None, "definition": "Only a definition"},
+    {"class_name": "Only a name", "definition": None},
+    {"class_name": "\u041d\u0430\u0441\u043e\u0441\u044b", "definition": " "},
+]
+
+
+def build_model_text_fixture() -> dict[str, object]:
+    return {
+        "queryTexts": [
+            {
+                "query": query,
+                "instruction": instruction,
+                "format": query_format.value,
+                "embedding": build_query_embedding_text(
+                    query, instruction, query_format
+                ),
+                "rerank": build_rerank_query_text(query, instruction, query_format),
+            }
+            for query in MODEL_QUERY_INPUTS
+            for instruction in model_instructions()
+            for query_format in QueryFormat
+        ],
+        "rerankDocuments": [
+            {
+                "payload": payload,
+                "document": _default_rerank_document({"payload": payload}),
+            }
+            for payload in RERANK_PAYLOADS
+        ],
+    }
+
+
 URL_TYPES = ["UNSPSC", "HS", "CPV", "NAICS"]
 # Over 200 and 4000 code points but not UTF-16 units, where slugify and
 # decode_search_query truncate.
@@ -1006,6 +1081,7 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "classifier-options.json": build_classifier_options_fixture,
     "original-id-tokens.json": build_original_id_tokens_fixture,
     "result-score.json": build_result_score_fixture,
+    "model-text.json": build_model_text_fixture,
 }
 
 
