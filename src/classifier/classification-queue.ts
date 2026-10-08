@@ -38,8 +38,8 @@ export class ClassificationQueue {
     signal: AbortSignal,
     work: (signal: AbortSignal) => Promise<T>,
   ): Promise<T> {
-    signal.throwIfAborted();
     if (this.#drained) throw new ClassificationQueueClosed();
+    signal.throwIfAborted();
     if (this.#waiting.length + (this.#active ? 1 : 0) >= QUEUE_CAPACITY) {
       throw new ClassificationQueueFull();
     }
