@@ -87,17 +87,14 @@ reads a fixture written by `python utilities/export_golden_fixtures.py`
 source contains a non-ASCII character, because editors can NFC-normalize
 literals such as `e` plus U+0301; write such inputs as escapes. Code-point
 sweeps skip code points that Python's Unicode version leaves unassigned,
-because Node's ICU can be newer. Three Python quirks surprised the port. In
+because Node's ICU can be newer. Two Python quirks surprised the port. In
 `URLEncodingValidationMiddleware`, `(\d{2,4})\1{15,}` refers back to the
 `(%25)` group and never matches; a verbatim JavaScript copy rejects any URL
 with two adjacent digits. `QueryNormalizationMiddleware` answers 500 when the
 redirect would carry a non-Latin-1 path or the raw query bytes are not UTF-8,
-and its `Location` holds the percent-decoded path. The `cf_track` check,
-`uuid.UUID(value)`, accepts braces, `urn:` prefixes, stray hyphens, a
-`0x` prefix, surrounding whitespace and any Unicode decimal digit; use
-`isPyUuid`. Ignore patterns for root-only directories must start with `/`.
-An unanchored `mapping/` once kept `src/mapping/` out of git without a
-warning.
+and its `Location` holds the percent-decoded path. Ignore patterns for
+root-only directories must start with `/`. An unanchored `mapping/` once kept
+`src/mapping/` out of git without a warning.
 
 ## Project Snapshot
 

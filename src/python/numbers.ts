@@ -6,8 +6,6 @@ const UNICODE_SPACE = new RegExp(`^[${PY_WHITESPACE}]$`);
 // so int("\x1c5") fails although "\x1c5".strip() is "5".
 const ASCII_SPACE_RUN = /^[\t\n\v\f\r ]+|[\t\n\v\f\r ]+$/g;
 const INT_LITERAL = /^[+-]?\d(?:_?\d)*$/;
-const HEX_INT_LITERAL =
-  /^[+-]?(?:0[xX](?:_?[0-9a-fA-F])+|[0-9a-fA-F](?:_?[0-9a-fA-F])*)$/;
 const FLOAT_LITERAL =
   /^[+-]?(?:(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?|inf|infinity|nan)$/i;
 // sys.get_int_max_str_digits() default.
@@ -38,11 +36,6 @@ export function pyInt(text: string): bigint | undefined {
   const digits = literal.replace(/^[+-]|_/g, "");
   if (digits.length > MAX_INT_DIGITS) return undefined;
   return BigInt(literal.replaceAll("_", ""));
-}
-
-export function pyIsHexInt(text: string): boolean {
-  const literal = toAsciiLiteral(text);
-  return literal !== undefined && HEX_INT_LITERAL.test(literal);
 }
 
 export function pyFloat(text: string): number | undefined {
