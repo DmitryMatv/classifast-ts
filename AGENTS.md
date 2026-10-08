@@ -5,9 +5,9 @@ The role of this file is to describe common mistakes and confusion points that a
 ## Testing
 
 Always use `npm test` or `npm run test:watch` for TypeScript tests. `npm test`
-runs two Vitest projects: `assets` (frontend, jsdom, `app/assets/ts`) and
-`server` (Nest unit specs in `src/`). Select one with
-`npx vitest run --project assets`. Run the Nest e2e tests with
+runs three Vitest projects: `assets` (frontend, jsdom, `app/assets/ts`),
+`server` (Nest unit specs in `src/`), and `redis` (`src/**/*.redis.spec.ts`
+against a real Redis). Select one with `npx vitest run --project assets`. Run the Nest e2e tests with
 `npm run test:e2e`. `npm run typecheck` checks both the root `tsconfig.json`
 (Nest, `src/` and `test/`) and `app/assets/tsconfig.json` (frontend and the
 Vite and Vitest configs).
@@ -29,6 +29,27 @@ no `.env` and compose supplies the variables. `src/config/app-config.ts` parses
 every variable the Python app reads; add new variables to that schema instead
 of reading `process.env` elsewhere. `Dockerfile.node` builds the Nest image;
 production still uses `Dockerfile`.
+
+The `redis` project's globalSetup starts Redis 7.4.2 through
+`redis-memory-server`. Because `.npmrc` sets `ignore-scripts=true`, the first
+run in a checkout downloads the source from download.redis.io and compiles it
+with `make`, then caches it in
+`node_modules/.cache/redis-memory-server`. All Redis specs share that one
+server: isolate a spec with unique ids in its keys (`uniqueId` in
+`test/support/redis.ts`), and never flush the database. Quota and rate-limit
+specs must not mock Redis; MULTI, `EXPIRE NX` and `SET EX NX` are the behavior
+under test.
+
+node-redis waits forever by default: `connect()` retries until it succeeds and
+commands queue while the client is disconnected. `src/redis/redis-client.ts`
+stops the first connection attempt on failure and sets `disableOfflineQueue`,
+so metered requests fail closed at once, as they do in Python.
+
+Python's `check_usage` and `reserve_usage` each call
+`get_or_create_tracking_id`. A request without a valid `cf_track` cookie
+therefore reads one random tracking key and charges another; only the IP
+counter limits it. The TypeScript `Quota` resolves the tracking id once per
+request. The IP counter decides the same outcome either way.
 
 The Qdrant JS client requests `GET /` to check the server version when it is
 constructed, and logs a warning when that fails. Fake Qdrant servers in tests
