@@ -78,15 +78,17 @@ export function varyTokens(reply: Reply): string[] {
   return [...new Set(tokens)].sort();
 }
 
-export function locationOf(reply: Reply): string | null {
-  const location = reply.headers.get("location");
-  if (location === null) return null;
-  const url = new URL(location, contract.baseUrl);
-  return `${url.pathname}${url.search}`;
+export function sameOriginPath(url: string, label: string): string {
+  const resolved = new URL(url, contract.baseUrl);
+  expect(resolved.origin, `${label} origin`).toBe(contract.baseUrl.origin);
+  return `${resolved.pathname}${resolved.search}`;
 }
 
-export function pathOf(url: string): string {
-  return new URL(url, contract.baseUrl).pathname;
+export function locationOf(reply: Reply): string | null {
+  const location = reply.headers.get("location");
+  return location === null
+    ? null
+    : sameOriginPath(location, `${reply.label} Location`);
 }
 
 export function parseHtml(reply: Reply): Document {

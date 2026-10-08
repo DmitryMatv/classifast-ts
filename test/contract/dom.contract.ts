@@ -1,13 +1,18 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { contract, repoRoot } from "./support/env.js";
-import { expectStatus, parseHtml, pathOf, send } from "./support/http.js";
+import {
+  expectStatus,
+  parseHtml,
+  sameOriginPath,
+  send,
+} from "./support/http.js";
 
 type Region = {
   selector: string;
   count?: number | "some";
   attributes?: Record<string, string>;
-  pathnames?: Record<string, string>;
+  sameOriginPaths?: Record<string, string>;
   text?: string;
 };
 
@@ -52,7 +57,7 @@ function classifierRegions(query: {
         "data-default-top-k": "10",
         "data-default-version": "UNSPSC UNv260801.1 (18 March 2025)",
       },
-      pathnames: { "hx-get": "/UNSPSC/fragment" },
+      sameOriginPaths: { "hx-get": "/UNSPSC/fragment" },
     },
     {
       selector: "#classifier-form textarea#product_description_area[required]",
@@ -95,18 +100,33 @@ function classifierRegions(query: {
   ];
 }
 
-function buyButton(slug: string): Region {
+// The product page posts its canonical production URL as the checkout return
+// URL; the index uses the request origin.
+function buyButton(
+  slug: string,
+  returnUrl: "canonical" | "same-origin",
+): Region {
+  const path = `/mapping/${slug}/`;
   return {
     selector: `[data-mapping-buy-button][data-mapping-slug="${slug}"]`,
-    attributes: { type: "button" },
-    pathnames: { "data-return-url": `/mapping/${slug}/` },
+    ...(returnUrl === "canonical"
+      ? {
+          attributes: {
+            type: "button",
+            "data-return-url": `https://classifast.com${path}`,
+          },
+        }
+      : {
+          attributes: { type: "button" },
+          sameOriginPaths: { "data-return-url": path },
+        }),
   };
 }
 
 function sampleLink(slug: string): Region {
   return {
     selector: `a[href$="/mapping/${slug}/sample"]`,
-    pathnames: { href: `/mapping/${slug}/sample` },
+    sameOriginPaths: { href: `/mapping/${slug}/sample` },
   };
 }
 
@@ -140,8 +160,8 @@ const pageDoms: PageDom[] = [
     regions: [
       ...shell,
       ...authDisabled,
-      buyButton("unspsc-to-cpv-mapping"),
-      buyButton("cpv-to-unspsc-mapping"),
+      buyButton("unspsc-to-cpv-mapping", "same-origin"),
+      buyButton("cpv-to-unspsc-mapping", "same-origin"),
       sampleLink("unspsc-to-cpv-mapping"),
       sampleLink("cpv-to-unspsc-mapping"),
       storefrontScript,
@@ -152,7 +172,7 @@ const pageDoms: PageDom[] = [
     regions: [
       ...shell,
       ...authDisabled,
-      buyButton("unspsc-to-cpv-mapping"),
+      buyButton("unspsc-to-cpv-mapping", "canonical"),
       sampleLink("unspsc-to-cpv-mapping"),
       { selector: "[data-storefront-success].hidden" },
       storefrontScript,
@@ -181,7 +201,7 @@ function documentAt(path: string): Promise<Document> {
 describe("DOM regions the scripts depend on", () => {
   it.each(regionChecks)(
     "$path $selector",
-    async ({ path, selector, count, attributes, pathnames, text }) => {
+    async ({ path, selector, count, attributes, sameOriginPaths, text }) => {
       const elements = [...(await documentAt(path)).querySelectorAll(selector)];
       if (count === "some") {
         expect(elements.length, selector).toBeGreaterThan(0);
@@ -192,8 +212,12 @@ describe("DOM regions the scripts depend on", () => {
         for (const [name, value] of Object.entries(attributes ?? {})) {
           expect(element.getAttribute(name), `${selector} ${name}`).toBe(value);
         }
-        for (const [name, value] of Object.entries(pathnames ?? {})) {
-          expect(pathOf(element.getAttribute(name) ?? ""), name).toBe(value);
+        for (const [name, value] of Object.entries(sameOriginPaths ?? {})) {
+          const label = `${path} ${selector} ${name}`;
+          expect(
+            sameOriginPath(element.getAttribute(name) ?? "", label),
+            label,
+          ).toBe(value);
         }
         if (text !== undefined) {
           expect(element.textContent?.trim()).toBe(text);
