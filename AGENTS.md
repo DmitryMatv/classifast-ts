@@ -56,6 +56,12 @@ therefore reads one random tracking key and charges another; only the IP
 counter limits it. The TypeScript `Quota` resolves the tracking id once per
 request. The IP counter decides the same outcome either way.
 
+Node joins repeated request headers such as `CF-Connecting-IP` into one
+comma-separated string, while Starlette's `headers.get` returns the first
+value. Pass `req.headersDistinct` to `clientIp` in
+`src/usage/client-identity.ts`, not `req.headers`, to read the first value as
+Python does.
+
 The Qdrant JS client requests `GET /` to check the server version when it is
 constructed, and logs a warning when that fails. Fake Qdrant servers in tests
 must answer `GET /` with a compatible `version` to keep the output clean.
