@@ -99,3 +99,25 @@ export function pyFormatFixed(value: number, digits: number): string {
     ? `${sign}${integer}.${scaled.slice(scaled.length - digits)}`
     : `${sign}${integer}`;
 }
+
+export function pyRepr(value: number): string {
+  if (Number.isNaN(value)) return "nan";
+  if (!Number.isFinite(value)) return value > 0 ? "inf" : "-inf";
+  const sign = isNegative(value) ? "-" : "";
+  const [mantissa = "", exponentText = ""] = Math.abs(value)
+    .toExponential()
+    .split("e");
+  const exponent = Number(exponentText);
+  const digits = mantissa.replace(".", "");
+  if (exponent < -4 || exponent >= 16) {
+    const exponentSign = exponent < 0 ? "-" : "+";
+    const magnitude = String(Math.abs(exponent)).padStart(2, "0");
+    return `${sign}${mantissa}e${exponentSign}${magnitude}`;
+  }
+  if (exponent < 0) {
+    return `${sign}0.${"0".repeat(-exponent - 1)}${digits}`;
+  }
+  const integer = digits.slice(0, exponent + 1).padEnd(exponent + 1, "0");
+  const fraction = digits.slice(exponent + 1) || "0";
+  return `${sign}${integer}.${fraction}`;
+}

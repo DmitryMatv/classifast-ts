@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { readGolden, sweepMismatches } from "../../test/support/golden.js";
-import { pyFloat, pyFormatFixed, pyInt, pyRound } from "./numbers.js";
+import { pyFloat, pyFormatFixed, pyInt, pyRepr, pyRound } from "./numbers.js";
 
 const golden = readGolden(
   "python-numbers.json",
@@ -21,6 +21,7 @@ const golden = readGolden(
         fixed2: z.string(),
       }),
     ),
+    repr: z.array(z.object({ value: z.number(), repr: z.string() })),
     nonFinite: z.array(
       z.object({ repr: z.string(), round4: z.string(), fixed2: z.string() }),
     ),
@@ -72,5 +73,15 @@ describe("pyRound and pyFormatFixed match round() and %.2f", () => {
   it.each(golden.nonFinite)("rounds $repr", ({ repr, round4, fixed2 }) => {
     expect(pyRound(fromRepr(repr)!, 4)).toBe(fromRepr(round4));
     expect(pyFormatFixed(fromRepr(repr)!, 2)).toBe(fixed2);
+  });
+});
+
+describe("pyRepr matches repr() of a float", () => {
+  it.each(golden.repr)("formats $repr", ({ value, repr }) => {
+    expect(pyRepr(value)).toBe(repr);
+  });
+
+  it.each(golden.nonFinite)("formats $repr", ({ repr }) => {
+    expect(pyRepr(fromRepr(repr)!)).toBe(repr);
   });
 });
