@@ -69,3 +69,34 @@ export async function hungRedis() {
     },
   };
 }
+
+function monitorArgs(line: string): string[] {
+  return Array.from(line.matchAll(/"((?:[^"\\]|\\.)*)"/g), ([, arg = ""]) =>
+    arg.replaceAll(/\\(.)/g, "$1"),
+  );
+}
+
+export async function commandsSentBy(
+  client: RedisClient,
+  run: () => Promise<unknown>,
+): Promise<string[][]> {
+  const { addr } = await client.clientInfo();
+  const marker = uniqueId("end-of-commands");
+  const monitor = await connectTestRedis();
+  const lines: string[] = [];
+  let sawMarker!: () => void;
+  const markerSeen = new Promise<void>((resolve) => (sawMarker = resolve));
+  await monitor.monitor((line) => {
+    if (!line.includes(` ${addr}]`)) return;
+    if (line.includes(marker)) sawMarker();
+    else lines.push(line);
+  });
+  try {
+    await run();
+    await client.echo(marker);
+    await markerSeen;
+  } finally {
+    monitor.destroy();
+  }
+  return lines.map(monitorArgs);
+}

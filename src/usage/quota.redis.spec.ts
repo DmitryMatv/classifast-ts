@@ -12,6 +12,7 @@ import {
 import { vi } from "vitest";
 import {
   closedRedis,
+  commandsSentBy,
   connectTestRedis,
   hungRedis,
   uniqueId,
@@ -503,6 +504,23 @@ describe("Quota.charge", () => {
     ]);
     expect(await redis.ttl(trackingKey(caller))).toBe(USAGE_TTL_SECONDS);
     expect(await redis.ttl(ipKey(caller))).toBe(USAGE_TTL_SECONDS);
+  });
+
+  it("charges both anonymous counters in one MULTI transaction", async () => {
+    const { quota } = await setup();
+    const caller = anonymous();
+    const ttl = String(USAGE_TTL_SECONDS);
+
+    const commands = await commandsSentBy(redis, () => quota.charge(caller));
+
+    expect(commands).toEqual([
+      ["MULTI"],
+      ["INCR", trackingKey(caller)],
+      ["EXPIRE", trackingKey(caller), ttl],
+      ["INCR", ipKey(caller)],
+      ["EXPIRE", ipKey(caller), ttl],
+      ["EXEC"],
+    ]);
   });
 
   it.each([

@@ -2,6 +2,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { vi } from "vitest";
 import {
   closedRedis,
+  commandsSentBy,
   connectTestRedis,
   hungRedis,
   uniqueId,
@@ -105,6 +106,19 @@ describe("CheckoutRateLimit", () => {
     expect(denied).toBeInstanceOf(CheckoutRateLimitedError);
     expect(await redis.get(key)).toBe("1");
     expect(await redis.ttl(key)).toBe(WINDOW_SECONDS);
+  });
+
+  it("counts and arms the window in one MULTI transaction", async () => {
+    const { ip, key } = counter();
+
+    const commands = await commandsSentBy(redis, () => limiter().enforce(ip));
+
+    expect(commands).toEqual([
+      ["MULTI"],
+      ["INCR", key],
+      ["EXPIRE", key, String(WINDOW_SECONDS), "NX"],
+      ["EXEC"],
+    ]);
   });
 
   it("test_mapping_checkout_is_rate_limited_per_ip", async () => {
