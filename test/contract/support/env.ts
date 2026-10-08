@@ -29,6 +29,7 @@ const contractEnvSchema = z
     CONTRACT_POLAR_WEBHOOK_SECRET: optionalSecret,
     CONTRACT_RAPIDAPI_SECRET: optionalSecret,
     CONTRACT_POLAR_PRO_PRODUCT_ID: optionalSecret,
+    CONTRACT_NO_OPENROUTER_KEY: z.literal("1").optional(),
     CONTRACT_ANON_LIMIT: z.coerce.number().int().positive().default(10),
     CONTRACT_CHECKOUT_RATE_LIMIT: z.coerce
       .number()
@@ -64,6 +65,7 @@ export const contract = {
   polarProProductId: env.CONTRACT_POLAR_PRO_PRODUCT_ID,
   anonLimit: env.CONTRACT_ANON_LIMIT,
   checkoutRateLimit: env.CONTRACT_CHECKOUT_RATE_LIMIT,
+  noOpenRouterKey: env.CONTRACT_NO_OPENROUTER_KEY === "1",
 };
 
 export const fullMode = contract.mode === "full";
@@ -82,6 +84,10 @@ const prerequisites = {
   polarProProductId: {
     met: contract.polarProProductId !== undefined,
     declaredBy: "CONTRACT_POLAR_PRO_PRODUCT_ID",
+  },
+  noOpenRouterKey: {
+    met: contract.noOpenRouterKey,
+    declaredBy: "CONTRACT_NO_OPENROUTER_KEY=1",
   },
 } as const;
 

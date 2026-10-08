@@ -36,6 +36,10 @@ missing variable as its skip reason:
 - `CONTRACT_POLAR_PRO_PRODUCT_ID` holds the server's `POLAR_PRO_PRODUCT_ID`.
   It enables the signed event for another product, which Python answers with
   500 when the server has no Pro product.
+- `CONTRACT_NO_OPENROUTER_KEY=1` declares a server without
+  `OPENROUTER_API_KEY`. It enables the failed query enhancement case. That
+  server has no enhancer, so every enhanced lookup fails without calling
+  OpenRouter. No request makes a configured enhancer fail deterministically.
 - `CONTRACT_ANON_LIMIT` and `CONTRACT_CHECKOUT_RATE_LIMIT` default to 10 and
   must equal the server's `ANON_LIMIT` and `CHECKOUT_RATE_LIMIT`.
 

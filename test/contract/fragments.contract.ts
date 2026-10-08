@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { classificationTimeout, contract, fullMode } from "./support/env.js";
+import {
+  classificationTimeout,
+  contract,
+  fullMode,
+  meets,
+} from "./support/env.js";
 import {
   expectCacheProfile,
   expectStatus,
@@ -120,6 +125,36 @@ describe.runIf(fullMode)(
         'title#page-title[hx-swap-oob="true"]',
       );
       expect(pageTitle?.textContent ?? null).toBe(title);
+    });
+  },
+);
+
+function originalIds(reply: Reply): (string | null)[] {
+  return [...parseHtml(reply).querySelectorAll("[data-copy-original-id]")].map(
+    (element) => element.getAttribute("data-copy-original-id"),
+  );
+}
+
+// No request makes enhancement fail deterministically; a server without
+// OPENROUTER_API_KEY has no enhancer, so every enhanced lookup fails.
+describe.runIf(meets("noOpenRouterKey"))(
+  "failed query enhancement",
+  { timeout: classificationTimeout(2) },
+  () => {
+    it("enhance_query=1 returns the plain results uncached", async () => {
+      const enhanced = await fragment("laptop computer", "&enhance_query=1");
+      expectStatus(enhanced, 200);
+      expectHtmlFragment(enhanced);
+      expectCacheProfile(enhanced, "NO_STORE");
+      expect(enhanced.headers.get("cache-tag")).toBe("classification-results");
+      expect(enhanced.headers.get("hx-push-url")).toBe(
+        "/UNSPSC/laptop_computer/?enhance_query=1",
+      );
+
+      const plain = await fragment("laptop computer");
+      expectStatus(plain, 200);
+      expect(originalIds(enhanced)).toHaveLength(10);
+      expect(originalIds(enhanced)).toEqual(originalIds(plain));
     });
   },
 );
