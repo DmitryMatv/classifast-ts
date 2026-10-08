@@ -40,7 +40,6 @@ function tierResponse(tier: string | undefined): Response {
   return Response.json({ public_metadata: tier === undefined ? {} : { tier } });
 }
 
-/** ProAccess over the test Redis, with Clerk answering `route` for `userId`. */
 function proAccess(
   userId: string,
   route: Route,
@@ -65,7 +64,6 @@ function clerkRoute(resolution: TierResolution): Route {
   }
 }
 
-/** A Clerk route that answers only once `release` is called. */
 function heldRoute(answer: Route) {
   let release!: () => void;
   const released = new Promise<void>((resolve) => (release = resolve));

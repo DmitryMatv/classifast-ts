@@ -22,7 +22,6 @@ export class CheckoutRateLimitUnavailableError extends HttpStatusError {
   }
 }
 
-/** A fixed window of checkout creations per client IP. Fails closed. */
 export class CheckoutRateLimit {
   constructor(
     private readonly redis: RedisClient | null,
@@ -40,8 +39,6 @@ export class CheckoutRateLimit {
     const ipHash = hashIp(clientIp);
     const key = `checkout_rl:${ipHash}`;
 
-    // EXPIRE NX starts the window on the first request and gives a counter
-    // stranded without a TTL one, without extending a running window.
     let count: number;
     try {
       const [incremented] = await withReplyTimeout(

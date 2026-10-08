@@ -7,11 +7,6 @@ function header(headers: Headers, name: string): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-/**
- * The quota's client IP: Cloudflare's header, then the first X-Forwarded-For
- * hop, then the socket peer. app/google_crawlers.py trusts CF-Connecting-IP
- * only behind an opt-in; this policy always trusts it.
- */
 export function clientIp(
   headers: Headers,
   remoteAddress: string | undefined,
@@ -38,8 +33,6 @@ const PYTHON_HEX_INT = new RegExp(
   "iu",
 );
 
-// Python's uuid.UUID() drops "urn:", "uuid:", outer braces and hyphens, then
-// needs 32 code points that int(text, 16) parses.
 function isPythonUuid(value: string): boolean {
   const hex = value
     .replaceAll("urn:", "")
@@ -49,7 +42,6 @@ function isPythonUuid(value: string): boolean {
   return Array.from(hex).length === 32 && PYTHON_HEX_INT.test(hex);
 }
 
-/** The `cf_track` cookie when it holds a UUID, else a fresh one. */
 export function trackingId(cookie: string | undefined): string {
   return cookie && isPythonUuid(cookie) ? cookie : randomUUID();
 }

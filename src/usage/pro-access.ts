@@ -57,10 +57,6 @@ function cacheEntry(resolution: TierResolution): {
   }
 }
 
-/**
- * Whether a signed-in user gets unlimited classifications: a verified Polar
- * webhook's checkout grace, or a Pro tier from Clerk, cached in Redis.
- */
 export class ProAccess {
   constructor(
     private readonly redis: RedisClient | null,
@@ -68,10 +64,6 @@ export class ProAccess {
     private readonly graceTtlSeconds: number,
   ) {}
 
-  /**
-   * A JWT Pro hint counts only while Clerk cannot be asked, so a stale token
-   * cannot outlive a downgrade.
-   */
   async isPro(userId: string, tierHint: string | undefined): Promise<boolean> {
     if (!this.redis) return false;
     if (await this.#hasActiveGrace(userId)) {
@@ -85,10 +77,6 @@ export class ProAccess {
     );
   }
 
-  /**
-   * Reads the tier cache, else asks Clerk and fills the cache only if no
-   * webhook wrote it meanwhile. The value that ends up cached wins.
-   */
   async lookUpTier(userId: string): Promise<TierResolution> {
     if (!userId) return { status: "explicit_negative" };
     const cached = await this.#readTier(userId).catch(() => undefined);
@@ -124,11 +112,6 @@ export class ProAccess {
       : resolutionFromCache(strictUtf8.decode(raw));
   }
 
-  /**
-   * Caches the tier a verified Polar webhook just wrote to Clerk, overwriting
-   * any cached value. A Pro upgrade also gets checkout grace, which holds
-   * while Clerk catches up. Both writes are best effort.
-   */
   async recordSubscriptionTier(userId: string, tier: string): Promise<void> {
     if (!userId || !this.redis) return;
     const value = tier === "pro" ? "pro" : "free";

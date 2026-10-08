@@ -46,10 +46,6 @@ export function jwksResponse(...keys: SigningKey[]): Response {
   return Response.json({ keys: keys.map((key) => key.jwk) });
 }
 
-/**
- * Clerk's HTTP surface: the frontend API's JWKS and the Backend API. Routes
- * are keyed by URL. An unrouted URL fails the test.
- */
 export class FakeClerkHttp {
   readonly routes = new Map<string, Route>();
   readonly fetch = vi.fn(
@@ -93,7 +89,6 @@ export async function clerkWithKey(
   return { clerk: new Clerk(config, http.fetch), http, key };
 }
 
-/** A Clerk session token; `claims` override or, with `undefined`, remove. */
 export async function signToken(
   key: SigningKey,
   claims: Record<string, unknown> = {},

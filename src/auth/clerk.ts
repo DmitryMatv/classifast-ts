@@ -51,7 +51,6 @@ const serverConfigurationError = () =>
 
 export interface ClerkIdentity {
   readonly userId: string;
-  /** JWT public metadata; trust it only when Clerk cannot be asked. */
   readonly tierHint: string | undefined;
 }
 
@@ -75,8 +74,6 @@ const INVALID_TOKEN_ERRORS = [
   errors.JOSENotSupported,
 ];
 
-// Maps jose failures onto PyJWT's: expired, invalid token, and a JWKS fetch
-// failure, which is transient. Anything else is a permanent failure.
 function verificationFailure(
   error: unknown,
 ): ClerkAuthError | ClerkUnavailableError {
@@ -138,10 +135,6 @@ const userSchema = z.looseObject({
   public_metadata: metadataSchema.optional(),
 });
 
-/**
- * Clerk session-token verification and the Clerk Backend API calls that
- * app/clerk_auth.py and app/usage_tracker.py make.
- */
 export class Clerk {
   readonly #config: AppConfig["clerk"];
   readonly #fetch: typeof fetch;
@@ -168,7 +161,6 @@ export class Clerk {
     }
   }
 
-  /** Whether Bearer tokens must carry a permitted `azp` origin. */
   get validatesAzp(): boolean {
     return this.#config.permittedOrigins.length > 0;
   }
@@ -219,7 +211,6 @@ export class Clerk {
     }
   }
 
-  /** Verifies the token alone, without asking Clerk whether it is live. */
   async authenticateLocal(
     token: string,
     validateAzp: boolean,
@@ -231,7 +222,6 @@ export class Clerk {
     return identityFromPayload(payload);
   }
 
-  /** Verifies the token and that its Clerk session is still active. */
   async authenticateWithSession(
     token: string,
     validateAzp: boolean,
@@ -251,7 +241,6 @@ export class Clerk {
     return identity;
   }
 
-  /** The signed-in user behind an `Authorization: Bearer` header. */
   async requireSessionUser(authorization: string | undefined): Promise<string> {
     if (!authorization) {
       throw new ClerkAuthError("Missing Authorization header");
@@ -266,7 +255,6 @@ export class Clerk {
     return userId;
   }
 
-  /** Returns the user id of an active session. */
   async verifySessionActive(sessionId: string): Promise<string> {
     if (!sessionId) throw new ClerkAuthError("Invalid token payload");
     if (!this.#config.secretKey) {
@@ -314,7 +302,6 @@ export class Clerk {
     return userId;
   }
 
-  /** Asks Clerk for the user's current tier and classifies the answer. */
   async fetchUserTier(userId: string): Promise<TierResolution> {
     if (!this.#config.secretKey || !userId) {
       logger.error(
@@ -359,7 +346,6 @@ export class Clerk {
     return { status: "explicit_negative" };
   }
 
-  // Reads the whole body inside the timeout, as httpx does.
   async #get(
     path: string,
     secretKey: string,

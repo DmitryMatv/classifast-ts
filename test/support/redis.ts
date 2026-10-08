@@ -7,10 +7,6 @@ import {
   type RedisClient,
 } from "../../src/redis/redis-client.js";
 
-/**
- * A client of the shared test server. Specs isolate themselves by using
- * unique ids in their keys rather than by flushing the database.
- */
 export async function connectTestRedis(): Promise<RedisClient> {
   const client = createClient({
     url: inject("redisUrl"),
@@ -20,7 +16,6 @@ export async function connectTestRedis(): Promise<RedisClient> {
   return client;
 }
 
-/** A client whose every command fails, as a Redis outage looks to callers. */
 export function closedRedis(): RedisClient {
   return createClient({ url: inject("redisUrl"), disableOfflineQueue: true });
 }
@@ -29,7 +24,6 @@ export function uniqueId(prefix: string): string {
   return `${prefix}-${randomUUID()}`;
 }
 
-/** A server that answers every command with OK until `hang` is called. */
 export async function hangingRedisServer() {
   let answering = true;
   const sockets = new Set<Socket>();
@@ -58,10 +52,6 @@ export async function hangingRedisServer() {
   };
 }
 
-/**
- * A connected client whose server then stops answering: commands are
- * written and never replied to, as a hung Redis looks to callers.
- */
 export async function hungRedis() {
   const server = await hangingRedisServer();
   const client = await connectRedis({

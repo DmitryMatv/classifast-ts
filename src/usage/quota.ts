@@ -44,13 +44,9 @@ export type Caller = AnonymousCaller | FreeCaller | ProCaller;
 
 export type MeteredCaller = AnonymousCaller | FreeCaller;
 
-/** What the request carries that identifies its caller. */
 export interface CallerCredentials {
-  /** The `Authorization` header. */
   readonly authorization: string | undefined;
-  /** Clerk's `__session` cookie. */
   readonly sessionCookie: string | undefined;
-  /** The `cf_track` cookie that client-side JavaScript sets. */
   readonly trackingCookie: string | undefined;
   readonly clientIp: string;
 }
@@ -77,8 +73,6 @@ export function quotaHeaders(status: UsageStatus): Record<string, string> {
   };
 }
 
-// An anonymous caller is metered by both cookie and IP, so clearing the
-// cookie does not reset the quota.
 function usageKeys(caller: MeteredCaller): string[] {
   return caller.kind === "anonymous"
     ? [
@@ -88,8 +82,6 @@ function usageKeys(caller: MeteredCaller): string[] {
     : [`user:${caller.userId}:usage_count`];
 }
 
-// Python reads a counter with int(); a value it rejects fails the request
-// as an unexpected error, not as a quota outage.
 function storedCount(value: string | null): number {
   if (!value) return 0;
   const count = parsePythonInt(value);
@@ -99,11 +91,6 @@ function storedCount(value: string | null): number {
   return count;
 }
 
-/**
- * The per-caller classification quota. A request resolves its caller and
- * checks the quota before it queues, both read-only; the charge then runs
- * inside the classification turn and decides between racing requests.
- */
 export class Quota {
   constructor(
     private readonly redis: RedisClient | null,
@@ -115,7 +102,6 @@ export class Quota {
     >,
   ) {}
 
-  /** May call Clerk; never writes usage. */
   async resolveCaller(credentials: CallerCredentials): Promise<Caller> {
     const identity = await this.#identify(credentials);
     if (!identity) {
@@ -132,7 +118,6 @@ export class Quota {
     return { kind: isPro ? "pro" : "free", userId: identity.userId };
   }
 
-  // Quota identity skips the live Clerk session check that checkout makes.
   async #identify({
     authorization,
     sessionCookie,
@@ -170,7 +155,6 @@ export class Quota {
     }
   }
 
-  /** Whether one more classification fits, without writing. */
   async check(caller: Caller): Promise<UsageStatus> {
     const redis = this.#requireRedis();
     if (caller.kind === "pro")
@@ -187,10 +171,6 @@ export class Quota {
     return this.#metered(caller, count, count < this.#limit(caller));
   }
 
-  /**
-   * Charges one classification in one transaction. Only Redis runs here,
-   * because the charge holds the only classification turn.
-   */
   async charge(caller: Caller): Promise<UsageStatus> {
     const redis = this.#requireRedis();
     if (caller.kind === "pro")

@@ -31,12 +31,6 @@ export async function withReplyTimeout<T>(reply: Promise<T>): Promise<T> {
   }
 }
 
-/**
- * Connects like app/main.py: if the first connection fails, the process runs
- * without Redis and every metered request fails closed until a restart.
- * Commands fail at once while a later reconnect is pending, instead of
- * queueing behind it.
- */
 export async function connectRedis(
   config: AppConfig["redis"],
 ): Promise<RedisClient | null> {
