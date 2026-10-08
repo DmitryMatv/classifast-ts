@@ -390,6 +390,7 @@ class ClassifierPage {
             }
 
             this.pendingAuthReadySubmission = false;
+            this.hideLoadingIndicator();
             this.submitForm(form);
           },
           { once: true, signal: this.lifecycle.signal },
