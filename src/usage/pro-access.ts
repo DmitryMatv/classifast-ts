@@ -1,0 +1,157 @@
+import { Logger } from "@nestjs/common";
+import { RESP_TYPES } from "redis";
+import type { Clerk, TierResolution } from "../auth/clerk.js";
+import type { RedisClient } from "../redis/redis-client.js";
+
+const logger = new Logger("ProAccess");
+
+export const TIER_CACHE_TTL_SECONDS = 3600;
+export const NEGATIVE_TIER_CACHE_TTL_SECONDS = 60;
+
+export const TIER_CACHE_SENTINELS = {
+  non_pro: "__sentinel:non_pro",
+  explicit_negative: "__sentinel:explicit_negative",
+  transient_unavailable: "__sentinel:transient_unavailable",
+} as const;
+
+const tierKey = (userId: string) => `user_tier:${userId}`;
+const graceKey = (userId: string) => `checkout_grace:${userId}`;
+
+const strictUtf8 = new TextDecoder("utf-8", { fatal: true });
+
+function resolutionFromCache(value: string): TierResolution | undefined {
+  switch (value) {
+    case "":
+      return undefined;
+    case "pro":
+      return { status: "confirmed_pro" };
+    case TIER_CACHE_SENTINELS.non_pro:
+      return { status: "confirmed_non_pro" };
+    case TIER_CACHE_SENTINELS.explicit_negative:
+      return { status: "explicit_negative" };
+    case TIER_CACHE_SENTINELS.transient_unavailable:
+      return { status: "transient_unavailable" };
+    default:
+      return { status: "confirmed_non_pro", tier: value };
+  }
+}
+
+function cacheEntry(resolution: TierResolution): {
+  value: string;
+  ttlSeconds: number;
+} {
+  switch (resolution.status) {
+    case "confirmed_pro":
+      return { value: "pro", ttlSeconds: TIER_CACHE_TTL_SECONDS };
+    case "confirmed_non_pro":
+      return {
+        value: resolution.tier || TIER_CACHE_SENTINELS.non_pro,
+        ttlSeconds: TIER_CACHE_TTL_SECONDS,
+      };
+    case "explicit_negative":
+    case "transient_unavailable":
+      return {
+        value: TIER_CACHE_SENTINELS[resolution.status],
+        ttlSeconds: NEGATIVE_TIER_CACHE_TTL_SECONDS,
+      };
+  }
+}
+
+/**
+ * Whether a signed-in user gets unlimited classifications: a verified Polar
+ * webhook's checkout grace, or a Pro tier from Clerk, cached in Redis.
+ */
+export class ProAccess {
+  constructor(
+    private readonly redis: RedisClient | null,
+    private readonly clerk: Clerk,
+    private readonly graceTtlSeconds: number,
+  ) {}
+
+  /**
+   * A JWT Pro hint counts only while Clerk cannot be asked, so a stale token
+   * cannot outlive a downgrade.
+   */
+  async isPro(userId: string, tierHint: string | undefined): Promise<boolean> {
+    if (!this.redis) return false;
+    if (await this.hasActiveGrace(userId)) {
+      logger.log(`Checkout grace period active for user ${userId}`);
+      return true;
+    }
+    const resolution = await this.lookUpTier(userId);
+    return (
+      resolution.status === "confirmed_pro" ||
+      (resolution.status === "transient_unavailable" && tierHint === "pro")
+    );
+  }
+
+  /**
+   * Reads the tier cache, else asks Clerk and fills the cache only if no
+   * webhook wrote it meanwhile. The value that ends up cached wins.
+   */
+  async lookUpTier(userId: string): Promise<TierResolution> {
+    if (!userId) return { status: "explicit_negative" };
+    const cached = await this.#readTier(userId).catch(() => undefined);
+    if (cached) return cached;
+
+    const resolution = await this.clerk.fetchUserTier(userId);
+    if (!this.redis) return resolution;
+    try {
+      const { value, ttlSeconds } = cacheEntry(resolution);
+      await this.redis.set(tierKey(userId), value, {
+        expiration: { type: "EX", value: ttlSeconds },
+        condition: "NX",
+      });
+      return (await this.#readTier(userId)) ?? resolution;
+    } catch {
+      return resolution;
+    }
+  }
+
+  // Python decodes replies strictly, so a value that is not UTF-8 fails the
+  // read instead of becoming a tier name.
+  async #readTier(userId: string): Promise<TierResolution | undefined> {
+    if (!this.redis) return undefined;
+    const raw = await this.redis
+      .withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer })
+      .get(tierKey(userId));
+    return raw === null
+      ? undefined
+      : resolutionFromCache(strictUtf8.decode(raw));
+  }
+
+  /** The Polar webhook's authoritative tier, overwriting any cached value. */
+  async recordTier(userId: string, tier: string): Promise<void> {
+    if (!userId || !this.redis) return;
+    const value = tier === "pro" ? "pro" : "free";
+    try {
+      await this.redis.setEx(tierKey(userId), TIER_CACHE_TTL_SECONDS, value);
+    } catch (error) {
+      logger.warn(
+        `Failed to sync tier cache for user_id=${userId}: ${String(error)}`,
+      );
+    }
+  }
+
+  /** Grants unlimited use while Clerk catches up after a Pro checkout. */
+  async grantCheckoutGrace(userId: string): Promise<boolean> {
+    if (!userId || !this.redis) return false;
+    try {
+      await this.redis.setEx(graceKey(userId), this.graceTtlSeconds, "1");
+      return true;
+    } catch (error) {
+      logger.error(`Failed to set checkout grace period: ${String(error)}`);
+      return false;
+    }
+  }
+
+  async hasActiveGrace(userId: string): Promise<boolean> {
+    if (!userId || !this.redis) return false;
+    try {
+      return (await this.redis.exists(graceKey(userId))) > 0;
+    } catch (error) {
+      logger.error(`Failed to check checkout grace period: ${String(error)}`);
+      return false;
+    }
+  }
+}
