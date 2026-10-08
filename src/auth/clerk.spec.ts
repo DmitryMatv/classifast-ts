@@ -241,6 +241,8 @@ describe("Clerk.verifyToken claim checks", () => {
     ["an nbf in the future", { nbf: Math.floor(Date.now() / 1000) + 600 }],
     ["an iat in the future", { iat: Math.floor(Date.now() / 1000) + 600 }],
     ["an audience", { aud: "https://api.example" }],
+    ["a subject that is not a string", { sub: 5 }],
+    ["a jti that is not a string", { jti: 5 }],
   ])("rejects a token with %s as invalid", async (_case, claims) => {
     const { clerk, key } = await clerkWithKey();
     const token = await signToken(key, claims);
@@ -250,6 +252,16 @@ describe("Clerk.verifyToken claim checks", () => {
       detail: "Invalid token",
     });
   });
+
+  it.each([null, "", []])(
+    "accepts an empty audience %j, as PyJWT does",
+    async (aud) => {
+      const { clerk, key } = await clerkWithKey();
+      const token = await signToken(key, { aud });
+
+      expect((await verify(clerk, token)).sub).toBe("user_123");
+    },
+  );
 
   it("rejects a token signed by another key under a known kid", async () => {
     const { clerk } = await clerkWithKey();

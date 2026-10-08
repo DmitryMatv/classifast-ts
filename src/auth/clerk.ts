@@ -94,15 +94,18 @@ function verificationFailure(
     : new ClerkAuthError("Authentication failed");
 }
 
-// PyJWT treats a null claim as missing, rejects an iat in the future, and
-// rejects any audience when none is expected. jose does none of these.
+// PyJWT treats a null claim as missing, rejects an iat in the future, a sub
+// or jti that is not a string, and a non-empty audience when none is
+// expected. jose does none of these.
 function checkPyJwtClaims(payload: JWTPayload, required: string[]): void {
   const now = Date.now() / 1000;
-  const audience = payload.aud;
+  const { sub, jti } = payload;
   if (
     required.some((claim) => payload[claim] === null) ||
     Math.trunc(payload.iat ?? 0) > now ||
-    (audience !== undefined && audience.length !== 0)
+    (payload.aud ?? "").length !== 0 ||
+    (sub !== undefined && typeof sub !== "string") ||
+    (jti !== undefined && typeof jti !== "string")
   ) {
     throw new ClerkAuthError("Invalid token");
   }
