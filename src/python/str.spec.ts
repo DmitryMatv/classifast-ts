@@ -8,9 +8,13 @@ import {
 import {
   PY_WHITESPACE,
   PY_WORD,
+  codePointLength,
+  collapseWhitespace,
   pyIsAlpha,
   pyIsDigit,
+  pyRstrip,
   pyStrip,
+  sliceCodePoints,
   pyTitle,
   titlecase,
 } from "./str.js";
@@ -29,9 +33,28 @@ const golden = readGolden(
     titleMappings: z.record(z.string(), z.string()),
     title: z.array(z.object({ input: z.string(), title: z.string() })),
     upper: z.array(z.object({ input: z.string(), upper: z.string() })),
-    strip: z.array(z.object({ input: z.string(), stripped: z.string() })),
+    strip: z.array(
+      z.object({
+        input: z.string(),
+        stripped: z.string(),
+        rstripped: z.string(),
+        splitJoined: z.string(),
+      }),
+    ),
     stripChars: z.array(
-      z.object({ input: z.string(), chars: z.string(), stripped: z.string() }),
+      z.object({
+        input: z.string(),
+        chars: z.string(),
+        stripped: z.string(),
+        rstripped: z.string(),
+      }),
+    ),
+    codePoints: z.array(
+      z.object({
+        input: z.string(),
+        length: z.number(),
+        firstThree: z.string(),
+      }),
     ),
   }),
 );
@@ -118,15 +141,31 @@ describe("Python case mappings", () => {
   });
 });
 
-describe("pyStrip", () => {
-  it.each(golden.strip)("strips $input", ({ input, stripped }) => {
-    expect(pyStrip(input)).toBe(stripped);
-  });
+describe("strip, rstrip and split", () => {
+  it.each(golden.strip)(
+    "strips $input",
+    ({ input, stripped, rstripped, splitJoined }) => {
+      expect(pyStrip(input)).toBe(stripped);
+      expect(pyRstrip(input)).toBe(rstripped);
+      expect(collapseWhitespace(input)).toBe(splitJoined);
+    },
+  );
 
   it.each(golden.stripChars)(
     "strips $chars from $input",
-    ({ input, chars, stripped }) => {
+    ({ input, chars, stripped, rstripped }) => {
       expect(pyStrip(input, chars)).toBe(stripped);
+      expect(pyRstrip(input, chars)).toBe(rstripped);
+    },
+  );
+});
+
+describe("len() and slicing", () => {
+  it.each(golden.codePoints)(
+    "counts and slices $input",
+    ({ input, length, firstThree }) => {
+      expect(codePointLength(input)).toBe(length);
+      expect(sliceCodePoints(input, 3)).toBe(firstThree);
     },
   );
 });

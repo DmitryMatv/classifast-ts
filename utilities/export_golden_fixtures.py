@@ -461,11 +461,26 @@ def build_python_str_fixture() -> dict[str, object]:
             {"input": value, "upper": value.upper()} for value in SHORT_TEXT_INPUTS
         ],
         "strip": [
-            {"input": value, "stripped": value.strip()} for value in SHORT_TEXT_INPUTS
+            {
+                "input": value,
+                "stripped": value.strip(),
+                "rstripped": value.rstrip(),
+                "splitJoined": " ".join(value.split()),
+            }
+            for value in SHORT_TEXT_INPUTS
         ],
         "stripChars": [
-            {"input": value, "chars": chars, "stripped": value.strip(chars)}
+            {
+                "input": value,
+                "chars": chars,
+                "stripped": value.strip(chars),
+                "rstripped": value.rstrip(chars),
+            }
             for value, chars in STRIP_CHARS_INPUTS
+        ],
+        "codePoints": [
+            {"input": value, "length": len(value), "firstThree": value[:3]}
+            for value in SHORT_TEXT_INPUTS
         ],
     }
 
