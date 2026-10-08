@@ -1,21 +1,25 @@
 import { z } from "zod";
 import { readGolden } from "../../test/support/golden.js";
-import { formatScoreWidth } from "./result-score.js";
+import { formatScore } from "./result-score.js";
 
 const golden = readGolden(
   "result-score.json",
   z.object({
-    scoreWidths: z.array(
-      z.object({ score: z.number().nullable(), width: z.string() }),
+    scores: z.array(
+      z.object({
+        score: z.number().nullable(),
+        width: z.string(),
+        label: z.string(),
+      }),
     ),
   }),
 );
 
-describe("formatScoreWidth matches the results.html score bar", () => {
-  it.each(golden.scoreWidths)(
-    "formats $score as $width",
-    ({ score, width }) => {
-      expect(formatScoreWidth(score)).toBe(width);
+describe("formatScore matches the results.html score bar and label", () => {
+  it.each(golden.scores)(
+    "formats $score as $width and $label",
+    ({ score, width, label }) => {
+      expect(formatScore(score)).toEqual({ width, label });
     },
   );
 });

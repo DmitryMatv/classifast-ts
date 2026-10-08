@@ -679,26 +679,28 @@ def build_python_numbers_fixture() -> dict[str, object]:
     }
 
 
-def score_width_template() -> Template:
+SCORE_WIDTH = "{{ '%.2f'|format(score_pct) }}"
+SCORE_LABEL = '{{ "%.1f"|format(score_pct) }}'
+
+
+def score_template() -> Template:
     source = (REPO_ROOT / "app" / "templates" / "results.html").read_text()
     match = re.search(r"\{%-\s*set score_pct = (.*?)-%\}", source, re.DOTALL)
     assert match, "results.html no longer sets score_pct"
-    output = "{{ '%.2f'|format(score_pct) }}"
-    assert f'data-score-width="{output}"' in source
-    return templates.env.from_string(
-        "{% set score_pct = " + match.group(1) + " %}" + output
-    )
+    assert f'data-score-width="{SCORE_WIDTH}"' in source
+    assert f"{SCORE_LABEL}%" in source
+    set_score = "{% set score_pct = " + match.group(1) + " %}"
+    return templates.env.from_string(f"{set_score}{SCORE_WIDTH} {SCORE_LABEL}")
 
 
 def build_result_score_fixture() -> dict[str, object]:
-    template = score_width_template()
+    template = score_template()
     scores = [None, *round_inputs(), 1.0001, 1.5, 100.0, -1.0, -0.5]
-    return {
-        "scoreWidths": [
-            {"score": score, "width": template.render(result={"score": score})}
-            for score in scores
-        ],
-    }
+    cases = []
+    for score in scores:
+        width, label = template.render(result={"score": score}).split(" ")
+        cases.append({"score": score, "width": width, "label": label})
+    return {"scores": cases}
 
 
 SANITIZE_INPUTS = [

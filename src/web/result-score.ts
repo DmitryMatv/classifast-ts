@@ -10,8 +10,16 @@ function firstMin(first: number, second: number): number {
   return second < first ? second : first;
 }
 
-export function formatScoreWidth(score: number | null): string {
-  if (score === null) return "0.00";
-  const percent = firstMin(firstMax(score * 100, 0), 100);
-  return pyFormatFixed(pyRound(percent, 2), 2);
+export interface ScoreDisplay {
+  readonly width: string;
+  readonly label: string;
+}
+
+export function formatScore(score: number | null): ScoreDisplay {
+  const percent =
+    score === null ? 0 : pyRound(firstMin(firstMax(score * 100, 0), 100), 2);
+  return {
+    width: pyFormatFixed(percent, 2),
+    label: pyFormatFixed(percent, 1),
+  };
 }
