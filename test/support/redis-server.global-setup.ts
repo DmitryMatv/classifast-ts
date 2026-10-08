@@ -7,13 +7,11 @@ declare module "vitest" {
   }
 }
 
-// Production needs Redis 7+ for EXPIRE NX. A pinned 7.x server proves that
-// floor. redis-memory-server builds it from source on first use.
-const REDIS_VERSION = "7.4.2";
+const REDIS_7_FOR_EXPIRE_NX = "7.4.2";
 
 export default async function setup(project: TestProject) {
   const server = new RedisMemoryServer({
-    binary: { version: REDIS_VERSION },
+    binary: { version: REDIS_7_FOR_EXPIRE_NX },
   });
   project.provide(
     "redisUrl",

@@ -98,8 +98,6 @@ export class ProAccess {
     }
   }
 
-  // Python decodes replies strictly, so a value that is not UTF-8 fails the
-  // read instead of becoming a tier name.
   async #readTier(userId: string): Promise<TierResolution | undefined> {
     if (!this.redis) return undefined;
     const raw = await withReplyTimeout(

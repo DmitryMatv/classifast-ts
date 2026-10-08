@@ -18,10 +18,11 @@ const CLERK_API_URL = "https://api.clerk.com/v1";
 const CLERK_API_VERSION = "2025-11-10";
 const SESSION_TIMEOUT_MS = 10_000;
 const TIER_TIMEOUT_MS = 5_000;
-// PyJWKClient's defaults, which app/dependencies.py keeps.
-const JWKS_TIMEOUT_MS = 30_000;
-const JWKS_CACHE_MAX_AGE_MS = 300_000;
-const JWKS_REFRESH_COOLDOWN_MS = 30_000;
+const PYJWKCLIENT_DEFAULTS = {
+  timeoutDuration: 30_000,
+  cacheMaxAge: 300_000,
+  cooldownDuration: 30_000,
+};
 
 const TRANSIENT_STATUSES = new Set([429, 500, 502, 503, 504]);
 const SESSION_UNAVAILABLE_STATUSES = new Set([401, 403, ...TRANSIENT_STATUSES]);
@@ -91,9 +92,6 @@ function verificationFailure(
     : new ClerkAuthError("Authentication failed");
 }
 
-// PyJWT treats a null claim as missing, rejects an iat in the future, a sub
-// or jti that is not a string, and a non-empty audience when none is
-// expected. jose does none of these.
 function checkPyJwtClaims(payload: JWTPayload, required: string[]): void {
   const now = Date.now() / 1000;
   const { sub, jti } = payload;
@@ -124,6 +122,13 @@ function jwksFetch(fetchImpl: typeof fetch): FetchImplementation {
   };
 }
 
+function requireKid(getKey: JWTVerifyGetKey): JWTVerifyGetKey {
+  return (header, token) =>
+    header.kid === undefined
+      ? Promise.reject(new errors.JWKSNoMatchingKey())
+      : getKey(header, token);
+}
+
 const sessionSchema = z.looseObject({
   status: z.unknown().optional(),
   user_id: z.unknown().optional(),
@@ -147,17 +152,11 @@ export class Clerk {
       const remote = createRemoteJWKSet(
         new URL(`https://${config.frontendApi}/.well-known/jwks.json`),
         {
-          timeoutDuration: JWKS_TIMEOUT_MS,
-          cacheMaxAge: JWKS_CACHE_MAX_AGE_MS,
-          cooldownDuration: JWKS_REFRESH_COOLDOWN_MS,
+          ...PYJWKCLIENT_DEFAULTS,
           [customFetch]: jwksFetch(fetchImpl),
         },
       );
-      // PyJWKClient looks keys up by kid only, so a token without one fails.
-      this.#jwks = (header, token) =>
-        header.kid === undefined
-          ? Promise.reject(new errors.JWKSNoMatchingKey())
-          : remote(header, token);
+      this.#jwks = requireKid(remote);
     }
   }
 
