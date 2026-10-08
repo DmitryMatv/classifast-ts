@@ -197,31 +197,46 @@ describe.runIf(fullMode)(
   },
 );
 
-const activeSlots = 1;
-const waitingSlots = 4;
+const queueCapacity = 5;
+const overflow = 3;
 
 describe.runIf(fullMode)(
   "queue overflow",
-  { timeout: classificationTimeout(activeSlots + waitingSlots) },
+  { timeout: classificationTimeout(queueCapacity) },
   () => {
-    it("requests beyond one active and four waiting get 503", async () => {
+    // Each of the first six admissions finds at most five jobs queued, so a
+    // capacity above five admits a sixth request whatever the timing. A
+    // capacity below five admits five only if a job finishes before the last
+    // request reaches the queue, which needs one request's pre-queue checks
+    // to outlast a whole live classification.
+    it("a burst admits one active and four waiting and refuses the rest", async () => {
       const run = randomUUID().slice(0, 8);
-      const replies = await Promise.all(
-        Array.from({ length: activeSlots + waitingSlots + 3 }, (_, index) =>
-          fragment(`contract overflow probe ${run} item ${index}`),
-        ),
+      const started = performance.now();
+      const outcomes = await Promise.all(
+        Array.from({ length: queueCapacity + overflow }, async (_, index) => {
+          const reply = await fragment(
+            `contract overflow probe ${run} item ${index}`,
+          );
+          return { reply, ms: Math.round(performance.now() - started) };
+        }),
       );
-      const refused = replies.filter((reply) => reply.status === 503);
-      expect(refused.length).toBeGreaterThan(0);
+      const timeline = outcomes
+        .map(({ reply, ms }) => `${reply.status} after ${ms} ms`)
+        .join(", ");
       expect(
-        replies.filter((reply) => reply.status === 200).length,
-      ).toBeGreaterThan(0);
-      for (const reply of refused) {
-        expectHtmlFragment(reply);
-        expectCacheProfile(reply, "NO_STORE");
-        expect(parseHtml(reply).body.textContent?.trim()).toBe(
-          "Classification queue is full. Please try again later.",
-        );
+        outcomes.map(({ reply }) => reply.status).sort((a, b) => a - b),
+        timeline,
+      ).toEqual([
+        ...Array<number>(queueCapacity).fill(200),
+        ...Array<number>(overflow).fill(503),
+      ]);
+      for (const { reply } of outcomes) {
+        if (reply.status === 503) {
+          expectStatusFragment(
+            reply,
+            "Classification queue is full. Please try again later.",
+          );
+        }
       }
     });
   },
