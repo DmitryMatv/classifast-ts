@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import { getCurrentTest } from "vitest/suite";
+import { TestRunner } from "vitest";
 import { contract } from "./env.js";
 import {
   cacheProfiles,
@@ -33,7 +33,7 @@ export async function send(
     headers: options.headers,
     body: options.body,
     redirect: "manual",
-    signal: getCurrentTest()?.context.signal,
+    signal: TestRunner.getCurrentTest()?.context.signal,
   });
   const bytes = Buffer.from(await response.arrayBuffer());
   const reply: Reply = {
