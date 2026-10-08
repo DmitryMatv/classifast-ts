@@ -28,7 +28,13 @@ const contractEnvSchema = z
     CONTRACT_MODE: z.enum(["public", "full"]).default("public"),
     CONTRACT_POLAR_WEBHOOK_SECRET: optionalSecret,
     CONTRACT_RAPIDAPI_SECRET: optionalSecret,
+    CONTRACT_POLAR_PRO_PRODUCT_ID: optionalSecret,
     CONTRACT_ANON_LIMIT: z.coerce.number().int().positive().default(10),
+    CONTRACT_CHECKOUT_RATE_LIMIT: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(10),
   })
   .superRefine((env, context) => {
     if (isLoopback(env.CONTRACT_BASE_URL) || env.CONTRACT_ALLOW_NON_LOOPBACK) {
@@ -55,10 +61,43 @@ export const contract = {
   mode: env.CONTRACT_MODE,
   polarWebhookSecret: env.CONTRACT_POLAR_WEBHOOK_SECRET,
   rapidApiSecret: env.CONTRACT_RAPIDAPI_SECRET,
+  polarProProductId: env.CONTRACT_POLAR_PRO_PRODUCT_ID,
   anonLimit: env.CONTRACT_ANON_LIMIT,
+  checkoutRateLimit: env.CONTRACT_CHECKOUT_RATE_LIMIT,
 };
 
 export const fullMode = contract.mode === "full";
+
+// Server configuration a full-mode case needs beyond Qdrant, Redis and
+// embeddings, each declared by the variable that tells the suite it holds.
+const prerequisites = {
+  rapidApiSecret: {
+    met: contract.rapidApiSecret !== undefined,
+    declaredBy: "CONTRACT_RAPIDAPI_SECRET",
+  },
+  polarWebhookSecret: {
+    met: contract.polarWebhookSecret !== undefined,
+    declaredBy: "CONTRACT_POLAR_WEBHOOK_SECRET",
+  },
+  polarProProductId: {
+    met: contract.polarProProductId !== undefined,
+    declaredBy: "CONTRACT_POLAR_PRO_PRODUCT_ID",
+  },
+} as const;
+
+export type Prerequisite = keyof typeof prerequisites;
+
+export function unmetPrerequisites(
+  requires: readonly Prerequisite[] = [],
+): string[] {
+  return requires
+    .filter((name) => !prerequisites[name].met)
+    .map((name) => `set ${prerequisites[name].declaredBy}`);
+}
+
+export function meets(...requires: Prerequisite[]): boolean {
+  return fullMode && unmetPrerequisites(requires).length === 0;
+}
 
 // A live classification may wait on a cold embedding endpoint, then on the
 // reranker's 30-second timeout.

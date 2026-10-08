@@ -25,8 +25,21 @@ full mode charges quota and runs live classifications. Set
 `CONTRACT_ALLOW_NON_LOOPBACK=1` to target another host deliberately. Point it
 at a public-mode Python instance from the verify driver. Set
 `CONTRACT_MODE=full` only against a server with Qdrant, Redis, and
-embeddings. `CONTRACT_POLAR_WEBHOOK_SECRET` and `CONTRACT_RAPIDAPI_SECRET`
-enable the signed-webhook and RapidAPI JSON cases. With
+embeddings. A full-mode case that needs more server configuration runs only
+when a variable declares that the server has it, and otherwise reports the
+missing variable as its skip reason:
+
+- `CONTRACT_RAPIDAPI_SECRET` holds the server's `RAPIDAPI_SECRET`. It enables
+  the RapidAPI 401 and JSON cases.
+- `CONTRACT_POLAR_WEBHOOK_SECRET` holds the server's `POLAR_WEBHOOK_SECRET`.
+  It enables the unsigned and signed webhook cases.
+- `CONTRACT_POLAR_PRO_PRODUCT_ID` holds the server's `POLAR_PRO_PRODUCT_ID`.
+  It enables the signed event for another product, which Python answers with
+  500 when the server has no Pro product.
+- `CONTRACT_ANON_LIMIT` and `CONTRACT_CHECKOUT_RATE_LIMIT` default to 10 and
+  must equal the server's `ANON_LIMIT` and `CHECKOUT_RATE_LIMIT`.
+
+With
 `CONTRACT_TARGET=nest`, the `retiredRoutes` table expects 404 instead of
 Python's status. Inside test files Vitest replaces `process.env.BASE_URL`
 with Vite's base path, so the config passes the URL on as

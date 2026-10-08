@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { classificationTimeout, contract, fullMode } from "./support/env.js";
+import {
+  classificationTimeout,
+  contract,
+  fullMode,
+  meets,
+  unmetPrerequisites,
+  type Prerequisite,
+} from "./support/env.js";
 import {
   expectCacheProfile,
   expectStatus,
@@ -8,7 +15,11 @@ import {
   send,
   type Method,
 } from "./support/http.js";
-import { nonProSubscriptionEvent, signWebhook } from "./support/polar.js";
+import {
+  nonProProductId,
+  nonProSubscriptionEvent,
+  signWebhook,
+} from "./support/polar.js";
 
 type JsonCase = {
   name: string;
@@ -18,6 +29,7 @@ type JsonCase = {
   body?: string;
   status: number;
   json: unknown;
+  requires?: readonly Prerequisite[];
 };
 
 async function expectJsonCase(jsonCase: JsonCase) {
@@ -116,6 +128,7 @@ const configuredCases: JsonCase[] = [
   {
     name: "RapidAPI without the proxy secret",
     path: "/api/v1/rapid/standards",
+    requires: ["rapidApiSecret"],
     status: 401,
     json: {
       detail: "Missing authentication - use RapidAPI to access this endpoint",
@@ -125,6 +138,7 @@ const configuredCases: JsonCase[] = [
     name: "RapidAPI with a wrong proxy secret",
     path: "/api/v1/rapid/standards",
     headers: { "x-rapidapi-proxy-secret": "contract-wrong-secret" },
+    requires: ["rapidApiSecret"],
     status: 401,
     json: { detail: "Invalid authentication" },
   },
@@ -182,22 +196,28 @@ const configuredCases: JsonCase[] = [
     method: "POST",
     headers: json,
     body: "{}",
+    requires: ["polarWebhookSecret"],
     status: 403,
     json: { detail: "Invalid webhook signature" },
   },
 ];
 
-const checkoutRateLimitDefault = 10;
-
 describe.runIf(fullMode)("configured server", () => {
-  it.each(configuredCases)("$name", expectJsonCase);
-
-  it("RapidAPI 401 names the ApiKey scheme", async () => {
-    const reply = await send("/api/v1/rapid/standards");
-    expect(reply.headers.get("www-authenticate")).toBe("ApiKey");
+  it.for(configuredCases)("$name", async (jsonCase, { skip }) => {
+    const unmet = unmetPrerequisites(jsonCase.requires);
+    skip(unmet.length > 0, unmet.join(", "));
+    await expectJsonCase(jsonCase);
   });
 
-  it("the 11th checkout request from one IP is 429", async () => {
+  it.runIf(meets("rapidApiSecret"))(
+    "RapidAPI 401 names the ApiKey scheme",
+    async () => {
+      const reply = await send("/api/v1/rapid/standards");
+      expect(reply.headers.get("www-authenticate")).toBe("ApiKey");
+    },
+  );
+
+  it(`checkout request ${contract.checkoutRateLimit + 1} from one IP is 429`, async () => {
     const ip = freshClientIp();
     const post = () =>
       send("/api/create-mapping-checkout", {
@@ -205,7 +225,7 @@ describe.runIf(fullMode)("configured server", () => {
         headers: { ...json, "cf-connecting-ip": ip },
         body: "{}",
       });
-    for (let attempt = 1; attempt <= checkoutRateLimitDefault; attempt += 1) {
+    for (let attempt = 1; attempt <= contract.checkoutRateLimit; attempt += 1) {
       expectStatus(await post(), 400);
     }
     const reply = await post();
@@ -246,7 +266,7 @@ const classifyBody = z.strictObject({
   processing_time: z.number(),
 });
 
-describe.runIf(fullMode && contract.rapidApiSecret)(
+describe.runIf(meets("rapidApiSecret"))(
   "RapidAPI JSON",
   { timeout: classificationTimeout(1) },
   () => {
@@ -302,6 +322,7 @@ type WebhookCase = {
   sign: (body: string, secret: string) => Record<string, string>;
   status: number;
   json: unknown;
+  requires?: readonly Prerequisite[];
 };
 
 const validEvent = JSON.stringify(nonProSubscriptionEvent());
@@ -315,6 +336,7 @@ const webhookCases: WebhookCase[] = [
     name: "valid event for another product",
     body: validEvent,
     sign: signed,
+    requires: ["polarProProductId"],
     status: 200,
     json: received,
   },
@@ -382,10 +404,19 @@ const webhookCases: WebhookCase[] = [
   },
 ];
 
-describe.runIf(fullMode && contract.polarWebhookSecret)(
-  "signed Polar webhooks",
-  () => {
-    it.each(webhookCases)("$name", async ({ body, sign, status, json }) => {
+describe.runIf(meets("polarWebhookSecret"))("signed Polar webhooks", () => {
+  it.runIf(meets("polarProProductId"))(
+    "the fixture product is not the server's Pro product",
+    () => {
+      expect(contract.polarProProductId).not.toBe(nonProProductId);
+    },
+  );
+
+  it.for(webhookCases)(
+    "$name",
+    async ({ body, sign, status, json, requires }, { skip }) => {
+      const unmet = unmetPrerequisites(requires);
+      skip(unmet.length > 0, unmet.join(", "));
       const reply = await send("/api/webhooks/polar", {
         method: "POST",
         headers: sign(body, contract.polarWebhookSecret ?? ""),
@@ -393,6 +424,6 @@ describe.runIf(fullMode && contract.polarWebhookSecret)(
       });
       expectStatus(reply, status);
       expect(parseJson(reply)).toEqual(json);
-    });
-  },
-);
+    },
+  );
+});

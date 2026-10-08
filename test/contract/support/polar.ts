@@ -22,7 +22,7 @@ export function signWebhook(
 const createdAt = "2026-10-02T09:00:00Z";
 const organizationId = "ae247836-4fc1-42ae-a4a6-3313b5c123d7";
 const customerId = "917a921b-2790-43fb-a76b-6848ea973939";
-const nonProProductId = "00000000-0000-4000-8000-000000000000";
+export const nonProProductId = "00000000-0000-4000-8000-000000000000";
 
 const price = {
   created_at: createdAt,
