@@ -18,7 +18,9 @@ import re
 import sys
 import tempfile
 import unicodedata
+import uuid
 from collections.abc import Callable
+from types import SimpleNamespace
 from pathlib import Path
 from urllib.parse import quote, quote_plus, unquote, unquote_plus, urlencode
 
@@ -64,6 +66,15 @@ from app.id_lookup import normalize_original_id_for_lookup, reverse_normalized_i
 from app.main import QueryNormalizationMiddleware, URLEncodingValidationMiddleware
 from app.mapping_store import list_mapping_products
 from app.query_enhancer import _is_code_like
+from app.rate_limit import enforce_checkout_rate_limit
+from app.usage_tracker import (
+    SignedInCaller,
+    _usage_counters,
+    get_client_ip,
+    hash_ip,
+    set_checkout_grace,
+    set_cached_user_tier,
+)
 from app.web import build_mapping_canonical_url
 
 # The middleware under test logs each redirect and rejection.
@@ -1328,6 +1339,215 @@ def build_original_id_tokens_fixture() -> dict[str, object]:
     }
 
 
+UUID_HEX = "123e4567e89b12d3a456426614174000"
+UUID_INPUTS = [
+    "123e4567-e89b-12d3-a456-426614174000",
+    "123E4567-E89B-12D3-A456-426614174000",
+    "{123e4567-e89b-12d3-a456-426614174000}",
+    "{{" + UUID_HEX + "}",
+    "urn:uuid:123e4567-e89b-12d3-a456-426614174000",
+    "uuid:urn:" + UUID_HEX,
+    "uurn:uid:" + UUID_HEX,
+    "urn:" + UUID_HEX,
+    UUID_HEX,
+    "1-2-3-" + UUID_HEX[3:],
+    UUID_HEX[:16] + "-" * 9 + UUID_HEX[16:],
+    UUID_HEX[:31],
+    UUID_HEX + "0",
+    "",
+    "-" * 32,
+    "0x" + UUID_HEX[2:],
+    "0X_" + UUID_HEX[3:],
+    "0x_" + UUID_HEX[2:31],
+    "+" + UUID_HEX[1:],
+    "-" + UUID_HEX[1:],
+    "a_" * 16,
+    UUID_HEX[:15] + "_" + UUID_HEX[16:],
+    UUID_HEX[:15] + "__" + UUID_HEX[17:],
+    " " + UUID_HEX[1:],
+    UUID_HEX[1:] + "\t",
+    "\x1c" + UUID_HEX[1:],
+    "\xa0" + UUID_HEX[1:],
+    "\x85" + UUID_HEX[1:],
+    "\u2028" + UUID_HEX[1:],
+    "\u3000" + UUID_HEX[1:],
+    "\u0663" * 32,
+    "\u0663" * 31 + "\u0f29",
+    "\U0001d7ce" * 32,
+    "\U0001d7ce" * 16,
+    "\uff21" * 32,
+    "\u00b2" * 32,
+    "\u0130" + UUID_HEX[1:],
+    "\u00df" + UUID_HEX[2:],
+    UUID_HEX[1:] + "\u0301",
+    UUID_HEX[2:] + "\U0001f600",
+    UUID_HEX[2:] + "\u200d",
+    UUID_HEX[2:] + "\ufeff",
+    "%7B" + UUID_HEX + "%7D",
+]
+
+
+def is_python_uuid(value: str) -> bool:
+    try:
+        uuid.UUID(value)
+    except ValueError:
+        return False
+    return True
+
+
+def build_python_uuid_fixture() -> dict[str, object]:
+    return {
+        "uuids": [
+            {"input": value, "valid": is_python_uuid(value)} for value in UUID_INPUTS
+        ],
+        "validWithLastCharacter": code_point_map(
+            lambda character: "1" if is_python_uuid(UUID_HEX[1:] + character) else None
+        ),
+    }
+
+
+# (CF-Connecting-IP, X-Forwarded-For, peer host)
+CLIENT_ADDRESS_INPUTS = [
+    ("203.0.113.5", "198.51.100.1", "10.0.0.1"),
+    ("2001:db8::1", None, None),
+    ("", "198.51.100.1, 10.0.0.2", "10.0.0.1"),
+    (" 203.0.113.5 ", None, None),
+    (None, "  198.51.100.1  ,10.0.0.2", None),
+    (None, "\xa0198.51.100.1\x85, x", None),
+    (None, "\x1c198.51.100.1\x1f", None),
+    (None, "\t198.51.100.1\x0b", None),
+    (None, ",198.51.100.1", "10.0.0.1"),
+    (None, " ", "10.0.0.1"),
+    (None, "", "10.0.0.1"),
+    (None, None, "10.0.0.1"),
+    (None, None, ""),
+    (None, None, None),
+    ("caf\xe9", None, None),
+    ("\xff\xfe\x80", None, None),
+    ("unknown", None, None),
+]
+USER_IDS = ["user_2abcDEF123", "user_\u00fc\u00df", "user:with:colons", " spaced "]
+TRACKING_IDS = [
+    "123e4567-e89b-12d3-a456-426614174000",
+    "{123e4567-e89b-12d3-a456-426614174000}",
+    "123E4567E89B12D3A456426614174000",
+]
+
+
+def request_with_headers(
+    headers: dict[str, str | None], peer_host: str | None = None
+) -> Request:
+    return Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/",
+            "query_string": b"",
+            "headers": [
+                (name.encode("latin-1"), value.encode("latin-1"))
+                for name, value in headers.items()
+                if value is not None
+            ],
+            "client": None if peer_host is None else (peer_host, 54321),
+            "app": SimpleNamespace(state=SimpleNamespace(redis_client=KeyRecorder())),
+        }
+    )
+
+
+class KeyRecorder:
+    def __init__(self) -> None:
+        self.keys: list[str] = []
+
+    async def setex(self, key: str, *_args: object) -> None:
+        self.keys.append(key)
+
+    def pipeline(self, transaction: bool) -> "KeyRecorder":
+        return self
+
+    async def __aenter__(self) -> "KeyRecorder":
+        return self
+
+    async def __aexit__(self, *_exc: object) -> None:
+        return None
+
+    def incr(self, key: str) -> None:
+        self.keys.append(key)
+
+    def expire(self, *_args: object, **_kwargs: object) -> None:
+        return None
+
+    async def execute(self) -> list[int]:
+        return [1, True]
+
+
+def address_request(
+    cf_connecting_ip: str | None, x_forwarded_for: str | None, peer_host: str | None
+) -> Request:
+    return request_with_headers(
+        {"cf-connecting-ip": cf_connecting_ip, "x-forwarded-for": x_forwarded_for},
+        peer_host,
+    )
+
+
+def client_address_case(address: tuple[str | None, ...]) -> dict[str, str | None]:
+    client_ip = get_client_ip(address_request(*address))
+    request = address_request(*address)
+    asyncio.run(enforce_checkout_rate_limit(request))
+    (rate_limit_key,) = request.app.state.redis_client.keys
+    return {
+        **dict(zip(["cfConnectingIp", "xForwardedFor", "peerHost"], address)),
+        "clientIp": client_ip,
+        "ipHash": hash_ip(client_ip),
+        "checkoutRateLimitKey": rate_limit_key,
+    }
+
+
+def recorded_user_keys(user_id: str) -> dict[str, str]:
+    redis_client = KeyRecorder()
+    asyncio.run(set_checkout_grace(user_id, redis_client))
+    asyncio.run(set_cached_user_tier(user_id, "pro", redis_client))
+    grace_key, tier_key = redis_client.keys
+    return {"checkoutGraceKey": grace_key, "userTierKey": tier_key}
+
+
+def build_usage_keys_fixture() -> dict[str, object]:
+    return {
+        "clientAddresses": [
+            client_address_case(address) for address in CLIENT_ADDRESS_INPUTS
+        ],
+        "anonymousCounters": [
+            {
+                "trackingId": tracking_id,
+                "clientIp": "203.0.113.5",
+                "keys": list(
+                    _usage_counters(
+                        request_with_headers(
+                            {
+                                "cookie": f"cf_track={tracking_id}",
+                                "cf-connecting-ip": "203.0.113.5",
+                            }
+                        ),
+                        None,
+                    ).keys
+                ),
+            }
+            for tracking_id in TRACKING_IDS
+        ],
+        "users": [
+            {
+                "userId": user_id,
+                "counterKeys": list(
+                    _usage_counters(
+                        request_with_headers({}), SignedInCaller(user_id, False)
+                    ).keys
+                ),
+                **recorded_user_keys(user_id),
+            }
+            for user_id in USER_IDS
+        ],
+    }
+
+
 FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "id-lookup.json": build_id_lookup_fixture,
     "python-str.json": build_python_str_fixture,
@@ -1343,6 +1563,8 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "popular-lookups.json": build_popular_lookups_fixture,
     "mapping-urls.json": build_mapping_urls_fixture,
     "request-url.json": build_request_url_fixture,
+    "python-uuid.json": build_python_uuid_fixture,
+    "usage-keys.json": build_usage_keys_fixture,
 }
 
 
