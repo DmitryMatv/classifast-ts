@@ -70,15 +70,21 @@ describe("withReplyTimeout", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     let settled = false;
 
-    const reply = withReplyTimeout(client.incr("counter")).finally(() => {
-      settled = true;
-    });
+    const reply = withReplyTimeout(client.incr("counter"));
+    void reply
+      .catch(() => undefined)
+      .finally(() => {
+        settled = true;
+      });
+    const rejection = expect(reply).rejects.toThrow(
+      "Redis did not reply within 5000 ms",
+    );
     await vi.advanceTimersByTimeAsync(4_999);
     const settledEarly = settled;
     await vi.advanceTimersByTimeAsync(1);
 
     expect(settledEarly).toBe(false);
-    await expect(reply).rejects.toThrow("Redis did not reply within 5000 ms");
+    await rejection;
     await close();
   });
 

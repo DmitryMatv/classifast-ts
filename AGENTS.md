@@ -7,8 +7,8 @@ The role of this file is to describe common mistakes and confusion points that a
 Always use `npm test` or `npm run test:watch` for TypeScript tests. `npm test`
 runs three Vitest projects: `assets` (frontend, jsdom, `app/assets/ts`),
 `server` (Nest unit specs in `src/`), and `redis` (`src/**/*.redis.spec.ts`
-against a real Redis). Select one with `npx vitest run --project assets`. Run the Nest e2e tests with
-`npm run test:e2e`. `npm run typecheck` checks both the root `tsconfig.json`
+against a real Redis). Select one with `npx vitest run --project assets`.
+Run the Nest e2e tests with `npm run test:e2e`. `npm run typecheck` checks both the root `tsconfig.json`
 (Nest, `src/` and `test/`) and `app/assets/tsconfig.json` (frontend and the
 Vite and Vitest configs).
 
