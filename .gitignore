@@ -9,11 +9,11 @@ dist/
 coverage/
 
 # Qdrant "training"
-data/
-embedders/
+/data/
+/embedders/
 
 # Mapping generators
-mapping/
+/mapping/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
