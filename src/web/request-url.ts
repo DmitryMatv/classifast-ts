@@ -43,9 +43,6 @@ const SPAM_SIGNATURES = [
   "UnblockHandlers",
   "copyOriginalId",
 ];
-// Python's pattern also has (\d{2,4})\1{15,}, whose \1 names the (%25) group
-// of another branch. Python never matches it; JavaScript would match any two
-// digits, because a backreference to an unset group matches the empty string.
 const ATTACK_PATTERN =
   /(?:%25){3,}|\p{Nd}{50,}|%3c%3c|%3e%3e|(?<![a-zA-Z0-9])[0-9A-Fa-f]{64,}(?![a-zA-Z0-9])/u;
 

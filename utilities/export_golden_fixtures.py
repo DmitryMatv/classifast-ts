@@ -1117,9 +1117,7 @@ def build_mapping_urls_fixture() -> dict[str, object]:
     }
 
 
-# Raw query strings as Starlette sees them: the request bytes decoded as
-# Latin-1.
-RAW_QUERY_INPUTS = [
+LATIN1_QUERY_INPUTS = [
     "",
     "a=1",
     "q=laptop",
@@ -1245,7 +1243,7 @@ def build_request_url_fixture() -> dict[str, object]:
                 "items": starlette_request("/", query).query_params.multi_items(),
                 **canonical_query(query),
             }
-            for query in RAW_QUERY_INPUTS
+            for query in LATIN1_QUERY_INPUTS
         ],
         "suspicious": [
             {"path": path, "query": query, "suspicious": is_suspicious(path, query)}
@@ -1399,10 +1397,11 @@ def to_json(fixture: dict[str, object]) -> str:
 
 
 def main() -> None:
-    # Editors and agent tools may NFC-normalize non-ASCII literals, which
-    # silently changes inputs such as U+212A or e + U+0301. Escape them.
     if not Path(__file__).read_bytes().isascii():
-        sys.exit("Write non-ASCII inputs as escapes in export_golden_fixtures.py")
+        sys.exit(
+            "Write non-ASCII inputs as escapes in export_golden_fixtures.py;"
+            " editors can NFC-normalize literal inputs such as e + U+0301"
+        )
     FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
     for name, build in FIXTURES.items():
         path = FIXTURE_DIR / name

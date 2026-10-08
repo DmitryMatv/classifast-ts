@@ -8,8 +8,7 @@ const ASCII_SPACE_RUN = /^[\t\n\v\f\r ]+|[\t\n\v\f\r ]+$/g;
 const INT_LITERAL = /^[+-]?\d(?:_?\d)*$/;
 const FLOAT_LITERAL =
   /^[+-]?(?:(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?|inf|infinity|nan)$/i;
-// sys.get_int_max_str_digits() default.
-const MAX_INT_DIGITS = 4300;
+const PY_INT_MAX_STR_DIGITS = 4300;
 
 // Unicode encodes every Nd digit in a run of ten, ascending from zero.
 function decimalDigit(codePoint: number): number {
@@ -34,7 +33,7 @@ export function pyInt(text: string): bigint | undefined {
   const literal = toAsciiLiteral(text);
   if (literal === undefined || !INT_LITERAL.test(literal)) return undefined;
   const digits = literal.replace(/^[+-]|_/g, "");
-  if (digits.length > MAX_INT_DIGITS) return undefined;
+  if (digits.length > PY_INT_MAX_STR_DIGITS) return undefined;
   return BigInt(literal.replaceAll("_", ""));
 }
 
