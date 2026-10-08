@@ -31,17 +31,4 @@ export class ClerkHelpers {
       window.location.href = `https://accounts.classifast.com/sign-up?redirect_url=${redirectUrl}`;
     }
   }
-
-  /**
-   * Safely submit a form by selector
-   * Returns true if form was found and submitted, false otherwise
-   */
-  static submitForm(selector: string = "form[hx-get]"): boolean {
-    const form = document.querySelector(selector) as HTMLFormElement | null;
-    if (form && typeof form.requestSubmit === "function") {
-      form.requestSubmit();
-      return true;
-    }
-    return false;
-  }
 }

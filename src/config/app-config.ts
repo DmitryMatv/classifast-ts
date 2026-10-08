@@ -2,9 +2,6 @@ import { z } from "zod";
 import { resolveQdrantUrl } from "../qdrant/qdrant-connection.js";
 import { parsePythonFloat, parsePythonInt } from "./python-number.js";
 
-// Like Python, boot requires no variable. Only a malformed value that Python
-// converts with int() at import or startup fails boot (`integer` below).
-
 export const APP_CONFIG = Symbol("APP_CONFIG");
 
 export class ConfigError extends Error {}
@@ -93,8 +90,14 @@ const qdrant = z
   })
   .transform((env, ctx) => {
     try {
+      const connectionEnv = env.QDRANT_URL?.trim()
+        ? env
+        : {
+            ...env,
+            QDRANT_PORT: String(integer(6333).parse(env.QDRANT_PORT)),
+          };
       return {
-        url: resolveQdrantUrl(env),
+        url: resolveQdrantUrl(connectionEnv),
         apiKey: env.QDRANT_API_KEY?.trim() || undefined,
       };
     } catch (error) {

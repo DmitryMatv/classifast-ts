@@ -180,6 +180,16 @@ markup moves to a new directory, add a `@source` line for it.
   for new IP-dependent code.
 - `paywall.ts` is wrapped in a parse guard on purpose (class declarations
   re-execute on bfcache/history-restore re-parsing). Do not remove the guard.
+- System classification retries must use `requestCurrentClassifierSubmission`
+  so the current classifier owner can submit a remembered example after the
+  required textarea clears. Native `requestSubmit` stops at validation before
+  HTMX can supply the query; mocked `requestSubmit` hides this failure.
+- HTMX 4's submit handler does not check `defaultPrevented`. The auth-readiness
+  gate must capture submission and stop immediate propagation until auth is ready,
+  even when HTMX processed the form before the classifier mounted.
+- Vendored HTMX tests in jsdom need an explicit XPath result type, `CSS.escape`,
+  and `includeIndicatorCSS: false`. `paywall-retry.test.ts` supplies these while
+  retaining native form validation and recording final request parameters.
 - HTMX 4 history restore preserves `document.body` and replaces its children.
   Initialize restored controls after the BODY `htmx:after:swap` with
   `HX-History-Restore-Request`, and retire handlers for the previous form.
@@ -252,6 +262,16 @@ markup moves to a new directory, add a `@source` line for it.
   Cancelling the active one returns immediately, but the job keeps its slot
   until the running thread stage finishes. Shutdown cancels waiting jobs and
   drains the active one before shared clients close.
+- The Nest port of the executor is `ClassificationQueue`
+  (`src/classifier/classification-queue.ts`). It cancels through an
+  `AbortSignal` and has no threads, so it cannot see stage boundaries. An
+  aborted active job keeps its slot until the promise returned by `work`
+  settles. Pass the signal to every abortable call, such as `fetch`, and call
+  `signal.throwIfAborted()` between stages. A stage that ignores the signal
+  holds the slot until it finishes, as a Python thread stage does. Waiting
+  jobs rejected at shutdown and `run` calls made after shutdown begins both
+  fail with `ClassificationQueueClosed`. Python raises `CancelledError` for
+  the first case and `RuntimeError` for the second.
 - Python 3.14's `asyncio.shield` logs a late failure of the shielded future
   after its waiter is cancelled, even when code retrieves that failure. The
   executor waits with `_wait_through_cancellation` (`asyncio.wait` plus

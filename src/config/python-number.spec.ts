@@ -1,7 +1,5 @@
 import { parsePythonFloat, parsePythonInt } from "./python-number.js";
 
-// Expected values from Python 3.14 int() and float(), except inf, which
-// parsePythonFloat rejects on purpose.
 const cases: [string, number | undefined, number | undefined][] = [
   ["20", 20, 20],
   ["  20  ", 20, 20],
@@ -23,6 +21,9 @@ const cases: [string, number | undefined, number | undefined][] = [
   ["1E-2", undefined, 0.01],
   ["1_0.2_5", undefined, 10.25],
   ["1e1_0", undefined, 1e10],
+  ["1e308", undefined, 1e308],
+  ["-1e308", undefined, -1e308],
+  ["1e-400", undefined, 0],
   ["inf", undefined, undefined],
   ["-Infinity", undefined, undefined],
   ["", undefined, undefined],
@@ -31,8 +32,20 @@ const cases: [string, number | undefined, number | undefined][] = [
 ];
 
 describe("Python number parsing", () => {
-  it.each(cases)("%j parses like Python", (raw, int, float) => {
-    expect(parsePythonInt(raw)).toBe(int);
-    expect(parsePythonFloat(raw)).toBe(float);
+  it.each(cases)(
+    "%j parses according to the supported grammar",
+    (raw, int, float) => {
+      expect(parsePythonInt(raw)).toBe(int);
+      expect(parsePythonFloat(raw)).toBe(float);
+    },
+  );
+
+  it.each([
+    ["a positive exponent", "1e309"],
+    ["a negative value", "-1e309"],
+    ["a long positive mantissa", `${"9".repeat(400)}.0`],
+    ["a long negative mantissa", `-${"9".repeat(400)}.0`],
+  ])("rejects overflow from %s", (_, raw) => {
+    expect(parsePythonFloat(raw)).toBeUndefined();
   });
 });

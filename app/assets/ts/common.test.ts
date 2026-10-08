@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ClerkHelpers } from "./clerk-helpers";
-
 async function flushAsyncWork(): Promise<void> {
   for (let turn = 0; turn < 12; turn += 1) await Promise.resolve();
 }
@@ -498,19 +496,6 @@ describe("common.ts", () => {
 
     expect(document.body.textContent).toContain("Copy failed");
     expect(document.body.textContent).not.toContain("Copied!");
-  });
-
-  it("submits forms through ClerkHelpers when present and returns false otherwise", () => {
-    document.body.innerHTML = '<form hx-get="/"></form>';
-    const form = document.querySelector("form") as HTMLFormElement;
-    const requestSubmitSpy = vi.fn();
-    form.requestSubmit = requestSubmitSpy;
-
-    expect(ClerkHelpers.submitForm()).toBe(true);
-    expect(requestSubmitSpy).toHaveBeenCalledTimes(1);
-
-    document.body.innerHTML = "";
-    expect(ClerkHelpers.submitForm()).toBe(false);
   });
 
   it("dispatches htmx:authReady after successful Clerk bootstrap", async () => {
