@@ -30,6 +30,9 @@ const golden = readGolden(
     title: z.array(z.object({ input: z.string(), title: z.string() })),
     upper: z.array(z.object({ input: z.string(), upper: z.string() })),
     strip: z.array(z.object({ input: z.string(), stripped: z.string() })),
+    stripChars: z.array(
+      z.object({ input: z.string(), chars: z.string(), stripped: z.string() }),
+    ),
   }),
 );
 
@@ -119,4 +122,11 @@ describe("pyStrip", () => {
   it.each(golden.strip)("strips $input", ({ input, stripped }) => {
     expect(pyStrip(input)).toBe(stripped);
   });
+
+  it.each(golden.stripChars)(
+    "strips $chars from $input",
+    ({ input, chars, stripped }) => {
+      expect(pyStrip(input, chars)).toBe(stripped);
+    },
+  );
 });

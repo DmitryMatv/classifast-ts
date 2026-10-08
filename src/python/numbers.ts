@@ -1,8 +1,5 @@
 import { PY_WHITESPACE } from "./str.js";
 
-// Number() reads "" as 0 and accepts "0x10", which Python's int() and
-// float() reject.
-
 const DECIMAL = /^\p{Nd}$/u;
 const UNICODE_SPACE = new RegExp(`^[${PY_WHITESPACE}]$`);
 // int() and float() strip only ASCII whitespace. U+001C to U+001F stay put,
@@ -35,14 +32,12 @@ function toAsciiLiteral(text: string): string | undefined {
   return ascii.replace(ASCII_SPACE_RUN, "");
 }
 
-// Integers above Number.MAX_SAFE_INTEGER lose precision.
-export function pyInt(text: string): number | undefined {
+export function pyInt(text: string): bigint | undefined {
   const literal = toAsciiLiteral(text);
   if (literal === undefined || !INT_LITERAL.test(literal)) return undefined;
   const digits = literal.replace(/^[+-]|_/g, "");
   if (digits.length > MAX_INT_DIGITS) return undefined;
-  // int("-0") is 0, where Number("-0") is -0.
-  return Number(literal.replaceAll("_", "")) || 0;
+  return BigInt(literal.replaceAll("_", ""));
 }
 
 export function pyIsHexInt(text: string): boolean {

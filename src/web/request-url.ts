@@ -3,9 +3,8 @@ import { quote, unquotePlus } from "../python/urllib.js";
 
 export type QueryItem = readonly [name: string, value: string];
 
-// Starlette decodes the raw query bytes as Latin-1 before parse_qsl.
-export function parseQueryString(query: string): QueryItem[] {
-  return query
+export function parseQueryString(latin1Query: string): QueryItem[] {
+  return latin1Query
     .split("&")
     .filter(Boolean)
     .map((field) => {
@@ -58,13 +57,13 @@ function lastValuePerName(items: readonly QueryItem[]): string[] {
 
 export function isSuspiciousRequestUrl(
   decodedPath: string,
-  rawQuery: string,
+  latin1Query: string,
 ): boolean {
-  if (codePointLength(decodedPath + rawQuery) > MAX_URL_LENGTH) return true;
+  if (codePointLength(decodedPath + latin1Query) > MAX_URL_LENGTH) return true;
   const checked = [
     decodedPath,
-    rawQuery,
-    ...lastValuePerName(parseQueryString(rawQuery)),
+    latin1Query,
+    ...lastValuePerName(parseQueryString(latin1Query)),
   ].join("");
   return (
     ATTACK_PATTERN.test(checked) ||

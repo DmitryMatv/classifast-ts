@@ -68,26 +68,20 @@ describe("sanitizeQueryText matches sanitize_query_text", () => {
 });
 
 describe("sanitizeSearchText matches sanitize_query_text(for_search=True)", () => {
-  it("differs from Python only on the empty query, which Python rejects", () => {
-    expect(
-      golden.sanitizeForSearch.filter((testCase) => "detail" in testCase),
-    ).toEqual([{ input: "", detail: "Query cannot be empty" }]);
-  });
-
-  it.each(golden.sanitizeForSearch.filter((testCase) => "query" in testCase))(
+  it.each(golden.sanitizeForSearch)(
     "sanitizes $input for search",
     (testCase) => {
-      expect(sanitizeSearchText(testCase.input)).toBe(
-        "query" in testCase && testCase.query,
+      expect(sanitizeSearchText(testCase.input)).toEqual(
+        expectedValidation(testCase),
       );
     },
   );
 
   it("keeps exactly the characters Python keeps between two letters", () => {
-    expectSweep(
-      (c) => sanitizeSearchText(`a${c}b`) === `a${c}b`,
-      golden.searchKeptRanges,
-    );
+    expectSweep((c) => {
+      const result = sanitizeSearchText(`a${c}b`);
+      return result.kind === "valid" && result.query === `a${c}b`;
+    }, golden.searchKeptRanges);
   });
 });
 

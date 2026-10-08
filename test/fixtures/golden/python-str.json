@@ -4944,5 +4944,17 @@
     {"input": "deadbeefcafe0123", "stripped": "deadbeefcafe0123"},
     {"input": "252525", "stripped": "252525"},
     {"input": "a\u0000nul", "stripped": "a\u0000nul"}
+  ],
+  "stripChars": [
+    {"input": "//a/b//", "chars": "/", "stripped": "a/b"},
+    {"input": "__a_b__", "chars": "_", "stripped": "a_b"},
+    {"input": "{{x}}", "chars": "{}", "stripped": "x"},
+    {"input": "", "chars": "/", "stripped": ""},
+    {"input": "a", "chars": "", "stripped": "a"},
+    {"input": "😀a😀", "chars": "😀", "stripped": "a"},
+    {"input": "😁a😁", "chars": "😀", "stripped": "😁a😁"},
+    {"input": "😀😁a", "chars": "😁😀", "stripped": "a"},
+    {"input": "́é", "chars": "́", "stripped": "e"},
+    {"input": "İiı", "chars": "İı", "stripped": "i"}
   ]
 }

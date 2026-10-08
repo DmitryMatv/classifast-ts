@@ -21,6 +21,7 @@ import unicodedata
 import uuid
 from collections.abc import Callable
 from types import SimpleNamespace
+from typing import NamedTuple
 from pathlib import Path
 from urllib.parse import quote, quote_plus, unquote, unquote_plus, urlencode
 
@@ -29,9 +30,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import dotenv
 from jinja2 import Template
 
-# app.classifier_config calls load_dotenv() at import. The fixtures must not
-# depend on a developer's .env, so the exporter never loads one.
-dotenv.load_dotenv = lambda *args, **kwargs: False
+
+def ignore_developer_dotenv() -> None:
+    dotenv.load_dotenv = lambda *args, **kwargs: False
+
+
+ignore_developer_dotenv()
 
 from fastapi import HTTPException
 from starlette.requests import Request
@@ -77,7 +81,6 @@ from app.usage_tracker import (
 )
 from app.web import build_mapping_canonical_url
 
-# The middleware under test logs each redirect and rejection.
 logging.disable(logging.CRITICAL)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -392,6 +395,20 @@ def code_point_ranges(predicate: Callable[[str], bool]) -> list[str]:
     ]
 
 
+STRIP_CHARS_INPUTS = [
+    ("//a/b//", "/"),
+    ("__a_b__", "_"),
+    ("{{x}}", "{}"),
+    ("", "/"),
+    ("a", ""),
+    ("\U0001f600a\U0001f600", "\U0001f600"),
+    ("\U0001f601a\U0001f601", "\U0001f600"),
+    ("\U0001f600\U0001f601a", "\U0001f601\U0001f600"),
+    ("\u0301e\u0301", "\u0301"),
+    ("\u0130i\u0131", "\u0130\u0131"),
+]
+
+
 def code_point_map(mapper: Callable[[str], str | None]) -> dict[str, str]:
     mapped = {}
     for code_point in CODE_POINTS:
@@ -457,6 +474,10 @@ def build_python_str_fixture() -> dict[str, object]:
         ],
         "strip": [
             {"input": value, "stripped": value.strip()} for value in SHORT_TEXT_INPUTS
+        ],
+        "stripChars": [
+            {"input": value, "chars": chars, "stripped": value.strip(chars)}
+            for value, chars in STRIP_CHARS_INPUTS
         ],
     }
 
@@ -614,11 +635,9 @@ def python_number(parse: Callable[[str], object], value: str) -> str | None:
 
 
 def round_inputs() -> list[float]:
-    # Multiples of 1/1024 include the exact binary ties that round() and
-    # "%.2f" resolve to even.
     rng = random.Random(20261008)
-    values = [k / 1024 for k in range(-64, 1100)]
-    values += [rng.random() for _ in range(500)]
+    exact_binary_ties = [k / 1024 for k in range(-64, 1100)]
+    values = exact_binary_ties + [rng.random() for _ in range(500)]
     values += [0.0, -0.0, 2.675, 0.125, 0.375, 1.005, 1e-7, 0.99995, 123.45675]
     values += [1e22, 1.5e300, 5e-324, -5e-324, 0.5, 1.5, 2.5, -2.5]
     return values
@@ -857,9 +876,11 @@ def build_model_text_fixture() -> dict[str, object]:
 
 
 URL_TYPES = ["UNSPSC", "HS", "CPV", "NAICS"]
-# Long in code points but not UTF-16 units, where slugify and
-# decode_search_query truncate.
-LONG_URL_INPUTS = ["\U00020000" * 150, "\U00020000" * 2500 + " tail", "x" * 4001]
+CODE_POINT_LIMIT_INPUTS = [
+    "\U00020000" * 150,
+    "\U00020000" * 2500 + " tail",
+    "x" * 4001,
+]
 FRAGMENT_PUSH_OPTIONS = [
     {"version": "", "default_version": "", "top_k": 10, "enhance_query": False},
     {
@@ -902,7 +923,7 @@ def url_cases() -> list[tuple[str, str]]:
             for classifier_type in URL_TYPES
             for value in [*SHORT_TEXT_INPUTS, "!!!", "!!!/", "..", "a/b", "a__b//"]
         ),
-        *(("NAICS", value) for value in LONG_URL_INPUTS),
+        *(("NAICS", value) for value in CODE_POINT_LIMIT_INPUTS),
     ]
 
 
@@ -1406,25 +1427,30 @@ def build_python_uuid_fixture() -> dict[str, object]:
     }
 
 
-# (CF-Connecting-IP, X-Forwarded-For, peer host)
+class ClientAddress(NamedTuple):
+    cf_connecting_ip: str | None
+    x_forwarded_for: str | None
+    peer_host: str | None
+
+
 CLIENT_ADDRESS_INPUTS = [
-    ("203.0.113.5", "198.51.100.1", "10.0.0.1"),
-    ("2001:db8::1", None, None),
-    ("", "198.51.100.1, 10.0.0.2", "10.0.0.1"),
-    (" 203.0.113.5 ", None, None),
-    (None, "  198.51.100.1  ,10.0.0.2", None),
-    (None, "\xa0198.51.100.1\x85, x", None),
-    (None, "\x1c198.51.100.1\x1f", None),
-    (None, "\t198.51.100.1\x0b", None),
-    (None, ",198.51.100.1", "10.0.0.1"),
-    (None, " ", "10.0.0.1"),
-    (None, "", "10.0.0.1"),
-    (None, None, "10.0.0.1"),
-    (None, None, ""),
-    (None, None, None),
-    ("caf\xe9", None, None),
-    ("\xff\xfe\x80", None, None),
-    ("unknown", None, None),
+    ClientAddress("203.0.113.5", "198.51.100.1", "10.0.0.1"),
+    ClientAddress("2001:db8::1", None, None),
+    ClientAddress("", "198.51.100.1, 10.0.0.2", "10.0.0.1"),
+    ClientAddress(" 203.0.113.5 ", None, None),
+    ClientAddress(None, "  198.51.100.1  ,10.0.0.2", None),
+    ClientAddress(None, "\xa0198.51.100.1\x85, x", None),
+    ClientAddress(None, "\x1c198.51.100.1\x1f", None),
+    ClientAddress(None, "\t198.51.100.1\x0b", None),
+    ClientAddress(None, ",198.51.100.1", "10.0.0.1"),
+    ClientAddress(None, " ", "10.0.0.1"),
+    ClientAddress(None, "", "10.0.0.1"),
+    ClientAddress(None, None, "10.0.0.1"),
+    ClientAddress(None, None, ""),
+    ClientAddress(None, None, None),
+    ClientAddress("caf\xe9", None, None),
+    ClientAddress("\xff\xfe\x80", None, None),
+    ClientAddress("unknown", None, None),
 ]
 USER_IDS = ["user_2abcDEF123", "user_\u00fc\u00df", "user:with:colons", " spaced "]
 TRACKING_IDS = [
@@ -1480,22 +1506,21 @@ class KeyRecorder:
         return [1, True]
 
 
-def address_request(
-    cf_connecting_ip: str | None, x_forwarded_for: str | None, peer_host: str | None
-) -> Request:
-    return request_with_headers(
-        {"cf-connecting-ip": cf_connecting_ip, "x-forwarded-for": x_forwarded_for},
-        peer_host,
+def client_address_case(address: ClientAddress) -> dict[str, str | None]:
+    request = request_with_headers(
+        {
+            "cf-connecting-ip": address.cf_connecting_ip,
+            "x-forwarded-for": address.x_forwarded_for,
+        },
+        address.peer_host,
     )
-
-
-def client_address_case(address: tuple[str | None, ...]) -> dict[str, str | None]:
-    client_ip = get_client_ip(address_request(*address))
-    request = address_request(*address)
+    client_ip = get_client_ip(request)
     asyncio.run(enforce_checkout_rate_limit(request))
     (rate_limit_key,) = request.app.state.redis_client.keys
     return {
-        **dict(zip(["cfConnectingIp", "xForwardedFor", "peerHost"], address)),
+        "cfConnectingIp": address.cf_connecting_ip,
+        "xForwardedFor": address.x_forwarded_for,
+        "peerHost": address.peer_host,
         "clientIp": client_ip,
         "ipHash": hash_ip(client_ip),
         "checkoutRateLimitKey": rate_limit_key,

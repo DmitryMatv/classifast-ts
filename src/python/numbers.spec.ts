@@ -37,13 +37,15 @@ function fromRepr(repr: string | null): number | undefined {
 const intSuffixValues = new Map(
   Object.entries(golden.intSuffixValues).map(([hex, value]) => [
     parseInt(hex, 16),
-    Number(value),
+    BigInt(value),
   ]),
 );
 
 describe("pyInt and pyFloat match int() and float()", () => {
   it.each(golden.parse)("parses $input", (testCase) => {
-    expect(pyInt(testCase.input)).toBe(fromRepr(testCase.int));
+    expect(pyInt(testCase.input)).toBe(
+      testCase.int === null ? undefined : BigInt(testCase.int),
+    );
     expect(pyFloat(testCase.input)).toBe(fromRepr(testCase.float));
   });
 

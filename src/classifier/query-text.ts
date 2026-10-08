@@ -69,12 +69,14 @@ export function sanitizeQueryText(raw: string): QueryValidation {
   return { kind: "valid", query: collapsed };
 }
 
-// Python rejects an empty query here too; every caller passes a validated
-// one.
-export function sanitizeSearchText(raw: string): string {
-  return collapseWhitespace(
-    pyRstrip(pyStrip(raw), "/").replace(SEARCH_DISALLOWED, " "),
-  );
+export function sanitizeSearchText(raw: string): QueryValidation {
+  if (!raw) return invalid("Query cannot be empty");
+  return {
+    kind: "valid",
+    query: collapseWhitespace(
+      pyRstrip(pyStrip(raw), "/").replace(SEARCH_DISALLOWED, " "),
+    ),
+  };
 }
 
 export function normalizeProductDescription(description: string): string {

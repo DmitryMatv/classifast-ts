@@ -2,7 +2,6 @@
 // includes U+001C to U+001F and U+0085 and excludes U+FEFF.
 export const PY_WHITESPACE =
   "\\t\\n\\v\\f\\r\\x1c-\\x20\\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000";
-// re's Unicode \w (str.isalnum() or "_"). Use inside a "u" flag class.
 export const PY_WORD = "\\p{L}\\p{N}_";
 
 const WHITESPACE_CHARACTER = new RegExp(`^[${PY_WHITESPACE}]$`);
@@ -31,27 +30,26 @@ export function sliceCodePoints(value: string, end: number): string {
   return value;
 }
 
-// Every whitespace character is in the BMP, so testing UTF-16 units is safe.
-// Explicit chars must be BMP characters too.
-function isStripped(unit: string, chars: string | undefined): boolean {
+function isStripped(character: string, chars: string | undefined): boolean {
   return chars === undefined
-    ? WHITESPACE_CHARACTER.test(unit)
-    : chars.includes(unit);
+    ? WHITESPACE_CHARACTER.test(character)
+    : Array.from(chars).includes(character);
 }
 
 export function pyRstrip(value: string, chars?: string): string {
-  let end = value.length;
-  while (end > 0 && isStripped(value[end - 1]!, chars)) end -= 1;
-  return value.slice(0, end);
+  const characters = Array.from(value);
+  let end = characters.length;
+  while (end > 0 && isStripped(characters[end - 1]!, chars)) end -= 1;
+  return characters.slice(0, end).join("");
 }
 
 export function pyStrip(value: string, chars?: string): string {
-  const stripped = pyRstrip(value, chars);
+  const characters = Array.from(pyRstrip(value, chars));
   let start = 0;
-  while (start < stripped.length && isStripped(stripped[start]!, chars)) {
+  while (start < characters.length && isStripped(characters[start]!, chars)) {
     start += 1;
   }
-  return stripped.slice(start);
+  return characters.slice(start).join("");
 }
 
 export function collapseWhitespace(value: string): string {

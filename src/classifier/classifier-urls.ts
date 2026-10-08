@@ -13,8 +13,6 @@ import { quote, unquotePlus, urlencode } from "../python/urllib.js";
 export const CANONICAL_ORIGIN = "https://classifast.com";
 
 const WHITESPACE_RUN = new RegExp(`[${PY_WHITESPACE}]+`, "g");
-// Keeps the punctuation sanitizeQueryText accepts so slugs round-trip into
-// the classifier textbox.
 const SLUG_DISALLOWED = new RegExp(
   `[^${PY_WORD}${PY_WHITESPACE}.,:;'()-]`,
   "gu",

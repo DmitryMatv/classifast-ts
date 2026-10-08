@@ -1,6 +1,5 @@
-// Ports of urllib.parse quoting. encodeURIComponent leaves !'()* unescaped,
-// and decodeURIComponent throws on malformed input where Python substitutes
-// U+FFFD.
+// encodeURIComponent leaves !'()* unescaped, and decodeURIComponent throws
+// on malformed input where Python substitutes U+FFFD.
 
 const ALWAYS_SAFE = /^[A-Za-z0-9_.~-]$/;
 const encoder = new TextEncoder();
