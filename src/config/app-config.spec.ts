@@ -131,7 +131,7 @@ describe("parseAppConfig", () => {
     expect(config.clerk.secretKey).toBeUndefined();
   });
 
-  it.each(["0", "-1", "soon", ""])(
+  it.each(["0", "-1", "soon", "", "1e309"])(
     "disables a client whose timeout is %j instead of failing boot",
     (timeout) => {
       const config = parseAppConfig({
@@ -166,6 +166,19 @@ describe("parseAppConfig", () => {
     });
     expect(config.classification.outboundBudgetSeconds).toBe(60);
   });
+
+  it.each(["1e309", "-1e309"])(
+    "falls back to defaults when duration conversion overflows for %j",
+    (raw) => {
+      const config = parseAppConfig({
+        GOOGLE_CRAWLER_IP_RANGE_TIMEOUT_SECONDS: raw,
+        CLASSIFICATION_OUTBOUND_BUDGET_SECONDS: raw,
+      });
+
+      expect(config.googleCrawler.ipRangeTimeoutSeconds).toBe(2);
+      expect(config.classification.outboundBudgetSeconds).toBe(60);
+    },
+  );
 
   it.each([
     "PORT",
@@ -213,11 +226,36 @@ describe("parseAppConfig", () => {
     expect(error.message).toContain("ANON_LIMIT");
   });
 
-  it("ignores QDRANT_PORT when QDRANT_URL is set, as Python does", () => {
-    expect(
-      parseAppConfig({ QDRANT_URL: "http://q:1", QDRANT_PORT: "x" }).qdrant.url,
-    ).toBe("http://q:1");
-  });
+  it.each(["+6333", "6_333", " +6_333 "])(
+    "normalizes the Python integer spelling %j in QDRANT_PORT",
+    (port) => {
+      expect(
+        parseAppConfig({ QDRANT_HOST: "qdrant.local", QDRANT_PORT: port })
+          .qdrant.url,
+      ).toBe("http://qdrant.local:6333");
+    },
+  );
+
+  it.each(["http://q:1", " http://q:1 "])(
+    "ignores QDRANT_PORT when QDRANT_URL is %j, as Python does",
+    (url) => {
+      expect(
+        parseAppConfig({ QDRANT_URL: url, QDRANT_PORT: "x" }).qdrant.url,
+      ).toBe("http://q:1");
+    },
+  );
+
+  it.each(["", "   "])(
+    "rejects a malformed QDRANT_PORT when QDRANT_URL is %j",
+    (url) => {
+      const error = configError({ QDRANT_URL: url, QDRANT_PORT: SECRET });
+
+      expect(error.message).toBe(
+        "Invalid environment: QDRANT_PORT must be an integer",
+      );
+      expect(error.message).not.toContain(SECRET);
+    },
+  );
 
   it("returns a deeply frozen config", () => {
     const config = parseAppConfig({ HF_TOKEN: "hf" });
