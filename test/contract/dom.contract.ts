@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { contract, repoRoot } from "./support/env.js";
+import { contract, repoRoot, type ContractMode } from "./support/env.js";
 import {
   expectStatus,
   parseHtml,
@@ -53,7 +53,6 @@ function classifierRegions(query: {
         "hx-sync": "this:replace",
         "data-initial-query-present": String(query.initialQueryPresent),
         "data-default-example-prefill": String(!query.initialQueryPresent),
-        "data-autoload-enabled": "true",
         "data-default-top-k": "10",
         "data-default-version": "UNSPSC UNv260801.1 (18 March 2025)",
       },
@@ -225,6 +224,36 @@ describe("DOM regions the scripts depend on", () => {
       }
     },
   );
+});
+
+// Python sets data-autoload-enabled="true" exactly when the page has a query
+// or example to classify but rendered no results. The base page seeds the
+// example's results whenever classification works; a query page seeds only
+// for verified Google crawlers.
+const autoloadCases: { path: string; seeded: Record<ContractMode, boolean> }[] =
+  [
+    { path: "/UNSPSC/", seeded: { public: false, full: true } },
+    {
+      path: "/UNSPSC/laptop_computer/",
+      seeded: { public: false, full: false },
+    },
+  ];
+
+describe("classifier autoload follows the server-rendered results", () => {
+  it.each(autoloadCases)("$path", async ({ path, seeded }) => {
+    const document = await documentAt(path);
+    const results = document.querySelectorAll(
+      '#results-container [role="listitem"]',
+    );
+    expect(results.length > 0, "server-rendered results").toBe(
+      seeded[contract.mode],
+    );
+    expect(
+      document
+        .querySelector("#classifier-form")
+        ?.getAttribute("data-autoload-enabled"),
+    ).toBe(String(!seeded[contract.mode]));
+  });
 });
 
 describe("same-origin scripts and stylesheets load", () => {
