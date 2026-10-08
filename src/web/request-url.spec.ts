@@ -37,7 +37,6 @@ describe("query normalization matches the Python middleware", () => {
   it.each(golden.queries)("parses and normalizes ?$query", (testCase) => {
     const items = parseQueryString(testCase.query);
     expect(items).toEqual(testCase.items);
-    // Python answers 500 when the raw query bytes are not UTF-8.
     if ("pythonError" in testCase) return;
     expect(canonicalQuery(items)).toBe(testCase.canonicalQuery ?? undefined);
   });

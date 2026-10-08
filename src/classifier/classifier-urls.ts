@@ -28,8 +28,6 @@ export function slugify(text: string): string {
   return pyStrip(slug, "_");
 }
 
-// A hyphenated query uses the underscore slug when that page is a sitemap
-// canonical.
 function classifierSearchSlug(
   decodedQuery: string,
   classifierType: string,

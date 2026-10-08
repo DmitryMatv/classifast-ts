@@ -1,12 +1,9 @@
 import { PY_WHITESPACE } from "./str.js";
 
-// Ports of Python's int(str), float(str), round() and "%.Nf". Number()
-// reads "" as 0 and accepts "0x10" and "Infinity", and toFixed() and
-// Math.round() round exact binary ties away from zero where Python rounds
-// them to even.
+// Number() reads "" as 0 and accepts "0x10", which Python's int() and
+// float() reject.
 
 const DECIMAL = /^\p{Nd}$/u;
-// Py_UNICODE_ISSPACE: the same set as str.isspace().
 const UNICODE_SPACE = new RegExp(`^[${PY_WHITESPACE}]$`);
 // int() and float() strip only ASCII whitespace. U+001C to U+001F stay put,
 // so int("\x1c5") fails although "\x1c5".strip() is "5".
@@ -24,9 +21,6 @@ function decimalDigit(codePoint: number): number {
   return (codePoint - zero) % 10;
 }
 
-// _PyUnicode_TransformDecimalAndSpaceToASCII: Unicode digits become ASCII
-// digits and Unicode whitespace becomes a space. Any other non-ASCII
-// character makes the literal invalid.
 function toAsciiLiteral(text: string): string | undefined {
   let ascii = "";
   for (const character of text) {
@@ -39,17 +33,16 @@ function toAsciiLiteral(text: string): string | undefined {
   return ascii.replace(ASCII_SPACE_RUN, "");
 }
 
-// int(text); undefined where Python raises ValueError. Integers above
-// Number.MAX_SAFE_INTEGER lose precision.
+// Integers above Number.MAX_SAFE_INTEGER lose precision.
 export function pyInt(text: string): number | undefined {
   const literal = toAsciiLiteral(text);
   if (literal === undefined || !INT_LITERAL.test(literal)) return undefined;
   const digits = literal.replace(/^[+-]|_/g, "");
   if (digits.length > MAX_INT_DIGITS) return undefined;
+  // int("-0") is 0, where Number("-0") is -0.
   return Number(literal.replaceAll("_", "")) || 0;
 }
 
-// float(text); undefined where Python raises ValueError.
 export function pyFloat(text: string): number | undefined {
   const literal = toAsciiLiteral(text);
   if (literal === undefined || /_(?!\d)|(?<!\d)_/.test(literal)) {
@@ -69,8 +62,8 @@ export function pyFloat(text: string): number | undefined {
   }
 }
 
-// |value| * 10^digits rounded half to even, computed on the exact binary
-// value as Python does.
+// Python rounds the exact binary value half to even. toFixed() rounds ties
+// away from zero and Math.round() rounds them toward +Infinity.
 function scaledHalfEven(value: number, digits: number): bigint {
   const view = new DataView(new ArrayBuffer(8));
   view.setFloat64(0, Math.abs(value));
@@ -94,14 +87,12 @@ function isNegative(value: number): boolean {
   return value < 0 || Object.is(value, -0);
 }
 
-// round(value, digits) for a non-negative integer digits.
 export function pyRound(value: number, digits: number): number {
   if (!Number.isFinite(value) || value === 0) return value;
   const rounded = Number(`${scaledHalfEven(value, digits)}e-${digits}`);
   return isNegative(value) ? -rounded : rounded;
 }
 
-// "%.{digits}f" % value
 export function pyFormatFixed(value: number, digits: number): string {
   if (Number.isNaN(value)) return "nan";
   const sign = isNegative(value) ? "-" : "";

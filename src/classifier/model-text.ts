@@ -1,6 +1,5 @@
 import { pyStrip } from "../python/str.js";
 
-// "input_first" puts an enhanced query before its instruction.
 export type QueryFormat = "legacy" | "input_first";
 
 export interface RerankPayload {
@@ -8,7 +7,6 @@ export interface RerankPayload {
   readonly definition?: string | null;
 }
 
-// build_query_embedding_text: the Qwen3 embedding input.
 export function buildQueryEmbeddingText(
   query: string,
   instruction: string | undefined,
@@ -21,7 +19,6 @@ export function buildQueryEmbeddingText(
     : `Instruct: ${instructionText}\nQuery:${query}`;
 }
 
-// build_rerank_query_text: the reranker query.
 export function buildRerankQueryText(
   query: string,
   instruction: string | undefined,
@@ -34,7 +31,6 @@ export function buildRerankQueryText(
     : `${instructionText}\nQuery: ${query}`;
 }
 
-// _default_rerank_document: the text the reranker scores for a candidate.
 export function defaultRerankDocument({
   class_name: className,
   definition,

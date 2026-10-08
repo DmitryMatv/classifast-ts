@@ -27,7 +27,6 @@ const golden = readGolden(
   }),
 );
 
-// Python's repr of a float, which Number() reads except for inf and nan.
 function fromRepr(repr: string | null): number | undefined {
   if (repr === null) return undefined;
   if (repr === "nan") return NaN;

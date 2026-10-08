@@ -6,8 +6,6 @@ export interface PopularLookupLink {
   readonly url: string;
 }
 
-// Curated anchor text; the sitemap decides which of these pages are
-// canonical and server-rendered.
 const POPULAR_LOOKUP_CATALOG: ReadonlyMap<
   string,
   readonly (readonly [label: string, path: string])[]

@@ -7,8 +7,6 @@ const XML_ENTITIES: Readonly<Record<string, string>> = {
   quot: '"',
   apos: "'",
 };
-// urlparse(url).path: the path stops at the query, the fragment and the
-// ";params" of its last segment.
 const URL_PATH = /^(?:[A-Za-z][A-Za-z0-9+.-]*:)?(?:\/\/[^/?#]*)?([^?#]*)/;
 
 function decodeXmlText(text: string): string {
@@ -22,15 +20,13 @@ function decodeXmlText(text: string): string {
   );
 }
 
+// Python's urlparse splits ";params" off the last path segment only.
 function urlPath(url: string): string {
   const path = URL_PATH.exec(url)![1]!;
   const params = path.indexOf(";", path.lastIndexOf("/"));
   return params === -1 ? path : path.slice(0, params);
 }
 
-// _load_sitemap_query_paths: the /{TYPE}/{slug}/ pages listed in
-// app/static/sitemap.xml. They are the canonical query pages that get
-// server-rendered results.
 export function parseSitemapQueryPaths(
   sitemapXml: string,
   classifierTypes: ReadonlySet<string>,

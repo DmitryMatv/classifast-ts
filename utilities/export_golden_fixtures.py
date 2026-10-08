@@ -338,7 +338,6 @@ TEXT_INPUTS = [
     "\U00020000" * 2500 + " tail",
 ]
 
-# Length limits matter only to the functions that slice or reject long text.
 SHORT_TEXT_INPUTS = [value for value in TEXT_INPUTS if len(value) <= 100]
 
 TITLE_INPUTS = [
@@ -604,8 +603,8 @@ def python_number(parse: Callable[[str], object], value: str) -> str | None:
 
 
 def round_inputs() -> list[float]:
-    # Every multiple of 1/1024 holds the exact binary ties that round(x, 4)
-    # and "%.2f" resolve to even; the seeded values look like model scores.
+    # Multiples of 1/1024 include the exact binary ties that round() and
+    # "%.2f" resolve to even.
     rng = random.Random(20261008)
     values = [k / 1024 for k in range(-64, 1100)]
     values += [rng.random() for _ in range(500)]
@@ -648,7 +647,6 @@ def build_python_numbers_fixture() -> dict[str, object]:
 
 
 def score_width_template() -> Template:
-    # The data-score-width expression of results.html, rendered by Jinja.
     source = (REPO_ROOT / "app" / "templates" / "results.html").read_text()
     match = re.search(r"\{%-\s*set score_pct = (.*?)-%\}", source, re.DOTALL)
     assert match, "results.html no longer sets score_pct"
@@ -848,7 +846,7 @@ def build_model_text_fixture() -> dict[str, object]:
 
 
 URL_TYPES = ["UNSPSC", "HS", "CPV", "NAICS"]
-# Over 200 and 4000 code points but not UTF-16 units, where slugify and
+# Long in code points but not UTF-16 units, where slugify and
 # decode_search_query truncate.
 LONG_URL_INPUTS = ["\U00020000" * 150, "\U00020000" * 2500 + " tail", "x" * 4001]
 FRAGMENT_PUSH_OPTIONS = [
@@ -875,8 +873,6 @@ FRAGMENT_PUSH_OPTIONS = [
 
 
 def sitemap_queries() -> list[tuple[str, str]]:
-    # The query of every sitemap page, plus the hyphenated spelling that must
-    # still resolve to the underscore canonical.
     queries = []
     for path in sorted(SITEMAP_QUERY_PATHS):
         classifier_type, slug = path.strip("/").split("/")
@@ -1055,7 +1051,6 @@ def popular_lookups(sitemap_paths: frozenset[str]) -> dict[str, object]:
 
 
 def build_popular_lookups_fixture() -> dict[str, object]:
-    # The second sitemap drops every other page to show the filtering.
     sparse_paths = frozenset(sorted(SITEMAP_QUERY_PATHS)[::2])
     return {
         "sitemaps": [
@@ -1191,7 +1186,6 @@ def canonical_query(query: str) -> dict[str, str | None]:
             middleware.dispatch(starlette_request("/HS/", query), passed_through)
         )
     except UnicodeDecodeError:
-        # Starlette decodes the redirect URL's query bytes as UTF-8.
         return {"pythonError": "UnicodeDecodeError"}
     if response.status_code != 308:
         return {"canonicalQuery": None}
@@ -1353,7 +1347,6 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
 
 
 def to_json(fixture: dict[str, object]) -> str:
-    # One case per line keeps the large fixtures reviewable.
     fields = []
     for key, value in fixture.items():
         if isinstance(value, list) and value and isinstance(value[0], dict):

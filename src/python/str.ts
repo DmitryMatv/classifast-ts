@@ -1,6 +1,3 @@
-// Ports of the Python str and re behaviors that the app's text handling
-// relies on. JavaScript's \s, \w, \d, trim() and case mappings differ.
-
 // str.isspace(), str.strip() and re's \s. Unlike JavaScript's \s, this
 // includes U+001C to U+001F and U+0085 and excludes U+FEFF.
 export const PY_WHITESPACE =
@@ -18,7 +15,6 @@ const DIGIT =
 const CASED = /^\p{Cased}$/u;
 const CASE_IGNORABLE = /^\p{Case_Ignorable}$/u;
 
-// Python counts and slices strings by code point, JavaScript by UTF-16 unit.
 export function codePointLength(value: string): number {
   let length = 0;
   for (const _ of value) length += 1;
@@ -58,7 +54,6 @@ export function pyStrip(value: string, chars?: string): string {
   return stripped.slice(start);
 }
 
-// re.sub(r"\s+", " ", value).strip()
 export function collapseWhitespace(value: string): string {
   return pyStrip(value.replace(WHITESPACE_RUN, " "));
 }
@@ -71,8 +66,6 @@ export function pyIsDigit(character: string): boolean {
   return DIGIT.test(character);
 }
 
-// Full titlecase mappings that differ from the uppercase mapping, apart from
-// the Georgian and Greek ranges that titlecase() handles by rule.
 const TITLECASE_EXCEPTIONS: ReadonlyMap<string, string> = new Map([
   ["\u00df", "Ss"],
   ["\u01c4", "\u01c5"],
@@ -143,8 +136,6 @@ function isFinalSigma(characters: readonly string[], index: number): boolean {
   return after === characters.length || !CASED.test(characters[after]!);
 }
 
-// str.title(): a character that follows a cased character is lowercased,
-// any other is titlecased, so "they're 3rd" becomes "They'Re 3Rd".
 export function pyTitle(value: string): string {
   const characters = Array.from(value);
   let title = "";

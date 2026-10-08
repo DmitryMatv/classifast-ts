@@ -1,6 +1,5 @@
 import { pyStrip } from "../python/str.js";
 
-// Removed classifiers answer 410 Gone so crawlers deindex them quickly.
 const REMOVED_CLASSIFIER_TYPES: ReadonlySet<string> = new Set(["GMDN"]);
 
 export type ClassifierTypeResolution =
@@ -25,8 +24,6 @@ export interface ResolvedClassifierOptions {
   readonly firstVersion: string;
 }
 
-// Page requests fall back to the first version; fragment requests pass
-// allowInvalidVersion so the pipeline rejects an unknown one.
 export function resolveClassifierOptions(
   versions: readonly string[],
   version: string | undefined,

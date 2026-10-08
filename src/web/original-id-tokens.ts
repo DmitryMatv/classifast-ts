@@ -5,8 +5,6 @@ export interface OriginalIdToken {
   readonly gapAfter: boolean;
 }
 
-// Marks a gap after a letter prefix and between right-aligned digit pairs,
-// so "AB12345" displays as "AB 1 23 45".
 export function groupOriginalIdTokens(originalId: string): OriginalIdToken[] {
   const characters = Array.from(originalId);
   const gapAfter = characters.map(

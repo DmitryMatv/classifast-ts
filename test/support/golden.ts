@@ -15,7 +15,6 @@ export function readGolden<Schema extends z.ZodType>(
   );
 }
 
-// Ranges are written as "0009-000D" or "00A0" by the Python exporter.
 export const codePointRangesSchema = z.array(
   z.string().regex(/^[0-9A-F]{4,6}(-[0-9A-F]{4,6})?$/),
 );
@@ -38,8 +37,9 @@ const pythonUnicode = readGolden(
 );
 const unassigned = codePointSet(pythonUnicode.unassignedRanges);
 
-// Assigned characters whose properties Unicode 17 changed: U+0295 became
-// Cased, and U+A7D3 and U+A7D5 gained the new capitals U+A7D2 and U+A7D4.
+// Assigned characters whose properties Unicode 17 changed: U+0295 moved from
+// Ll to Lo and stopped being Cased, and U+A7D3 and U+A7D5 gained the new
+// capitals U+A7D2 and U+A7D4.
 const UNICODE_17_CHANGES: ReadonlySet<number> = new Set([
   0x0295, 0xa7d3, 0xa7d5,
 ]);
@@ -47,9 +47,8 @@ const runtimeUnicodeDiffers =
   process.versions.unicode?.split(".")[0] !==
   pythonUnicode.unicodeVersion.split(".")[0];
 
-// Node's ICU can implement a newer Unicode version than Python. Sweeps skip
-// the code points Python treats as unassigned, which a newer version may
-// assign, and the known changes when the versions differ.
+// Node's ICU can implement a newer Unicode version than Python, which may
+// assign code points Python treats as unassigned.
 export function* assignedCodePoints(): Generator<number> {
   for (let codePoint = 0; codePoint <= 0x10ffff; codePoint += 1) {
     if (codePoint >= 0xd800 && codePoint <= 0xdfff) continue;

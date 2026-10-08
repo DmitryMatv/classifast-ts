@@ -21,8 +21,6 @@ const REPEATED_URL_ENCODING = /(?:25){2,}/;
 const HEX_SEQUENCE = /[0-9A-Fa-f]{4,}/g;
 const HEX_LETTER = /[A-Fa-f]/g;
 const DECIMAL = /\p{Nd}/u;
-// The \u00a0-\uffff range admits every BMP character from U+00A0 on, but no
-// astral character that \w rejects, such as emoji.
 const ALLOWED_QUERY = new RegExp(
   `^[${PY_WORD}${PY_WHITESPACE}\\-.,:;()\\[\\]{}/\\\\&@#%+=*?!~\`'"<>\\u00a0-\\uffff]+$`,
   "u",
@@ -52,7 +50,6 @@ function suspiciousEncodingDetail(query: string): string | undefined {
   return undefined;
 }
 
-// sanitize_query_text(query): the user's query before classification.
 export function sanitizeQueryText(raw: string): QueryValidation {
   if (!raw) return invalid("Query cannot be empty");
   const query = pyRstrip(pyStrip(raw), "/");
@@ -72,15 +69,14 @@ export function sanitizeQueryText(raw: string): QueryValidation {
   return { kind: "valid", query: collapsed };
 }
 
-// sanitize_query_text(query, for_search=True). Python rejects an empty
-// query here too; every caller passes a validated, non-empty one.
+// Python rejects an empty query here too; every caller passes a validated
+// one.
 export function sanitizeSearchText(raw: string): string {
   return collapseWhitespace(
     pyRstrip(pyStrip(raw), "/").replace(SEARCH_DISALLOWED, " "),
   );
 }
 
-// normalize_product_description
 export function normalizeProductDescription(description: string): string {
   return collapseWhitespace(description);
 }
@@ -90,7 +86,6 @@ export function normalizeProductDescription(description: string): string {
 const CODE_LIKE = /^[a-z\u0130\u0131\p{Nd}][a-z\u0130\u0131\p{Nd}._/-]*$/iu;
 const CODE_LETTER = /[a-z\u0130\u0131]/iu;
 
-// query_enhancer._is_code_like: codes skip query enhancement.
 export function isCodeLike(original: string): boolean {
   const stripped = pyStrip(original);
   if (PURE_NUMERIC_CODE.test(stripped)) return true;

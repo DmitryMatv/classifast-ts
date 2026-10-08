@@ -10,8 +10,6 @@ function firstMin(first: number, second: number): number {
   return second < first ? second : first;
 }
 
-// data-score-width in results.html: the score as a percentage clamped to
-// 0..100, passed through Jinja's round(2) and printed with '%.2f'.
 export function formatScoreWidth(score: number | null): string {
   if (score === null) return "0.00";
   const percent = firstMin(firstMax(score * 100, 0), 100);

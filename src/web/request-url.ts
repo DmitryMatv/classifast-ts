@@ -3,8 +3,7 @@ import { quote, unquotePlus } from "../python/urllib.js";
 
 export type QueryItem = readonly [name: string, value: string];
 
-// Starlette decodes the raw query bytes as Latin-1 and parses them with
-// parse_qsl(query, keep_blank_values=True).
+// Starlette decodes the raw query bytes as Latin-1 before parse_qsl.
 export function parseQueryString(query: string): QueryItem[] {
   return query
     .split("&")
@@ -22,8 +21,6 @@ export function parseQueryString(query: string): QueryItem[] {
 
 const QUERY_COMPONENT_SAFE = "()*,:";
 
-// QueryNormalizationMiddleware: the query of the 308 redirect target, or
-// undefined when no value has whitespace to collapse.
 export function canonicalQuery(
   items: readonly QueryItem[],
 ): string | undefined {
@@ -53,22 +50,21 @@ const SPAM_SIGNATURES = [
 const ATTACK_PATTERN =
   /(?:%25){3,}|\p{Nd}{50,}|%3c%3c|%3e%3e|(?<![a-zA-Z0-9])[0-9A-Fa-f]{64,}(?![a-zA-Z0-9])/u;
 
-// Starlette's query_params.values() keeps the last value of each name, in
-// the order the names first appear.
 function lastValuePerName(items: readonly QueryItem[]): string[] {
   const values = new Map<string, string>();
   for (const [name, value] of items) values.set(name, value);
   return [...values.values()];
 }
 
-// URLEncodingValidationMiddleware: path is the percent-decoded request path
-// and query the raw query string.
-export function isSuspiciousRequestUrl(path: string, query: string): boolean {
-  if (codePointLength(path + query) > MAX_URL_LENGTH) return true;
+export function isSuspiciousRequestUrl(
+  decodedPath: string,
+  rawQuery: string,
+): boolean {
+  if (codePointLength(decodedPath + rawQuery) > MAX_URL_LENGTH) return true;
   const checked = [
-    path,
-    query,
-    ...lastValuePerName(parseQueryString(query)),
+    decodedPath,
+    rawQuery,
+    ...lastValuePerName(parseQueryString(rawQuery)),
   ].join("");
   return (
     ATTACK_PATTERN.test(checked) ||
