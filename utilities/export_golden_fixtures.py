@@ -14,6 +14,7 @@ import os
 import random
 import re
 import sys
+import tempfile
 import unicodedata
 from collections.abc import Callable
 from pathlib import Path
@@ -37,6 +38,7 @@ from app.classifier import (
     build_rerank_query_text,
     sanitize_query_text,
 )
+from app import classifier_page_delivery
 from app.classifier_config import CLASSIFIER_CONFIG
 from app.classifier_page_delivery import (
     SITEMAP_QUERY_PATHS,
@@ -46,6 +48,8 @@ from app.classifier_page_delivery import (
     build_fragment_push_url,
     decode_search_query,
     get_classifier_or_404,
+    get_homepage_popular_lookup_links,
+    get_popular_lookup_links,
     normalize_product_description,
     resolve_classifier_options,
     should_ssr,
@@ -53,7 +57,9 @@ from app.classifier_page_delivery import (
 )
 from app.dependencies import group_original_id_tokens, templates
 from app.id_lookup import normalize_original_id_for_lookup, reverse_normalized_id
+from app.mapping_store import list_mapping_products
 from app.query_enhancer import _is_code_like
+from app.web import build_mapping_canonical_url
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE_DIR = REPO_ROOT / "test" / "fixtures" / "golden"
@@ -960,6 +966,117 @@ def build_classifier_urls_fixture() -> dict[str, object]:
     }
 
 
+SYNTHETIC_SITEMAP = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url><loc>https://classifast.com/</loc></url>
+  <url><loc>https://classifast.com/HS/</loc></url>
+  <url><loc>https://classifast.com/HS/laptop_computer/</loc></url>
+  <url><loc>https://classifast.com/HS/no_trailing_slash</loc></url>
+  <url><loc>https://classifast.com/hs/lowercase_type/</loc></url>
+  <url><loc>https://classifast.com/GMDN/removed_type/</loc></url>
+  <url><loc>https://classifast.com/NAICS/a/b/</loc></url>
+  <url><loc>https://classifast.com//NAICS//double_slashes//</loc></url>
+  <url><loc>https://classifast.com/CPV/with_query/?top_k=5</loc></url>
+  <url><loc>https://classifast.com/CPV/with_fragment/#results</loc></url>
+  <url><loc>https://classifast.com/CPV/semi;colon/x;params</loc></url>
+  <url><loc>https://classifast.com/CPV/semi;colon</loc></url>
+  <url><loc>https://classifast.com/NSN/caf%C3%A9/</loc></url>
+  <url><loc>https://classifast.com/NSN/fish_&amp;_chips/</loc></url>
+  <url><loc>https://classifast.com/NSN/&#x63;ode&#46;/</loc></url>
+  <url><loc>/ETIM/relative_url/</loc></url>
+  <url><loc>https://blog.classifast.com/ETIM/other_host/</loc></url>
+  <url><loc></loc></url>
+  <!-- <url><loc>https://classifast.com/HS/commented_out/</loc></url> -->
+  <url>
+    <loc>https://classifast.com/UNSPSC/with_image/</loc>
+    <image:image><image:loc>https://classifast.com/ISIC/image_loc/</image:loc></image:image>
+  </url>
+</urlset>
+"""
+
+
+def load_sitemap_query_paths(xml: str) -> list[str]:
+    original_base_dir = classifier_page_delivery.BASE_DIR
+    with tempfile.TemporaryDirectory() as directory:
+        static_dir = Path(directory) / "app" / "static"
+        static_dir.mkdir(parents=True)
+        (static_dir / "sitemap.xml").write_text(xml, encoding="utf-8")
+        classifier_page_delivery.BASE_DIR = Path(directory)
+        try:
+            return sorted(classifier_page_delivery._load_sitemap_query_paths())
+        finally:
+            classifier_page_delivery.BASE_DIR = original_base_dir
+
+
+def build_sitemap_fixture() -> dict[str, object]:
+    return {
+        "queryPaths": sorted(SITEMAP_QUERY_PATHS),
+        "syntheticXml": SYNTHETIC_SITEMAP,
+        "syntheticQueryPaths": load_sitemap_query_paths(SYNTHETIC_SITEMAP),
+    }
+
+
+POPULAR_LOOKUP_TYPE_INPUTS = [
+    *CLASSIFIER_CONFIG,
+    "unspsc",
+    " hs\n",
+    "\x85NAICS",
+    "UNKNOWN",
+    "",
+]
+
+
+def popular_lookups(sitemap_paths: frozenset[str]) -> dict[str, object]:
+    original_paths = classifier_page_delivery.SITEMAP_QUERY_PATHS
+    classifier_page_delivery.SITEMAP_QUERY_PATHS = sitemap_paths
+    try:
+        return {
+            "sitemapQueryPaths": sorted(sitemap_paths),
+            "byType": [
+                {
+                    "input": value,
+                    "links": get_popular_lookup_links(value),
+                }
+                for value in POPULAR_LOOKUP_TYPE_INPUTS
+            ],
+            "homepage": get_homepage_popular_lookup_links(),
+        }
+    finally:
+        classifier_page_delivery.SITEMAP_QUERY_PATHS = original_paths
+
+
+def build_popular_lookups_fixture() -> dict[str, object]:
+    # The second sitemap drops every other page to show the filtering.
+    sparse_paths = frozenset(sorted(SITEMAP_QUERY_PATHS)[::2])
+    return {
+        "sitemaps": [
+            popular_lookups(SITEMAP_QUERY_PATHS),
+            popular_lookups(sparse_paths),
+        ],
+    }
+
+
+MAPPING_SLUG_INPUTS = [
+    None,
+    "",
+    *(product.slug for product in list_mapping_products()),
+    "a/b",
+    "caf\u00e9 au lait",
+    "trailing/",
+    "%41",
+]
+
+
+def build_mapping_urls_fixture() -> dict[str, object]:
+    return {
+        "canonicalUrls": [
+            {"slug": slug, "url": build_mapping_canonical_url(slug)}
+            for slug in MAPPING_SLUG_INPUTS
+        ],
+    }
+
+
 CLASSIFIER_TYPE_INPUTS = [
     "naics",
     "NAICS",
@@ -1082,6 +1199,9 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "original-id-tokens.json": build_original_id_tokens_fixture,
     "result-score.json": build_result_score_fixture,
     "model-text.json": build_model_text_fixture,
+    "sitemap.json": build_sitemap_fixture,
+    "popular-lookups.json": build_popular_lookups_fixture,
+    "mapping-urls.json": build_mapping_urls_fixture,
 }
 
 
