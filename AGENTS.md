@@ -19,7 +19,11 @@ Python suite lives in `tests/`.
 
 `npm run test:contract` runs the HTTP contract suite in `test/contract/`
 against the server at `BASE_URL`, which is required. `npm test` does not run
-it. Point it at a public-mode Python instance from the verify driver. Set
+it. The suite refuses a `BASE_URL` host other than `localhost`, `127.0.0.0/8`,
+or `::1`, because its checkout probes increment Redis rate-limit counters and
+full mode charges quota and runs live classifications. Set
+`CONTRACT_ALLOW_NON_LOOPBACK=1` to target another host deliberately. Point it
+at a public-mode Python instance from the verify driver. Set
 `CONTRACT_MODE=full` only against a server with Qdrant, Redis, and
 embeddings. `CONTRACT_POLAR_WEBHOOK_SECRET` and `CONTRACT_RAPIDAPI_SECRET`
 enable the signed-webhook and RapidAPI JSON cases. With
