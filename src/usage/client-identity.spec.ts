@@ -48,7 +48,17 @@ describe("trackingId", () => {
     "{1b4e28ba-2fa1-41d2-883f-0016d3cca427}",
     "urn:uuid:1b4e28ba-2fa1-41d2-883f-0016d3cca427",
     "1B4E28BA2FA141D2883F0016D3CCA427",
-  ])("keeps %s, which Python's uuid.UUID accepts, verbatim", (cookie) => {
+    "{{1b4e28ba-2fa1-41d2-883f-0016d3cca427}",
+    "--1b4e28ba2fa141d2883f0016d3cca427-",
+    " 1b4e28ba2fa141d2883f0016d3cca4\t",
+    "+1b4e28ba2fa141d2883f0016d3cca42",
+    "0x1b4e28ba2fa141d2883f0016d3cca4",
+    "0x_1b4e28ba2fa141d2883f0016d3cca",
+    "1b4e28ba_2fa141d2883f0016d3cca42",
+    "\u00a01b4e28ba2fa141d2883f0016d3cca4\u0085",
+    "\u06631b4e28ba2fa141d2883f0016d3cca42",
+    "\u{1d7cf}1b4e28ba2fa141d2883f0016d3cca42",
+  ])("keeps %j, which Python's uuid.UUID accepts, verbatim", (cookie) => {
     expect(trackingId(cookie)).toBe(cookie);
   });
 
@@ -56,9 +66,17 @@ describe("trackingId", () => {
     "not-a-uuid",
     "1b4e28ba-2fa1-41d2-883f",
     "1b4e28ba-2fa1-41d2-883f-0016d3cca42g",
+    "_1b4e28ba2fa141d2883f0016d3cca42",
+    "1b4e28ba2fa141d2883f0016d3cca42_",
+    "1b4e28ba__2fa141d2883f0016d3cca4",
+    "+ 1b4e28ba2fa141d2883f0016d3cca4",
+    "\u001c1b4e28ba2fa141d2883f0016d3cca42",
+    "\u200b1b4e28ba2fa141d2883f0016d3cca42",
+    "\ufeff1b4e28ba2fa141d2883f0016d3cca42",
+    "0o1b4e28ba2fa141d2883f0016d3cca4",
     "",
     undefined,
-  ])("test_invalid_tracking_cookie_is_replaced (%s)", (cookie) => {
+  ])("test_invalid_tracking_cookie_is_replaced (%j)", (cookie) => {
     const replacement = trackingId(cookie);
 
     expect(replacement).toMatch(UUID_PATTERN);

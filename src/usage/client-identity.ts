@@ -30,15 +30,23 @@ export function hashIp(ip: string): string {
   return createHash("sha256").update(ip).digest("hex").slice(0, 16);
 }
 
-// The spellings Python's uuid.UUID() accepts: optional braces, URN prefix
-// and hyphens around 32 hex digits.
+// Python's int(text, 16): surrounding whitespace, a plus sign, a 0x
+// prefix, any Unicode decimal digit, and single underscores between digits.
+const PYTHON_SPACE = String.raw`[\t\n\v\f\r \x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]`;
+const PYTHON_HEX_INT = new RegExp(
+  String.raw`^${PYTHON_SPACE}*\+?(?:0x_?)?[\p{Nd}a-f]+(?:_[\p{Nd}a-f]+)*${PYTHON_SPACE}*$`,
+  "iu",
+);
+
+// Python's uuid.UUID() drops "urn:", "uuid:", outer braces and hyphens, then
+// needs 32 code points that int(text, 16) parses.
 function isPythonUuid(value: string): boolean {
   const hex = value
     .replaceAll("urn:", "")
     .replaceAll("uuid:", "")
     .replace(/^[{}]+|[{}]+$/g, "")
     .replaceAll("-", "");
-  return /^[0-9a-f]{32}$/i.test(hex);
+  return Array.from(hex).length === 32 && PYTHON_HEX_INT.test(hex);
 }
 
 /** The `cf_track` cookie when it holds a UUID, else a fresh one. */
