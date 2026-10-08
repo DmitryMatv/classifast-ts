@@ -61,7 +61,7 @@ async function setup({ origins = [], client = redis }: Setup = {}) {
     anonLimit: ANON_LIMIT,
     freeUserLimit: FREE_USER_LIMIT,
   });
-  return { quota, access, http, key };
+  return { quota, http, key };
 }
 
 function credentials(
@@ -306,9 +306,9 @@ describe("Quota.resolveCaller", () => {
   });
 
   it("test_checkout_grace_does_not_help_invalid_identity", async () => {
-    const { quota, access } = await setup();
+    const { quota } = await setup();
     const userId = uniqueId("user");
-    await access.grantCheckoutGrace(userId);
+    await redis.set(`checkout_grace:${userId}`, "1", { EX: 300 });
     const impostor = await signingKey("kid-1");
 
     const caller = await quota.resolveCaller(
@@ -321,10 +321,10 @@ describe("Quota.resolveCaller", () => {
   });
 
   it("test_checkout_grace_allows_verified_user", async () => {
-    const { quota, access, http, key } = await setup();
+    const { quota, http, key } = await setup();
     const userId = uniqueId("user");
     http.user(userId, freeTier);
-    await access.grantCheckoutGrace(userId);
+    await redis.set(`checkout_grace:${userId}`, "1", { EX: 300 });
     const token = await signToken(key, { sub: userId });
 
     const caller = await quota.resolveCaller(

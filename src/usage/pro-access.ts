@@ -74,7 +74,7 @@ export class ProAccess {
    */
   async isPro(userId: string, tierHint: string | undefined): Promise<boolean> {
     if (!this.redis) return false;
-    if (await this.hasActiveGrace(userId)) {
+    if (await this.#hasActiveGrace(userId)) {
       logger.log(`Checkout grace period active for user ${userId}`);
       return true;
     }
@@ -120,8 +120,12 @@ export class ProAccess {
       : resolutionFromCache(strictUtf8.decode(raw));
   }
 
-  /** The Polar webhook's authoritative tier, overwriting any cached value. */
-  async recordTier(userId: string, tier: string): Promise<void> {
+  /**
+   * Caches the tier a verified Polar webhook just wrote to Clerk, overwriting
+   * any cached value. A Pro upgrade also gets checkout grace, which holds
+   * while Clerk catches up. Both writes are best effort.
+   */
+  async recordSubscriptionTier(userId: string, tier: string): Promise<void> {
     if (!userId || !this.redis) return;
     const value = tier === "pro" ? "pro" : "free";
     try {
@@ -131,21 +135,15 @@ export class ProAccess {
         `Failed to sync tier cache for user_id=${userId}: ${String(error)}`,
       );
     }
-  }
-
-  /** Grants unlimited use while Clerk catches up after a Pro checkout. */
-  async grantCheckoutGrace(userId: string): Promise<boolean> {
-    if (!userId || !this.redis) return false;
+    if (value !== "pro") return;
     try {
       await this.redis.setEx(graceKey(userId), this.graceTtlSeconds, "1");
-      return true;
     } catch (error) {
       logger.error(`Failed to set checkout grace period: ${String(error)}`);
-      return false;
     }
   }
 
-  async hasActiveGrace(userId: string): Promise<boolean> {
+  async #hasActiveGrace(userId: string): Promise<boolean> {
     if (!userId || !this.redis) return false;
     try {
       return (await this.redis.exists(graceKey(userId))) > 0;

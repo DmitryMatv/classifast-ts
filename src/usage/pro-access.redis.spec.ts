@@ -85,7 +85,7 @@ describe("ProAccess.lookUpTier racing a webhook", () => {
 
     const lookup = access.lookUpTier(userId);
     await held.requested;
-    await access.recordTier(userId, authoritativeTier);
+    await access.recordSubscriptionTier(userId, authoritativeTier);
     held.release();
 
     return { userId, access, resolution: await lookup };
@@ -254,53 +254,47 @@ describe("ProAccess.lookUpTier", () => {
   });
 });
 
-describe("ProAccess.recordTier", () => {
+describe("ProAccess.recordSubscriptionTier", () => {
   it.each([
-    ["test_set_cached_user_tier_stores_pro_tier", "pro", "pro"],
-    ["test_set_cached_user_tier_stores_non_pro_as_free", "starter", "free"],
-  ])("%s", async (_name, tier, stored) => {
+    "test_set_cached_user_tier_stores_pro_tier",
+    "test_handle_subscription_update_syncs_tier_cache_and_grace_after_clerk_success",
+  ])("%s", async () => {
     const userId = uniqueId("user");
     await redis.set(`user_tier:${userId}`, "stale", { EX: 5 });
     const { access } = proAccess(userId, () => tierResponse(undefined));
 
-    await access.recordTier(userId, tier);
+    await access.recordSubscriptionTier(userId, "pro");
 
-    expect(await redis.get(`user_tier:${userId}`)).toBe(stored);
+    expect(await redis.get(`user_tier:${userId}`)).toBe("pro");
     expect(await redis.ttl(`user_tier:${userId}`)).toBe(TIER_CACHE_TTL_SECONDS);
-  });
-
-  it("test_set_cached_user_tier_is_best_effort_on_redis_error", async () => {
-    const warn = vi.spyOn(Logger.prototype, "warn");
-    const userId = uniqueId("user");
-    const { access } = proAccess(
-      userId,
-      () => tierResponse(undefined),
-      closedRedis(),
-    );
-
-    await access.recordTier(userId, "pro");
-
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining("Failed to sync tier cache"),
-    );
-    warn.mockRestore();
-  });
-});
-
-describe("ProAccess checkout grace", () => {
-  it("grants grace for the configured TTL", async () => {
-    const userId = uniqueId("user");
-    const { access } = proAccess(userId, () => tierResponse(undefined));
-
-    expect(await access.hasActiveGrace(userId)).toBe(false);
-    expect(await access.grantCheckoutGrace(userId)).toBe(true);
-
-    expect(await access.hasActiveGrace(userId)).toBe(true);
     expect(await redis.get(`checkout_grace:${userId}`)).toBe("1");
     expect(await redis.ttl(`checkout_grace:${userId}`)).toBe(GRACE_TTL_SECONDS);
   });
 
-  it("reports failure instead of throwing when Redis is down", async () => {
+  it.each([
+    ["test_set_cached_user_tier_stores_non_pro_as_free", "starter"],
+    [
+      "test_handle_subscription_update_does_not_set_grace_for_free_tier",
+      "free",
+    ],
+  ])("%s", async (_name, tier) => {
+    const userId = uniqueId("user");
+    await redis.set(`user_tier:${userId}`, "stale", { EX: 5 });
+    const { access } = proAccess(userId, () => tierResponse(undefined));
+
+    await access.recordSubscriptionTier(userId, tier);
+
+    expect(await redis.get(`user_tier:${userId}`)).toBe("free");
+    expect(await redis.ttl(`user_tier:${userId}`)).toBe(TIER_CACHE_TTL_SECONDS);
+    expect(await redis.exists(`checkout_grace:${userId}`)).toBe(0);
+  });
+
+  it.each([
+    "test_set_cached_user_tier_is_best_effort_on_redis_error",
+    "test_handle_subscription_update_ignores_redis_sync_failure",
+  ])("%s", async () => {
+    const warn = vi.spyOn(Logger.prototype, "warn");
+    const error = vi.spyOn(Logger.prototype, "error");
     const userId = uniqueId("user");
     const { access } = proAccess(
       userId,
@@ -308,8 +302,16 @@ describe("ProAccess checkout grace", () => {
       closedRedis(),
     );
 
-    expect(await access.grantCheckoutGrace(userId)).toBe(false);
-    expect(await access.hasActiveGrace(userId)).toBe(false);
+    await access.recordSubscriptionTier(userId, "pro");
+
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("Failed to sync tier cache"),
+    );
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining("Failed to set checkout grace period"),
+    );
+    warn.mockRestore();
+    error.mockRestore();
   });
 });
 
@@ -317,7 +319,7 @@ describe("ProAccess.isPro", () => {
   it("test_checkout_grace_allows_verified_user", async () => {
     const userId = uniqueId("user");
     const { access, http } = proAccess(userId, () => tierResponse("free"));
-    await access.grantCheckoutGrace(userId);
+    await redis.set(`checkout_grace:${userId}`, "1", { EX: GRACE_TTL_SECONDS });
 
     expect(await access.isPro(userId, "free")).toBe(true);
     expect(http.fetch).not.toHaveBeenCalled();
