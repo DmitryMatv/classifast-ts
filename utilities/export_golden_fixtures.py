@@ -36,7 +36,7 @@ ignore_developer_dotenv()
 
 from fastapi import HTTPException
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import FileResponse, Response
 
 from app import classifier_page_delivery
 from app.classifier import (
@@ -1377,6 +1377,46 @@ def build_original_id_tokens_fixture() -> dict[str, object]:
     }
 
 
+STATIC_FILE_STATS = [
+    (1759952481_123456789, 5639),
+    (1759952481_000000000, 0),
+    (1700000000_999999999, 123456),
+    (1759952481_100000000, 7),
+    (86400_000000001, 1),
+]
+
+
+def static_file_stats() -> list[tuple[int, int]]:
+    rng = random.Random(20261010)
+    return STATIC_FILE_STATS + [
+        (
+            rng.randrange(1_600_000_000, 1_900_000_000) * 10**9
+            + rng.randrange(10**9),
+            rng.randrange(10**6),
+        )
+        for _ in range(40)
+    ]
+
+
+def build_static_files_fixture() -> dict[str, object]:
+    validators = []
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / "asset"
+        for mtime_ns, size in static_file_stats():
+            path.write_bytes(b"x" * size)
+            os.utime(path, ns=(mtime_ns, mtime_ns))
+            headers = FileResponse(path, stat_result=path.stat()).headers
+            validators.append(
+                {
+                    "mtimeNs": str(mtime_ns),
+                    "size": size,
+                    "etag": headers["etag"],
+                    "lastModified": headers["last-modified"],
+                }
+            )
+    return {"validators": validators}
+
+
 FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "id-lookup.json": build_id_lookup_fixture,
     "python-str.json": build_python_str_fixture,
@@ -1392,6 +1432,7 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "popular-lookups.json": build_popular_lookups_fixture,
     "mapping-urls.json": build_mapping_urls_fixture,
     "request-url.json": build_request_url_fixture,
+    "static-files.json": build_static_files_fixture,
 }
 
 
