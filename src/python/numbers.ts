@@ -2,12 +2,9 @@ import { PY_WHITESPACE } from "./str.js";
 
 const DECIMAL = /^\p{Nd}$/u;
 const UNICODE_SPACE = new RegExp(`^[${PY_WHITESPACE}]$`);
-// int() and float() strip only ASCII whitespace. U+001C to U+001F stay put,
-// so int("\x1c5") fails although "\x1c5".strip() is "5".
-const ASCII_SPACE_RUN = /^[\t\n\v\f\r ]+|[\t\n\v\f\r ]+$/g;
 const INT_LITERAL = /^[+-]?\d(?:_?\d)*$/;
 const FLOAT_LITERAL =
-  /^[+-]?(?:(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?|inf|infinity|nan)$/i;
+  /^[+-]?(?:(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|inf|infinity|nan)$/i;
 const PY_INT_MAX_STR_DIGITS = 4300;
 
 // Unicode encodes every Nd digit in a run of ten, ascending from zero.
@@ -26,7 +23,9 @@ function toAsciiLiteral(text: string): string | undefined {
     else if (DECIMAL.test(character)) ascii += decimalDigit(codePoint);
     else return undefined;
   }
-  return ascii.replace(ASCII_SPACE_RUN, "");
+  // On ASCII text trim() strips exactly what int() and float() strip. U+001C
+  // to U+001F stay put, so int("\x1c5") fails although "\x1c5".strip() is "5".
+  return ascii.trim();
 }
 
 export function pyInt(text: string): bigint | undefined {
@@ -81,13 +80,25 @@ function isNegative(value: number): boolean {
   return value < 0 || Object.is(value, -0);
 }
 
+// Python's negative ndigits rounds to tens, hundreds and so on; no caller
+// needs it, so it is rejected rather than ported.
+function assertDigits(name: string, digits: number): void {
+  if (!Number.isSafeInteger(digits) || digits < 0) {
+    throw new RangeError(
+      `${name} supports only non-negative integer digits, got ${digits}`,
+    );
+  }
+}
+
 export function pyRound(value: number, digits: number): number {
+  assertDigits("pyRound", digits);
   if (!Number.isFinite(value) || value === 0) return value;
   const rounded = Number(`${scaledHalfEven(value, digits)}e-${digits}`);
   return isNegative(value) ? -rounded : rounded;
 }
 
 export function pyFormatFixed(value: number, digits: number): string {
+  assertDigits("pyFormatFixed", digits);
   if (Number.isNaN(value)) return "nan";
   const sign = isNegative(value) ? "-" : "";
   if (!Number.isFinite(value)) return `${sign}inf`;

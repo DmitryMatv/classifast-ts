@@ -59,6 +59,19 @@ describe("pyInt and pyFloat match int() and float()", () => {
   });
 });
 
+describe("pyInt and pyFloat take linear time on adversarial input", () => {
+  const length = 100_000;
+  it.each([
+    ["spaces before a trailing letter", `1${" ".repeat(length)}x`],
+    ["digits before a trailing letter", `${"1".repeat(length)}x`],
+  ])("rejects %s within 100 ms", (_, input) => {
+    const start = performance.now();
+    expect(pyInt(input)).toBeUndefined();
+    expect(pyFloat(input)).toBeUndefined();
+    expect(performance.now() - start).toBeLessThan(100);
+  });
+});
+
 describe("pyRound and pyFormatFixed match round() and %.2f", () => {
   it.each(golden.round)(
     "rounds $value",
@@ -72,5 +85,16 @@ describe("pyRound and pyFormatFixed match round() and %.2f", () => {
   it.each(golden.nonFinite)("rounds $repr", ({ repr, round4, fixed2 }) => {
     expect(pyRound(fromRepr(repr)!, 4)).toBe(fromRepr(round4));
     expect(pyFormatFixed(fromRepr(repr)!, 2)).toBe(fixed2);
+  });
+
+  it.each([-1, 0.5, NaN])("rejects %s digits for every value", (digits) => {
+    for (const value of [0, 1.5, NaN]) {
+      expect(() => pyRound(value, digits)).toThrow(
+        `pyRound supports only non-negative integer digits, got ${digits}`,
+      );
+      expect(() => pyFormatFixed(value, digits)).toThrow(
+        `pyFormatFixed supports only non-negative integer digits, got ${digits}`,
+      );
+    }
   });
 });

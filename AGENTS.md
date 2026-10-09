@@ -45,6 +45,62 @@ per-call signal, so a Qdrant stage runs to completion after cancellation.
 The repository has no `tsx`. To run a one-off script against the Nest code,
 build with `npx nest build` and import the compiled modules from `dist/`.
 
+`npm run test:contract` runs the HTTP contract suite in `test/contract/`
+against the server at `BASE_URL`, which is required. `npm test` does not run
+it. The suite refuses a `BASE_URL` host other than `localhost`, `127.0.0.0/8`,
+or `::1`, because its checkout probes increment Redis rate-limit counters and
+full mode charges quota and runs live classifications. Set
+`CONTRACT_ALLOW_NON_LOOPBACK=1` to target another host deliberately. Point it
+at a public-mode Python instance from the verify driver. Both modes require
+`DEBUG_MODE=false`. Set
+`CONTRACT_MODE=full` only against a server with Qdrant, Redis, and
+embeddings. Full mode has not been verified against configured live
+dependencies. A full-mode case that needs more server configuration runs only
+when a variable declares that the server has it, and otherwise reports the
+missing variable as its skip reason:
+
+- `CONTRACT_RAPIDAPI_SECRET` holds the server's `RAPIDAPI_SECRET`. It enables
+  the RapidAPI 401 and JSON cases.
+- `CONTRACT_POLAR_WEBHOOK_SECRET` holds the server's `POLAR_WEBHOOK_SECRET`.
+  It enables the unsigned and signed webhook cases.
+- `CONTRACT_POLAR_PRO_PRODUCT_ID` holds the server's `POLAR_PRO_PRODUCT_ID`.
+  It enables the signed event for another product, which Python answers with
+  500 when the server has no Pro product.
+- `CONTRACT_NO_OPENROUTER_KEY=1` declares a server without
+  `OPENROUTER_API_KEY`. It enables the failed query enhancement case. That
+  server has no enhancer, so every enhanced lookup fails without calling
+  OpenRouter. No request makes a configured enhancer fail deterministically.
+- `CONTRACT_ANON_LIMIT` and `CONTRACT_CHECKOUT_RATE_LIMIT` default to 10 and
+  must equal the server's `ANON_LIMIT` and `CHECKOUT_RATE_LIMIT`.
+
+Polar's Python SDK accepts both raw UTF-8 secrets and base64-decoded Standard
+Webhooks keys. Canonical fixtures decode base64 secrets after removing the
+optional `whsec_` prefix. Non-base64 legacy secrets use UTF-8 bytes. A separate
+fixture covers raw-key compatibility.
+
+Two properties stay outside the suite because HTTP cannot observe them. The
+queue overflow case checks that at least five lookups in a burst succeed and
+that any refusal is the queue-full 503, but staggered admission can hide both
+the capacity and the refusal; `ClassificationQueue`'s specs pin them. The
+signed non-Pro webhook carries no user, so it cannot show that a missing
+product filter would grant Pro.
+
+With `CONTRACT_TARGET=nest`, the `retiredRoutes` table expects 404 instead of
+Python's status. Inside test files Vitest replaces `process.env.BASE_URL`
+with Vite's base path, so the config passes the URL on as
+`CONTRACT_BASE_URL`.
+
+The public-mode cases expect a server without `POLAR_WEBHOOK_SECRET`,
+`RAPIDAPI_SECRET`, or Redis. The app's `load_dotenv()` searches upward from
+`app/`, so a worktree nested under the main checkout also loads the main
+checkout's `.env`. A key added there changes what a public-mode instance
+answers.
+
+Python declares HEAD only on page routes. HEAD on a GET-only route, such as
+`/robots.txt` or `/health`, falls through to the classifier catch-all and
+answers 404. HEAD on `/{TYPE}/fragment` answers 301. The contract suite pins
+this behavior.
+
 Always use `pytest` for backend tests. The suite retains `unittest`-compatible
 test classes and standard-library mocks, but pytest is the official runner.
 
@@ -96,9 +152,15 @@ disagree with Python on some inputs. Each ported function has a spec that
 reads a fixture written by `python utilities/export_golden_fixtures.py`
 (about 45 seconds, one file per area). The exporter refuses to run if its
 source contains a non-ASCII character, because editors can NFC-normalize
-literals such as `e` plus U+0301; write such inputs as escapes. Code-point
-sweeps skip code points that Python's Unicode version leaves unassigned,
-because Node's ICU can be newer. Two Python quirks surprised the port. In
+literals such as `e` plus U+0301; write such inputs as escapes. Parity with
+Python holds only where Node and Python implement the same Unicode version.
+The fixtures record Python's Unicode 16.0, while Node 24.21 (the `node:24`
+line in `Dockerfile.node`, verified locally) and Node 26 ship Unicode 17.0
+(ICU 78). Code-point sweeps (`test/support/golden.ts`) therefore skip the
+code points unassigned in the fixtures' version, plus the assigned ones whose
+general category or case mapping Node's newer data changed (U+0295, U+A7D3
+and U+A7D5 at Unicode 17). They fail if Node's Unicode is older than the
+fixtures' or any other code point differs. Two Python quirks surprised the port. In
 `URLEncodingValidationMiddleware`, `(\d{2,4})\1{15,}` refers back to the
 `(%25)` group and never matches; a verbatim JavaScript copy rejects any URL
 with two adjacent digits. `QueryNormalizationMiddleware` answers 500 when the

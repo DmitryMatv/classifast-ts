@@ -4,6 +4,7 @@ import {
   codePointSet,
   readGolden,
   sweepMismatches,
+  unicodeDrift,
 } from "../../test/support/golden.js";
 import {
   PY_WHITESPACE,
@@ -71,11 +72,12 @@ function byCodePoint(mappings: Record<string, string>): Map<number, string> {
 function expectClassMatches(
   matches: (character: string) => boolean,
   ranges: readonly string[],
+  tolerated?: ReadonlySet<number>,
 ): void {
   const set = codePointSet(ranges);
-  expect(sweepMismatches(matches, (codePoint) => set[codePoint] === 1)).toEqual(
-    [],
-  );
+  expect(
+    sweepMismatches(matches, (codePoint) => set[codePoint] === 1, tolerated),
+  ).toEqual([]);
 }
 
 describe("Python character classes", () => {
@@ -102,10 +104,15 @@ describe("Python character classes", () => {
   });
 
   it("\\p{Cased} and \\p{Case_Ignorable} match the properties str.title() reads", () => {
-    expectClassMatches((c) => /^\p{Cased}$/u.test(c), golden.casedRanges);
+    expectClassMatches(
+      (c) => /^\p{Cased}$/u.test(c),
+      golden.casedRanges,
+      unicodeDrift(),
+    );
     expectClassMatches(
       (c) => /^\p{Case_Ignorable}$/u.test(c),
       golden.caseIgnorableRanges,
+      unicodeDrift(),
     );
   });
 });
@@ -119,19 +126,24 @@ describe("Python case mappings", () => {
       sweepMismatches(
         (c) => c.toUpperCase(),
         (codePoint) => upper.get(codePoint) ?? String.fromCodePoint(codePoint),
+        unicodeDrift(),
       ),
     ).toEqual([]);
   });
 
   it("titlecase matches the str.title() mapping of every code point", () => {
     expect(
-      sweepMismatches(titlecase, (codePoint) => {
-        return (
-          title.get(codePoint) ??
-          upper.get(codePoint) ??
-          String.fromCodePoint(codePoint)
-        );
-      }),
+      sweepMismatches(
+        titlecase,
+        (codePoint) => {
+          return (
+            title.get(codePoint) ??
+            upper.get(codePoint) ??
+            String.fromCodePoint(codePoint)
+          );
+        },
+        unicodeDrift(),
+      ),
     ).toEqual([]);
   });
 

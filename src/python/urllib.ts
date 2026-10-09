@@ -2,13 +2,27 @@
 // on malformed input where Python substitutes U+FFFD.
 
 const ALWAYS_SAFE = /^[A-Za-z0-9_.~-]$/;
+const LONE_SURROGATE = /\p{Surrogate}/u;
 const encoder = new TextEncoder();
 // Python's UTF-8 codec keeps a leading BOM; TextDecoder strips it by default.
 const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
 
+export class UnicodeEncodeError extends Error {
+  constructor() {
+    super("'utf-8' codec can't encode a lone surrogate");
+    this.name = "UnicodeEncodeError";
+  }
+}
+
+// TextEncoder replaces a lone surrogate with U+FFFD; Python's codec raises.
+function encodeUtf8(value: string): Uint8Array {
+  if (LONE_SURROGATE.test(value)) throw new UnicodeEncodeError();
+  return encoder.encode(value);
+}
+
 export function quote(value: string, safe = "/"): string {
   let quoted = "";
-  for (const byte of encoder.encode(value)) {
+  for (const byte of encodeUtf8(value)) {
     const character = String.fromCharCode(byte);
     quoted +=
       byte < 0x80 && (ALWAYS_SAFE.test(character) || safe.includes(character))
