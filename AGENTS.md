@@ -96,6 +96,13 @@ Starlette's `add_vary_header` appends without deduplicating, so Python sends
 `Vary: Accept-Encoding, Accept-Encoding` on gzipped static files. The Nest
 port matches it; compare `Vary` as a token set.
 
+The Nest app is created with `bodyParser: false` (`HTTP_APP_OPTIONS` in
+`src/http-app.ts`). Nest's global parsers run before routing, so a malformed
+or oversized JSON body sent to `/robots.txt` answered 400 or 413 where Python
+answers 405. A route that reads a body, such as the checkout JSON or the raw
+Polar webhook body, must add its own parser. Pass `HTTP_APP_OPTIONS` to every
+`NestFactory.create` and `createNestApplication` call.
+
 Always use `pytest` for backend tests. The suite retains `unittest`-compatible
 test classes and standard-library mocks, but pytest is the official runner.
 

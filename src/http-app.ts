@@ -1,3 +1,4 @@
+import type { NestApplicationOptions } from "@nestjs/common";
 import express from "express";
 import {
   ExpressAdapter,
@@ -24,6 +25,13 @@ export function createHttpAdapter(): ExpressAdapter {
   server.set("strict routing", true);
   return new ExpressAdapter(server);
 }
+
+// Nest's global body parsers run before routing, so a bad JSON body sent to
+// a GET-only route answers 400 or 413 instead of Python's 405. Routes that
+// read a body parse it themselves.
+export const HTTP_APP_OPTIONS = {
+  bodyParser: false,
+} as const satisfies NestApplicationOptions;
 
 // Starlette runs the last added middleware first, so this is Python's
 // add_middleware order reversed, ending with the /static mount.

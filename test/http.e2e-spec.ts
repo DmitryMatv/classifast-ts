@@ -8,7 +8,11 @@ import type { Request } from "express";
 import request from "supertest";
 import { vi } from "vitest";
 import { AppModule } from "../src/app.module.js";
-import { configureHttpApp, createHttpAdapter } from "../src/http-app.js";
+import {
+  configureHttpApp,
+  createHttpAdapter,
+  HTTP_APP_OPTIONS,
+} from "../src/http-app.js";
 import {
   cacheHeaders,
   type CacheProfileName,
@@ -37,10 +41,10 @@ async function bootApp(staticRoot?: string): Promise<NestExpressApplication> {
     imports: [AppModule],
     controllers: [EchoController],
   }).compile();
-  const app =
-    moduleRef.createNestApplication<NestExpressApplication>(
-      createHttpAdapter(),
-    );
+  const app = moduleRef.createNestApplication<NestExpressApplication>(
+    createHttpAdapter(),
+    HTTP_APP_OPTIONS,
+  );
   configureHttpApp(app, staticRoot);
   await app.init();
   return app;
@@ -400,6 +404,19 @@ describe("HTTP layer (e2e)", () => {
 
     expect(response.status).toBe(405);
     expect(response.body).toEqual({ detail: "Method Not Allowed" });
+    expect(response.headers["allow"]).toBe("GET, HEAD");
+  });
+
+  it.each([
+    ["a malformed", "{"],
+    ["an oversized", JSON.stringify({ padding: "x".repeat(200_000) })],
+  ])("answers 405 before reading %s JSON body", async (_kind, body) => {
+    const response = await request(server)
+      .post("/robots.txt")
+      .set("Content-Type", "application/json")
+      .send(body);
+
+    expect(response.status).toBe(405);
     expect(response.headers["allow"]).toBe("GET, HEAD");
   });
 
