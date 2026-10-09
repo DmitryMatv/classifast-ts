@@ -17,7 +17,7 @@ const TIER_CACHE_SENTINELS = {
 const tierKey = (userId: string) => `user_tier:${userId}`;
 const graceKey = (userId: string) => `checkout_grace:${userId}`;
 
-const strictUtf8 = new TextDecoder("utf-8", { fatal: true });
+const strictUtf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 
 function resolutionFromCache(value: string): TierResolution | undefined {
   switch (value) {
