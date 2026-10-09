@@ -41,6 +41,14 @@ describe("Python number parsing", () => {
   );
 
   it.each([
+    ["a leading", "\ufeff20"],
+    ["a trailing", "20\ufeff"],
+  ])("rejects %s byte order mark, which Python does not strip", (_, raw) => {
+    expect(parsePythonInt(raw)).toBeUndefined();
+    expect(parsePythonFloat(raw)).toBeUndefined();
+  });
+
+  it.each([
     ["a positive exponent", "1e309"],
     ["a negative value", "-1e309"],
     ["a long positive mantissa", `${"9".repeat(400)}.0`],
