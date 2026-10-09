@@ -188,6 +188,41 @@ describe("RedisConnection", () => {
     expect(proxy.openConnections()).toBe(1);
   });
 
+  it("leaves no socket when the connect deadline passes during TCP setup", async () => {
+    const { proxy, connection } = await proxiedConnection();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+
+    const reply = outcome(connection.run(ping));
+    vi.advanceTimersByTime(5_000);
+
+    expect(await reply).toBeInstanceOf(Error);
+    await vi.waitFor(() => expect(proxy.acceptedConnections()).toBe(1));
+    await sleep(200);
+    expect(proxy.openConnections()).toBe(0);
+  });
+
+  it("keeps the new client when a replaced client's call times out late", async () => {
+    const { proxy, connection } = await proxiedConnection();
+    await connection.run(ping);
+    proxy.freezeOpenConnections();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const stuck = outcome(connection.run(ping));
+    await vi.advanceTimersByTimeAsync(1_000);
+    const late = outcome(connection.run(() => new Promise<never>(() => {})));
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(await stuck).toBeInstanceOf(Error);
+    expect(await connection.run(ping)).toBe("PONG");
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(await late).toBeInstanceOf(Error);
+    vi.useRealTimers();
+
+    expect(await connection.run(ping)).toBe("PONG");
+    await sleep(200);
+    expect(proxy.acceptedConnections()).toBe(2);
+    expect(proxy.openConnections()).toBe(1);
+  });
+
   it.each([
     ["TCP setup", false],
     ["an unanswered handshake", true],
