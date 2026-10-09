@@ -1,9 +1,9 @@
+import { createHmac, randomUUID } from "node:crypto";
 import { z } from "zod";
 import {
   classificationTimeout,
   contract,
   fullMode,
-  meets,
   unmetPrerequisites,
   type Prerequisite,
 } from "./support/env.js";
@@ -209,13 +209,12 @@ describe.runIf(fullMode)("configured server", () => {
     await expectJsonCase(jsonCase);
   });
 
-  it.runIf(meets("rapidApiSecret"))(
-    "RapidAPI 401 names the ApiKey scheme",
-    async () => {
-      const reply = await send("/api/v1/rapid/standards");
-      expect(reply.headers.get("www-authenticate")).toBe("ApiKey");
-    },
-  );
+  it("RapidAPI 401 names the ApiKey scheme", async ({ skip }) => {
+    const unmet = unmetPrerequisites(["rapidApiSecret"]);
+    skip(unmet.length > 0, unmet.join(", "));
+    const reply = await send("/api/v1/rapid/standards");
+    expect(reply.headers.get("www-authenticate")).toBe("ApiKey");
+  });
 
   it(`checkout request ${contract.checkoutRateLimit + 1} from one IP is 429`, async () => {
     const ip = freshClientIp();
@@ -266,7 +265,7 @@ const classifyBody = z.strictObject({
   processing_time: z.number(),
 });
 
-describe.runIf(meets("rapidApiSecret"))(
+describe.runIf(fullMode)(
   "RapidAPI JSON",
   { timeout: classificationTimeout(1) },
   () => {
@@ -274,7 +273,9 @@ describe.runIf(meets("rapidApiSecret"))(
       "x-rapidapi-proxy-secret": contract.rapidApiSecret ?? "",
     });
 
-    it("GET /standards", async () => {
+    it("GET /standards", async ({ skip }) => {
+      const unmet = unmetPrerequisites(["rapidApiSecret"]);
+      skip(unmet.length > 0, unmet.join(", "));
       const reply = await send("/api/v1/rapid/standards", {
         headers: authorized(),
       });
@@ -285,7 +286,9 @@ describe.runIf(meets("rapidApiSecret"))(
       ).toContain("UNSPSC");
     });
 
-    it("GET /classify", async () => {
+    it("GET /classify", async ({ skip }) => {
+      const unmet = unmetPrerequisites(["rapidApiSecret"]);
+      skip(unmet.length > 0, unmet.join(", "));
       const reply = await send(
         "/api/v1/rapid/classify?query=laptop%20computer&standard=unspsc&top_k=3",
         { headers: authorized() },
@@ -295,7 +298,9 @@ describe.runIf(meets("rapidApiSecret"))(
       classifyBody.parse(parseJson(reply));
     });
 
-    it("GET /classify with an empty query is 400", async () => {
+    it("GET /classify with an empty query is 400", async ({ skip }) => {
+      const unmet = unmetPrerequisites(["rapidApiSecret"]);
+      skip(unmet.length > 0, unmet.join(", "));
       const reply = await send(
         "/api/v1/rapid/classify?query=&standard=UNSPSC",
         {
@@ -306,7 +311,9 @@ describe.runIf(meets("rapidApiSecret"))(
       expect(parseJson(reply)).toEqual({ detail: "Query cannot be empty" });
     });
 
-    it("GET /classify with top_k=0 is 422", async () => {
+    it("GET /classify with top_k=0 is 422", async ({ skip }) => {
+      const unmet = unmetPrerequisites(["rapidApiSecret"]);
+      skip(unmet.length > 0, unmet.join(", "));
       const reply = await send(
         "/api/v1/rapid/classify?query=laptop&standard=UNSPSC&top_k=0",
         { headers: authorized() },
@@ -326,6 +333,12 @@ type WebhookCase = {
 };
 
 const validEvent = JSON.stringify(nonProSubscriptionEvent());
+const unknownEvent = JSON.stringify({
+  type: "contract.future_event",
+  timestamp: "2026-10-02T09:00:00Z",
+  api_version: "2026-10",
+  data: {},
+});
 const received = { status: "received" };
 const invalidSignature = { detail: "Invalid webhook signature" };
 const invalidPayload = { detail: "Invalid webhook payload" };
@@ -342,13 +355,27 @@ const webhookCases: WebhookCase[] = [
   },
   {
     name: "unknown event type",
-    body: JSON.stringify({
-      type: "contract.future_event",
-      timestamp: "2026-10-02T09:00:00Z",
-      api_version: "2026-10",
-      data: {},
-    }),
+    body: unknownEvent,
     sign: signed,
+    status: 200,
+    json: received,
+  },
+  {
+    name: "unknown event type signed with the raw UTF-8 key",
+    body: unknownEvent,
+    sign: (body, secret) => {
+      const id = `contract-${randomUUID()}`;
+      const timestamp = String(Math.floor(Date.now() / 1000));
+      const signature = createHmac("sha256", secret)
+        .update(`${id}.${timestamp}.${body}`)
+        .digest("base64");
+      return {
+        "content-type": "application/json",
+        "webhook-id": id,
+        "webhook-timestamp": timestamp,
+        "webhook-signature": `v1,${signature}`,
+      };
+    },
     status: 200,
     json: received,
   },
@@ -404,18 +431,23 @@ const webhookCases: WebhookCase[] = [
   },
 ];
 
-describe.runIf(meets("polarWebhookSecret"))("signed Polar webhooks", () => {
-  it.runIf(meets("polarProProductId"))(
-    "the fixture product is not the server's Pro product",
-    () => {
-      expect(contract.polarProProductId).not.toBe(nonProProductId);
-    },
-  );
+describe.runIf(fullMode)("signed Polar webhooks", () => {
+  it("the fixture product is not the server's Pro product", ({ skip }) => {
+    const unmet = unmetPrerequisites([
+      "polarWebhookSecret",
+      "polarProProductId",
+    ]);
+    skip(unmet.length > 0, unmet.join(", "));
+    expect(contract.polarProProductId).not.toBe(nonProProductId);
+  });
 
   it.for(webhookCases)(
     "$name",
     async ({ body, sign, status, json, requires }, { skip }) => {
-      const unmet = unmetPrerequisites(requires);
+      const unmet = unmetPrerequisites([
+        "polarWebhookSecret",
+        ...(requires ?? []),
+      ]);
       skip(unmet.length > 0, unmet.join(", "));
       const reply = await send("/api/webhooks/polar", {
         method: "POST",

@@ -40,9 +40,11 @@ it. The suite refuses a `BASE_URL` host other than `localhost`, `127.0.0.0/8`,
 or `::1`, because its checkout probes increment Redis rate-limit counters and
 full mode charges quota and runs live classifications. Set
 `CONTRACT_ALLOW_NON_LOOPBACK=1` to target another host deliberately. Point it
-at a public-mode Python instance from the verify driver. Set
+at a public-mode Python instance from the verify driver. Both modes require
+`DEBUG_MODE=false`. Set
 `CONTRACT_MODE=full` only against a server with Qdrant, Redis, and
-embeddings. A full-mode case that needs more server configuration runs only
+embeddings. Full mode has not been verified against configured live
+dependencies. A full-mode case that needs more server configuration runs only
 when a variable declares that the server has it, and otherwise reports the
 missing variable as its skip reason:
 
@@ -59,6 +61,11 @@ missing variable as its skip reason:
   OpenRouter. No request makes a configured enhancer fail deterministically.
 - `CONTRACT_ANON_LIMIT` and `CONTRACT_CHECKOUT_RATE_LIMIT` default to 10 and
   must equal the server's `ANON_LIMIT` and `CHECKOUT_RATE_LIMIT`.
+
+Polar's Python SDK accepts both raw UTF-8 secrets and base64-decoded Standard
+Webhooks keys. Canonical fixtures decode base64 secrets after removing the
+optional `whsec_` prefix. Non-base64 legacy secrets use UTF-8 bytes. A separate
+fixture covers raw-key compatibility.
 
 Two properties stay outside the suite because HTTP cannot observe them. The
 queue overflow case checks that at least five lookups in a burst succeed and
