@@ -71,7 +71,7 @@ describe("withReplyTimeout", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     let settled = false;
 
-    const reply = withReplyTimeout(client.incr("counter"));
+    const reply = withReplyTimeout(client, client.incr("counter"));
     void reply
       .catch(() => undefined)
       .finally(() => {
@@ -104,21 +104,21 @@ describe("withReplyTimeout", () => {
     proxy.freezeOpenConnections();
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
 
-    const stuck = expect(withReplyTimeout(client.ping())).rejects.toThrow(
-      "Redis did not reply within 5000 ms",
-    );
+    const stuck = expect(
+      withReplyTimeout(client, client.ping()),
+    ).rejects.toThrow("Redis did not reply within 5000 ms");
     await vi.advanceTimersByTimeAsync(5_000);
     await stuck;
     vi.useRealTimers();
     await vi.waitFor(() => expect(client.isReady).toBe(true));
 
-    expect(await withReplyTimeout(client.ping())).toBe("PONG");
+    expect(await withReplyTimeout(client, client.ping())).toBe("PONG");
   }, 10_000);
 
   it("passes a prompt reply through", async () => {
     const client = await connectTestRedis();
 
-    expect(await withReplyTimeout(client.ping())).toBe("PONG");
+    expect(await withReplyTimeout(client, client.ping())).toBe("PONG");
     await client.close();
   });
 });

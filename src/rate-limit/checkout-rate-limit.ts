@@ -42,6 +42,7 @@ export class CheckoutRateLimit {
     let count: number;
     try {
       const [incremented] = await withReplyTimeout(
+        this.redis,
         this.redis
           .multi()
           .incr(key)

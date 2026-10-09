@@ -11,23 +11,42 @@ const MAX_RECONNECT_DELAY_MS = 2_000;
 
 const logger = new Logger("Redis");
 
+class NoReplyError extends Error {
+  constructor() {
+    super(`Redis did not reply within ${TIMEOUT_MS} ms`);
+  }
+}
+
+async function withinTimeout<T>(pending: Promise<T>): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timedOut = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new NoReplyError()), TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([pending, timedOut]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * Fails a Redis call whose reply takes longer than redis-py's
  * socket_timeout. node-redis stops timing a command once it is written, so a
- * Redis that accepts commands and never answers would hang the caller.
+ * connection that stops answering would hang every later call. Like redis-py,
+ * drop that connection so the next call gets a fresh one.
  */
-export async function withReplyTimeout<T>(reply: Promise<T>): Promise<T> {
-  let timer: NodeJS.Timeout | undefined;
-  const timedOut = new Promise<never>((_, reject) => {
-    timer = setTimeout(
-      () => reject(new Error(`Redis did not reply within ${TIMEOUT_MS} ms`)),
-      TIMEOUT_MS,
-    );
-  });
+export async function withReplyTimeout<T>(
+  client: RedisClient,
+  reply: Promise<T>,
+): Promise<T> {
   try {
-    return await Promise.race([reply, timedOut]);
-  } finally {
-    clearTimeout(timer);
+    return await withinTimeout(reply);
+  } catch (error) {
+    if (error instanceof NoReplyError && client.isOpen) {
+      client.destroy();
+      client.connect().catch(() => undefined);
+    }
+    throw error;
   }
 }
 
@@ -53,8 +72,8 @@ export async function connectRedis(
 
   logger.log(`Connecting to Redis at ${config.host}:${config.port}...`);
   try {
-    await withReplyTimeout(client.connect());
-    await withReplyTimeout(client.ping());
+    await withinTimeout(client.connect());
+    await withinTimeout(client.ping());
   } catch (error) {
     logger.warn(
       `Redis not available, usage tracking disabled: ${String(error)}`,

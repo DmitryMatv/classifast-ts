@@ -162,7 +162,7 @@ export class Quota {
 
     let stored: (string | null)[];
     try {
-      stored = await withReplyTimeout(redis.mGet(usageKeys(caller)));
+      stored = await withReplyTimeout(redis, redis.mGet(usageKeys(caller)));
     } catch (cause) {
       logger.error(`Redis error checking usage: ${String(cause)}`);
       throw new QuotaUnavailableError({ cause });
@@ -182,7 +182,7 @@ export class Quota {
       for (const key of usageKeys(caller)) {
         transaction.incr(key).expire(key, USAGE_TTL_SECONDS);
       }
-      replies = await withReplyTimeout(transaction.exec());
+      replies = await withReplyTimeout(redis, transaction.exec());
     } catch (cause) {
       logger.error(`Redis error reserving usage: ${String(cause)}`);
       throw new QuotaUnavailableError({ cause });

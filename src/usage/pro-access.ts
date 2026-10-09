@@ -87,6 +87,7 @@ export class ProAccess {
     try {
       const { value, ttlSeconds } = cacheEntry(resolution);
       await withReplyTimeout(
+        this.redis,
         this.redis.set(tierKey(userId), value, {
           expiration: { type: "EX", value: ttlSeconds },
           condition: "NX",
@@ -101,6 +102,7 @@ export class ProAccess {
   async #readTier(userId: string): Promise<TierResolution | undefined> {
     if (!this.redis) return undefined;
     const raw = await withReplyTimeout(
+      this.redis,
       this.redis
         .withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer })
         .get(tierKey(userId)),
@@ -115,6 +117,7 @@ export class ProAccess {
     const value = tier === "pro" ? "pro" : "free";
     try {
       await withReplyTimeout(
+        this.redis,
         this.redis.setEx(tierKey(userId), TIER_CACHE_TTL_SECONDS, value),
       );
     } catch (error) {
@@ -125,6 +128,7 @@ export class ProAccess {
     if (value !== "pro") return;
     try {
       await withReplyTimeout(
+        this.redis,
         this.redis.setEx(graceKey(userId), this.graceTtlSeconds, "1"),
       );
     } catch (error) {
@@ -135,7 +139,11 @@ export class ProAccess {
   async #hasActiveGrace(userId: string): Promise<boolean> {
     if (!userId || !this.redis) return false;
     try {
-      return (await withReplyTimeout(this.redis.exists(graceKey(userId)))) > 0;
+      const graces = await withReplyTimeout(
+        this.redis,
+        this.redis.exists(graceKey(userId)),
+      );
+      return graces > 0;
     } catch (error) {
       logger.error(`Failed to check checkout grace period: ${String(error)}`);
       return false;
