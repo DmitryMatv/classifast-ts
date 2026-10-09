@@ -6,29 +6,28 @@ import {
 } from "@nestjs/common";
 import { APP_CONFIG, type AppConfig } from "../config/app-config.js";
 import {
-  closeRedis,
   connectRedis,
-  REDIS_CLIENT,
-  type RedisClient,
+  REDIS_CONNECTION,
+  type RedisConnection,
 } from "./redis-client.js";
 
 @Global()
 @Module({
   providers: [
     {
-      provide: REDIS_CLIENT,
+      provide: REDIS_CONNECTION,
       inject: [APP_CONFIG],
       useFactory: ({ redis }: AppConfig) => connectRedis(redis),
     },
   ],
-  exports: [REDIS_CLIENT],
+  exports: [REDIS_CONNECTION],
 })
 export class RedisModule implements OnApplicationShutdown {
   constructor(
-    @Inject(REDIS_CLIENT) private readonly redis: RedisClient | null,
+    @Inject(REDIS_CONNECTION) private readonly redis: RedisConnection | null,
   ) {}
 
   async onApplicationShutdown(): Promise<void> {
-    if (this.redis) await closeRedis(this.redis);
+    if (this.redis) await this.redis.close();
   }
 }

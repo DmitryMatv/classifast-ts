@@ -8,7 +8,7 @@ import {
 import type { AppConfig } from "../config/app-config.js";
 import { parsePythonInt } from "../config/python-number.js";
 import { HttpStatusError } from "../http-status-error.js";
-import { withReplyTimeout, type RedisClient } from "../redis/redis-client.js";
+import type { RedisConnection } from "../redis/redis-client.js";
 import { hashIp, trackingId } from "./client-identity.js";
 import type { ProAccess } from "./pro-access.js";
 
@@ -93,7 +93,7 @@ function storedCount(value: string | null): number {
 
 export class Quota {
   constructor(
-    private readonly redis: RedisClient | null,
+    private readonly redis: RedisConnection | null,
     private readonly clerk: Clerk,
     private readonly proAccess: ProAccess,
     private readonly limits: Pick<
@@ -162,7 +162,7 @@ export class Quota {
 
     let stored: (string | null)[];
     try {
-      stored = await withReplyTimeout(redis, redis.mGet(usageKeys(caller)));
+      stored = await redis.run((client) => client.mGet(usageKeys(caller)));
     } catch (cause) {
       logger.error(`Redis error checking usage: ${String(cause)}`);
       throw new QuotaUnavailableError({ cause });
@@ -178,11 +178,13 @@ export class Quota {
 
     let replies: unknown[];
     try {
-      const transaction = redis.multi();
-      for (const key of usageKeys(caller)) {
-        transaction.incr(key).expire(key, USAGE_TTL_SECONDS);
-      }
-      replies = await withReplyTimeout(redis, transaction.exec());
+      replies = await redis.run((client) => {
+        const transaction = client.multi();
+        for (const key of usageKeys(caller)) {
+          transaction.incr(key).expire(key, USAGE_TTL_SECONDS);
+        }
+        return transaction.exec();
+      });
     } catch (cause) {
       logger.error(`Redis error reserving usage: ${String(cause)}`);
       throw new QuotaUnavailableError({ cause });
@@ -192,7 +194,7 @@ export class Quota {
     return this.#metered(caller, count, count <= this.#limit(caller));
   }
 
-  #requireRedis(): RedisClient {
+  #requireRedis(): RedisConnection {
     if (this.redis) return this.redis;
     logger.warn("Redis not available, denying metered request");
     throw new QuotaUnavailableError();

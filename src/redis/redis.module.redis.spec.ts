@@ -10,7 +10,9 @@ describe("RedisModule", () => {
   it("closes Redis within five seconds while a command hangs", async () => {
     const { client, close } = await hungRedis();
     onTestFinished(close);
-    const hanging = client.incr("counter").catch((error: unknown) => error);
+    const hanging = client
+      .run((redis) => redis.incr("counter"))
+      .catch((error: unknown) => error);
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     let closed = false;
 

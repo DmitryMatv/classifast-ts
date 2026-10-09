@@ -14,11 +14,12 @@ import {
   closedRedis,
   commandsSentBy,
   connectTestRedis,
+  testConnection,
   hungRedis,
   uniqueId,
 } from "../../test/support/redis.js";
 import { parseAppConfig } from "../config/app-config.js";
-import type { RedisClient } from "../redis/redis-client.js";
+import type { RedisClient, RedisConnection } from "../redis/redis-client.js";
 import { hashIp } from "./client-identity.js";
 import { ProAccess } from "./pro-access.js";
 import {
@@ -35,13 +36,16 @@ const FREE_USER_LIMIT = 30;
 const USAGE_TTL_SECONDS = 365 * 24 * 60 * 60;
 
 let redis: RedisClient;
+let connection: RedisConnection;
 
 beforeAll(async () => {
   redis = await connectTestRedis();
+  connection = testConnection();
 });
 
 afterAll(async () => {
   await redis.close();
+  await connection.close();
 });
 
 afterEach(() => {
@@ -57,10 +61,10 @@ const noSuchUser: Route = () => new Response(null, { status: 404 });
 
 interface Setup {
   readonly origins?: string[];
-  readonly client?: RedisClient | null;
+  readonly client?: RedisConnection | null;
 }
 
-async function setup({ origins = [], client = redis }: Setup = {}) {
+async function setup({ origins = [], client = connection }: Setup = {}) {
   const { clerk, http, key } = await clerkWithKey(
     clerkConfig({ permittedOrigins: origins }),
   );
@@ -522,7 +526,9 @@ describe("Quota.charge", () => {
     const caller = anonymous();
     const ttl = String(USAGE_TTL_SECONDS);
 
-    const commands = await commandsSentBy(redis, () => quota.charge(caller));
+    const commands = await commandsSentBy(connection, () =>
+      quota.charge(caller),
+    );
 
     expect(commands).toEqual([
       ["MULTI"],

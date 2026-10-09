@@ -8,11 +8,12 @@ import {
 import {
   closedRedis,
   connectTestRedis,
+  testConnection,
   hungRedis,
   uniqueId,
 } from "../../test/support/redis.js";
 import { Clerk, type TierResolution } from "../auth/clerk.js";
-import type { RedisClient } from "../redis/redis-client.js";
+import type { RedisClient, RedisConnection } from "../redis/redis-client.js";
 import { ProAccess } from "./pro-access.js";
 
 const GRACE_TTL_SECONDS = 300;
@@ -20,13 +21,16 @@ const TIER_CACHE_TTL_SECONDS = 3600;
 const NEGATIVE_TIER_CACHE_TTL_SECONDS = 60;
 
 let redis: RedisClient;
+let connection: RedisConnection;
 
 beforeAll(async () => {
   redis = await connectTestRedis();
+  connection = testConnection();
 });
 
 afterAll(async () => {
   await redis.close();
+  await connection.close();
 });
 
 afterEach(() => {
@@ -40,7 +44,7 @@ function tierResponse(tier: string | undefined): Response {
 function proAccess(
   userId: string,
   route: Route,
-  client: RedisClient | null = redis,
+  client: RedisConnection | null = connection,
 ) {
   const http = new FakeClerkHttp();
   http.user(userId, route);
@@ -199,13 +203,13 @@ describe("ProAccess.lookUpTier", () => {
 
   it("test_get_cached_user_tier_returns_clerk_resolution_when_fill_fails", async () => {
     const userId = uniqueId("user");
-    const client = await connectTestRedis();
+    const client = testConnection();
     const held = heldRoute(() => tierResponse("pro"));
     const { access } = proAccess(userId, held.route, client);
 
     const lookup = access.lookUpTier(userId);
     await held.requested;
-    client.destroy();
+    await client.close();
     held.release();
 
     expect(await lookup).toEqual({ status: "confirmed_pro" });

@@ -4,10 +4,11 @@ import {
   closedRedis,
   commandsSentBy,
   connectTestRedis,
+  testConnection,
   hungRedis,
   uniqueId,
 } from "../../test/support/redis.js";
-import type { RedisClient } from "../redis/redis-client.js";
+import type { RedisClient, RedisConnection } from "../redis/redis-client.js";
 import { hashIp } from "../usage/client-identity.js";
 import {
   CheckoutRateLimit,
@@ -18,20 +19,23 @@ import {
 const WINDOW_SECONDS = 60;
 
 let redis: RedisClient;
+let connection: RedisConnection;
 
 beforeAll(async () => {
   redis = await connectTestRedis();
+  connection = testConnection();
 });
 
 afterAll(async () => {
   await redis.close();
+  await connection.close();
 });
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
-function limiter(limit = 10, client: RedisClient | null = redis) {
+function limiter(limit = 10, client: RedisConnection | null = connection) {
   return new CheckoutRateLimit(client, {
     checkoutRateLimit: limit,
     checkoutRateLimitWindowSeconds: WINDOW_SECONDS,
@@ -111,7 +115,9 @@ describe("CheckoutRateLimit", () => {
   it("counts and arms the window in one MULTI transaction", async () => {
     const { ip, key } = counter();
 
-    const commands = await commandsSentBy(redis, () => limiter().enforce(ip));
+    const commands = await commandsSentBy(connection, () =>
+      limiter().enforce(ip),
+    );
 
     expect(commands).toEqual([
       ["MULTI"],

@@ -1,7 +1,7 @@
 import { Logger } from "@nestjs/common";
 import type { AppConfig } from "../config/app-config.js";
 import { HttpStatusError } from "../http-status-error.js";
-import { withReplyTimeout, type RedisClient } from "../redis/redis-client.js";
+import type { RedisConnection } from "../redis/redis-client.js";
 import { hashIp } from "../usage/client-identity.js";
 
 const logger = new Logger("CheckoutRateLimit");
@@ -24,7 +24,7 @@ export class CheckoutRateLimitUnavailableError extends HttpStatusError {
 
 export class CheckoutRateLimit {
   constructor(
-    private readonly redis: RedisClient | null,
+    private readonly redis: RedisConnection | null,
     private readonly config: Pick<
       AppConfig["quota"],
       "checkoutRateLimit" | "checkoutRateLimitWindowSeconds"
@@ -41,9 +41,8 @@ export class CheckoutRateLimit {
 
     let count: number;
     try {
-      const [incremented] = await withReplyTimeout(
-        this.redis,
-        this.redis
+      const [incremented] = await this.redis.run((client) =>
+        client
           .multi()
           .incr(key)
           .expire(key, this.config.checkoutRateLimitWindowSeconds, "NX")

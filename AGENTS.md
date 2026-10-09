@@ -41,17 +41,18 @@ specs must not mock Redis; MULTI, `EXPIRE NX` and `SET EX NX` are the behavior
 under test.
 
 node-redis waits forever by default: `connect()` retries until it succeeds and
-commands queue while the client is disconnected. `src/redis/redis-client.ts`
-stops the first connection attempt on failure and sets `disableOfflineQueue`,
-so metered requests fail closed at once, as they do in Python.
-node-redis's command `timeout` stops counting once a command is written, and
-its `socketTimeout` is an idle timeout. Neither fails a command that a hung
-Redis never answers. Wrap every Redis call in `withReplyTimeout`, which fails
-it after redis-py's five-second `socket_timeout`. Without it, a hung Redis
-would block the charge, which holds the only classification turn. A timeout
-also destroys the connection and reconnects, as redis-py does; otherwise the
-stuck connection fails every later call. `close()` waits for pending replies,
-so shut down with `closeRedis`, which destroys the client after five seconds.
+commands queue while the client is disconnected. Its command `timeout` stops
+counting once a command is written, and its `socketTimeout` is an idle
+timeout, so neither fails a command that a hung Redis never answers.
+Reconnecting a node-redis client in place is also unsafe: the replacement
+`connect()` has no deadline, `multi().exec()` queues during it despite
+`disableOfflineQueue`, overlapping reconnects leave two live sockets, and a
+`destroy()` during TCP setup does not stop the socket from being installed.
+Never call `connect()` on a used client. Use `RedisConnection` in
+`src/redis/redis-client.ts`: run every command through `run()`, which applies
+redis-py's five-second `socket_timeout` and drops a client that times out or
+breaks. The next call makes a new client with one bounded connect attempt.
+`close()` destroys an in-flight attempt and bounds shutdown to five seconds.
 
 `TextDecoder` and `Response.text()` strip a leading UTF-8 BOM; Python's
 `.decode()` keeps it. Decode Redis bytes with `ignoreBOM: true` (a cached tier

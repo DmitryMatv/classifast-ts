@@ -4,6 +4,7 @@ import { createClient } from "redis";
 import { inject } from "vitest";
 import {
   connectRedis,
+  RedisConnection,
   type RedisClient,
 } from "../../src/redis/redis-client.js";
 
@@ -16,8 +17,19 @@ export async function connectTestRedis(): Promise<RedisClient> {
   return client;
 }
 
-export function closedRedis(): RedisClient {
-  return createClient({ url: inject("redisUrl"), disableOfflineQueue: true });
+export function testConnection(): RedisConnection {
+  const { hostname, port } = new URL(inject("redisUrl"));
+  return new RedisConnection({
+    host: hostname,
+    port: Number(port),
+    auth: undefined,
+  });
+}
+
+export function closedRedis(): RedisConnection {
+  const connection = testConnection();
+  void connection.close();
+  return connection;
 }
 
 export function uniqueId(prefix: string): string {
@@ -60,17 +72,22 @@ export async function hangingRedisServer() {
 
 /**
  * Forwards connections to the test Redis. Freezing drops Redis's replies on
- * the connections open at that moment, while later connections still work.
+ * the connections open at that moment; `freeze` also drops them on later
+ * connections until `heal`, so those accept TCP but never answer.
  */
 export async function freezableRedisProxy() {
   const { hostname, port } = new URL(inject("redisUrl"));
   const sockets = new Set<Socket>();
   const open = new Set<Socket>();
   const frozen = new WeakSet<Socket>();
+  let freezingNew = false;
+  let accepted = 0;
   const server = createServer((downstream) => {
+    accepted += 1;
     const upstream = connect(Number(port), hostname);
     sockets.add(downstream).add(upstream);
     open.add(downstream);
+    if (freezingNew) frozen.add(downstream);
     downstream.pipe(upstream);
     upstream.on("data", (chunk) => {
       if (!frozen.has(downstream)) downstream.write(chunk);
@@ -89,6 +106,15 @@ export async function freezableRedisProxy() {
     freezeOpenConnections: () => {
       for (const socket of open) frozen.add(socket);
     },
+    freeze: () => {
+      for (const socket of open) frozen.add(socket);
+      freezingNew = true;
+    },
+    heal: () => {
+      freezingNew = false;
+    },
+    openConnections: () => open.size,
+    acceptedConnections: () => accepted,
   };
 }
 
@@ -104,7 +130,7 @@ export async function hungRedis() {
   return {
     client,
     close: async () => {
-      client.destroy();
+      void client.close();
       await server.close();
     },
   };
@@ -117,10 +143,10 @@ function monitorArgs(line: string): string[] {
 }
 
 export async function commandsSentBy(
-  client: RedisClient,
+  connection: RedisConnection,
   run: () => Promise<unknown>,
 ): Promise<string[][]> {
-  const { addr } = await client.clientInfo();
+  const { addr } = await connection.run((client) => client.clientInfo());
   const marker = uniqueId("end-of-commands");
   const monitor = await connectTestRedis();
   const lines: string[] = [];
@@ -133,7 +159,7 @@ export async function commandsSentBy(
   });
   try {
     await run();
-    await client.echo(marker);
+    await connection.run((client) => client.echo(marker));
     await markerSeen;
   } finally {
     monitor.destroy();
