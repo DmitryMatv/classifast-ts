@@ -15,7 +15,6 @@ export const OPENROUTER_CHAT_URL =
 export const QUERY_ENHANCEMENT_MODEL = "google/gemini-3.1-flash-lite";
 const TIMEOUT_MS = 3_000;
 const MAX_DESCRIPTION_LENGTH = 240;
-const CONTROL_CHARACTER = /[\x00-\x1f]/;
 
 export interface EnhancementOutcome {
   readonly text: string;
@@ -110,7 +109,7 @@ export class QueryEnhancer {
     if (!description) return skipped;
     if (
       codePointLength(description) > MAX_DESCRIPTION_LENGTH ||
-      CONTROL_CHARACTER.test(description)
+      Array.from(description).some((character) => character.charCodeAt(0) < 32)
     ) {
       return failed;
     }

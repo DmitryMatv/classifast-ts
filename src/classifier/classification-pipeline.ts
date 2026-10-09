@@ -78,6 +78,12 @@ export interface CompletionOptions {
   readonly deadline?: number;
 }
 
+function logId(value: unknown): string {
+  return typeof value === "string" || typeof value === "number"
+    ? String(value)
+    : "N/A";
+}
+
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -259,7 +265,7 @@ export async function rerankCandidates(
     const top = reranked[0];
     if (top) {
       logger.log(
-        `RERANK_COMPLETE: Top result=${String(top.payload.original_id ?? "N/A")} score=${(top.rerankRelevanceScore * 100).toFixed(2)} (reranked ${toRerank.length} docs)`,
+        `RERANK_COMPLETE: Top result=${logId(top.payload.original_id)} score=${(top.rerankRelevanceScore * 100).toFixed(2)} (reranked ${toRerank.length} docs)`,
       );
     }
   } catch (error) {

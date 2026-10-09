@@ -34,7 +34,7 @@ export function fakeFetch(...replies: Reply[]): FakeFetch {
     const text = typeof init?.body === "string" ? init.body : undefined;
     const request: RecordedRequest = {
       method: init?.method ?? "GET",
-      url: String(input),
+      url: input instanceof Request ? input.url : input.toString(),
       authorization: headers.get("authorization"),
       contentType: headers.get("content-type"),
       body: text === undefined ? null : JSON.parse(text),

@@ -7,7 +7,6 @@ import {
 } from "../../test/support/fake-http.js";
 import type { Fetch } from "./outbound.js";
 import {
-  OPENROUTER_RERANK_URL,
   OpenRouterReranker,
   RerankerResponseError,
   parseRerankScores,
