@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { realpathSync, type BigIntStats } from "node:fs";
 import { readFile, realpath, stat } from "node:fs/promises";
 import { extname, join, sep } from "node:path";
@@ -12,6 +12,7 @@ import {
 } from "../http/cache-profiles.js";
 import { splitRequestTarget } from "../http/middleware.js";
 import { pyRepr } from "../python/float-repr.js";
+import { pyInt } from "../python/numbers.js";
 import { pyStrip } from "../python/str.js";
 import { unquote } from "../python/urllib.js";
 
@@ -124,6 +125,139 @@ export function isNotModified(
   );
 }
 
+// Starlette's FileResponse range handling. Ranges are [start, end) pairs.
+export type ByteRange = readonly [start: number, end: number];
+
+export type RangeRequest =
+  | { readonly kind: "whole" }
+  | { readonly kind: "partial"; readonly ranges: readonly ByteRange[] }
+  | { readonly kind: "malformed"; readonly message: string }
+  | { readonly kind: "unsatisfiable" };
+
+const MAX_RANGES = 100;
+
+function parseRanges(spec: string, size: number): ByteRange[] {
+  const ranges: ByteRange[] = [];
+  for (const rawPart of spec.split(",")) {
+    const part = pyStrip(rawPart);
+    if (part === "" || part === "-" || !part.includes("-")) continue;
+    const dash = part.indexOf("-");
+    const startText = pyStrip(part.slice(0, dash));
+    const endText = pyStrip(part.slice(dash + 1));
+    const startValue = startText === "" ? undefined : pyInt(startText);
+    const endValue = endText === "" ? undefined : pyInt(endText);
+    if (startText !== "" && startValue === undefined) continue;
+    if (endText !== "" && endValue === undefined) continue;
+    if (startValue === undefined) {
+      if (endValue === undefined) continue;
+      ranges.push([Math.max(size - Number(endValue), 0), size]);
+      continue;
+    }
+    const end =
+      endValue !== undefined && endValue < BigInt(size)
+        ? Number(endValue) + 1
+        : size;
+    ranges.push([Number(startValue), end]);
+  }
+  return ranges;
+}
+
+export function parseRangeHeader(header: string, size: number): RangeRequest {
+  const equals = header.indexOf("=");
+  if (equals === -1) {
+    return { kind: "malformed", message: "Malformed range header." };
+  }
+  if (pyStrip(header.slice(0, equals)).toLowerCase() !== "bytes") {
+    return { kind: "malformed", message: "Only support bytes range" };
+  }
+  const spec = header.slice(equals + 1);
+  if (spec.split(",").length > MAX_RANGES) return { kind: "whole" };
+  const ranges = parseRanges(spec, size);
+  if (ranges.length === 0) {
+    return {
+      kind: "malformed",
+      message: "Range header: range must be requested",
+    };
+  }
+  if (ranges.some(([start]) => !(start >= 0 && start < size))) {
+    return { kind: "unsatisfiable" };
+  }
+  if (ranges.some(([start, end]) => start >= end)) {
+    return {
+      kind: "malformed",
+      message: "Range header: start must be less than end",
+    };
+  }
+  if (ranges.length === 1) return { kind: "partial", ranges };
+  const sorted = ranges.toSorted((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const merged: [number, number][] = [[...sorted[0]!]];
+  for (const [start, end] of sorted.slice(1)) {
+    const last = merged.at(-1)!;
+    if (start <= last[1]) last[1] = Math.max(last[1], end);
+    else merged.push([start, end]);
+  }
+  return { kind: "partial", ranges: merged };
+}
+
+function rangeRequest(
+  req: Request,
+  validators: Validators,
+  size: number,
+): RangeRequest {
+  const range = req.headersDistinct["range"]?.[0];
+  if (range === undefined) return { kind: "whole" };
+  const ifRange = req.headersDistinct["if-range"]?.[0];
+  if (
+    ifRange !== undefined &&
+    ifRange !== validators.lastModified &&
+    ifRange !== validators.etag
+  ) {
+    return { kind: "whole" };
+  }
+  return parseRangeHeader(range, size);
+}
+
+// Starlette answers range errors with a fresh PlainTextResponse, so none of
+// the file's cache or validator headers apply.
+function sendPlainText(
+  res: Response,
+  status: number,
+  text: string,
+  headers: HeaderRecord = {},
+): void {
+  res.statusCode = status;
+  for (const [name, value] of Object.entries(headers)) {
+    res.setHeader(name, value);
+  }
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.setHeader("Content-Length", Buffer.byteLength(text));
+  res.end(text);
+}
+
+function multipartBody(
+  ranges: readonly ByteRange[],
+  size: number,
+  contentType: string,
+  body: Buffer | undefined,
+): { boundary: string; parts: Buffer[]; length: number } {
+  const boundary = randomBytes(13).toString("hex");
+  const parts: Buffer[] = [];
+  let length = 0;
+  for (const [start, end] of ranges) {
+    const head = Buffer.from(
+      `--${boundary}\r\nContent-Type: ${contentType}\r\n` +
+        `Content-Range: bytes ${start}-${end - 1}/${size}\r\n\r\n`,
+      "latin1",
+    );
+    parts.push(head, body?.subarray(start, end) ?? Buffer.alloc(0));
+    parts.push(Buffer.from("\r\n"));
+    length += head.length + (end - start) + 2;
+  }
+  const tail = Buffer.from(`--${boundary}--`, "latin1");
+  parts.push(tail);
+  return { boundary, parts, length: length + tail.length };
+}
+
 export async function sendStaticFile(
   req: Request,
   res: Response,
@@ -131,25 +265,54 @@ export async function sendStaticFile(
   headers: HeaderRecord,
 ): Promise<void> {
   const validators = fileValidators(file.stats);
-  for (const [name, value] of Object.entries(headers)) {
-    res.setHeader(name, value);
-  }
-  res.setHeader("ETag", validators.etag);
+  const size = Number(file.stats.size);
   if (isNotModified(req.headers, validators)) {
+    for (const [name, value] of Object.entries(headers)) {
+      res.setHeader(name, value);
+    }
+    res.setHeader("ETag", validators.etag);
     res.statusCode = 304;
     res.end();
     return;
   }
-  res.setHeader("Content-Type", contentTypeFor(file.path));
-  res.setHeader("Last-Modified", validators.lastModified);
-  if (req.method === "HEAD") {
-    res.setHeader("Content-Length", String(file.stats.size));
-    res.end();
+  const range = rangeRequest(req, validators, size);
+  if (range.kind === "malformed") {
+    sendPlainText(res, 400, range.message);
     return;
   }
-  const body = await readFile(file.path);
-  res.setHeader("Content-Length", body.length);
-  res.end(body);
+  if (range.kind === "unsatisfiable") {
+    sendPlainText(res, 416, "", { "Content-Range": `bytes */${size}` });
+    return;
+  }
+  const contentType = contentTypeFor(file.path);
+  for (const [name, value] of Object.entries(headers)) {
+    res.setHeader(name, value);
+  }
+  res.setHeader("ETag", validators.etag);
+  res.setHeader("Content-Type", contentType);
+  res.setHeader("Last-Modified", validators.lastModified);
+  res.setHeader("Accept-Ranges", "bytes");
+  const body = req.method === "HEAD" ? undefined : await readFile(file.path);
+  if (range.kind === "whole") {
+    res.setHeader("Content-Length", body?.length ?? size);
+    res.end(body);
+    return;
+  }
+  res.statusCode = 206;
+  if (range.ranges.length === 1) {
+    const [start, end] = range.ranges[0]!;
+    res.setHeader("Content-Range", `bytes ${start}-${end - 1}/${size}`);
+    res.setHeader("Content-Length", end - start);
+    res.end(body?.subarray(start, end));
+    return;
+  }
+  const multipart = multipartBody(range.ranges, size, contentType, body);
+  res.setHeader(
+    "Content-Type",
+    `multipart/byteranges; boundary=${multipart.boundary}`,
+  );
+  res.setHeader("Content-Length", multipart.length);
+  res.end(body && Buffer.concat(multipart.parts));
 }
 
 const NOT_FOUND_CODES: ReadonlySet<unknown> = new Set([

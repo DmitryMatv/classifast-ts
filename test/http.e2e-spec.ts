@@ -70,6 +70,15 @@ function varySet(response: request.Response): string[] {
   return [...new Set(varyTokens(response))];
 }
 
+function rawBody(
+  res: request.Response,
+  done: (error: Error | null, body: Buffer) => void,
+): void {
+  const chunks: Buffer[] = [];
+  res.on("data", (chunk: Buffer) => chunks.push(chunk));
+  res.on("end", () => done(null, Buffer.concat(chunks)));
+}
+
 describe("mounted static files (e2e)", () => {
   let app: NestExpressApplication;
   let root: string;
@@ -138,6 +147,111 @@ describe("mounted static files (e2e)", () => {
     expect(revalidated.headers["etag"]).toBe(changed.headers["etag"]);
   });
 
+  describe("byte ranges", () => {
+    const contents = "0123456789abcdefghijklmnopqrstuvwxyz";
+
+    beforeEach(async () => {
+      await writeFile(join(root, "app.js"), contents);
+    });
+
+    it("advertises byte ranges on a full response", async () => {
+      const response = await request(app.getHttpServer()).get("/static/app.js");
+
+      expect(response.status).toBe(200);
+      expect(response.headers["accept-ranges"]).toBe("bytes");
+    });
+
+    it("answers a single range with 206 and Content-Range", async () => {
+      const response = await request(app.getHttpServer())
+        .get("/static/app.js")
+        .set("Range", "bytes=0-9")
+        .set("Accept-Encoding", "gzip")
+        .buffer(true)
+        .parse(rawBody);
+
+      expect(response.status).toBe(206);
+      expect(response.body.toString()).toBe("0123456789");
+      expect(response.headers["content-range"]).toBe("bytes 0-9/36");
+      expect(response.headers["content-length"]).toBe("10");
+      expect(response.headers["content-encoding"]).toBeUndefined();
+      expect(response.headers["accept-ranges"]).toBe("bytes");
+      expectProfile(response, "STATIC_CODE");
+    });
+
+    it("answers HEAD with a range like GET without a body", async () => {
+      const response = await request(app.getHttpServer())
+        .head("/static/app.js")
+        .set("Range", "bytes=-4");
+
+      expect(response.status).toBe(206);
+      expect(response.headers["content-range"]).toBe("bytes 32-35/36");
+      expect(response.headers["content-length"]).toBe("4");
+    });
+
+    it("answers several ranges with a multipart body", async () => {
+      const response = await request(app.getHttpServer())
+        .get("/static/app.js")
+        .set("Range", "bytes=10-12, 0-1")
+        .buffer(true)
+        .parse(rawBody);
+
+      const boundary = /^multipart\/byteranges; boundary=([0-9a-f]{26})$/.exec(
+        response.headers["content-type"] ?? "",
+      )?.[1];
+      expect(response.status).toBe(206);
+      expect(boundary).toBeDefined();
+      const part = (range: string, text: string) =>
+        `--${boundary}\r\nContent-Type: text/javascript; charset=utf-8\r\n` +
+        `Content-Range: bytes ${range}/36\r\n\r\n${text}\r\n`;
+      const expected = `${part("0-1", "01")}${part("10-12", "abc")}--${boundary}--`;
+      expect(response.body.toString()).toBe(expected);
+      expect(response.headers["content-length"]).toBe(String(expected.length));
+    });
+
+    it("ignores the range when If-Range does not match", async () => {
+      const server = app.getHttpServer();
+      const stale = await request(server)
+        .get("/static/app.js")
+        .set("Range", "bytes=0-9")
+        .set("If-Range", '"stale"');
+      const etag = stale.headers["etag"]!;
+      const current = await request(server)
+        .get("/static/app.js")
+        .set("Range", "bytes=0-9")
+        .set("If-Range", etag);
+
+      expect(stale.status).toBe(200);
+      expect(stale.text).toBe(contents);
+      expect(current.status).toBe(206);
+    });
+
+    it("answers an unsatisfiable range with 416", async () => {
+      const response = await request(app.getHttpServer())
+        .get("/static/app.js")
+        .set("Range", "bytes=36-");
+
+      expect(response.status).toBe(416);
+      expect(response.text).toBe("");
+      expect(response.headers["content-range"]).toBe("bytes */36");
+      expect(response.headers["content-type"]).toBe(
+        "text/plain; charset=utf-8",
+      );
+      expect(response.headers["cache-tag"]).toBeUndefined();
+      expect(response.headers["etag"]).toBeUndefined();
+    });
+
+    it("answers a malformed range with Starlette's 400 text", async () => {
+      const response = await request(app.getHttpServer())
+        .get("/static/app.js")
+        .set("Range", "bytes=9-3");
+
+      expect(response.status).toBe(400);
+      expect(response.text).toBe("Range header: start must be less than end");
+      expect(response.headers["cache-tag"]).toBeUndefined();
+      expect(response.headers["cache-control"]).toBeUndefined();
+    });
+  });
+
   it("refuses paths that climb out of the mount", async () => {
     const response = await request(app.getHttpServer()).get(
       "/static/%2E%2E/%2E%2E/package.json",
@@ -189,6 +303,19 @@ describe("HTTP layer (e2e)", () => {
 
     expect(response.headers["content-encoding"]).toBe("gzip");
     expect(varySet(response)).toEqual(["accept-encoding"]);
+  });
+
+  it("serves a byte range of a root file", async () => {
+    const full = await request(server).get("/robots.txt");
+    const partial = await request(server)
+      .get("/robots.txt")
+      .set("Range", "bytes=0-9");
+
+    expect(partial.status).toBe(206);
+    expect(partial.text).toBe(full.text.slice(0, 10));
+    expect(partial.headers["content-range"]).toBe(
+      `bytes 0-9/${full.headers["content-length"]}`,
+    );
   });
 
   it("answers HEAD like GET without a body", async () => {

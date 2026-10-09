@@ -7,7 +7,9 @@ import {
   fileValidators,
   isNotModified,
   normalizeRoutePath,
+  parseRangeHeader,
   staticFileProfile,
+  type RangeRequest,
 } from "./static-files.js";
 
 const golden = readGolden(
@@ -141,5 +143,63 @@ describe("normalizeRoutePath mirrors os.path.normpath under the mount", () => {
     ["/js/../../.env", undefined],
   ])("%s -> %s", (routePath, expected) => {
     expect(normalizeRoutePath(routePath)).toBe(expected);
+  });
+});
+
+// Expected values come from Starlette's FileResponse._parse_range_header
+// with a 100-byte file.
+describe("parseRangeHeader matches Starlette", () => {
+  const tooMany = `bytes=0-1,${Array(100).fill("0-1").join(",")}`;
+
+  it.each<[string, RangeRequest]>([
+    ["bytes=0-9", { kind: "partial", ranges: [[0, 10]] }],
+    ["bytes=-5", { kind: "partial", ranges: [[95, 100]] }],
+    ["bytes=5-", { kind: "partial", ranges: [[5, 100]] }],
+    ["bytes=0-999", { kind: "partial", ranges: [[0, 100]] }],
+    ["bytes=-200", { kind: "partial", ranges: [[0, 100]] }],
+    ["bytes=0-0", { kind: "partial", ranges: [[0, 1]] }],
+    ["BYTES = 0-1", { kind: "partial", ranges: [[0, 2]] }],
+    ["bytes=+1-1_0", { kind: "partial", ranges: [[1, 11]] }],
+    ["bytes= 2 - 4 ", { kind: "partial", ranges: [[2, 5]] }],
+    ["bytes=5-x, 1-2", { kind: "partial", ranges: [[1, 3]] }],
+    ["bytes=0-1,4-6,2-3", { kind: "partial", ranges: [[0, 7]] }],
+    ["bytes=0-1,0-2", { kind: "partial", ranges: [[0, 3]] }],
+    [
+      "bytes=0-1, 3-4",
+      {
+        kind: "partial",
+        ranges: [
+          [0, 2],
+          [3, 5],
+        ],
+      },
+    ],
+    [tooMany, { kind: "whole" }],
+    ["bytes=100-", { kind: "unsatisfiable" }],
+    ["bytes=-0", { kind: "unsatisfiable" }],
+    [
+      "bytes=9-3",
+      {
+        kind: "malformed",
+        message: "Range header: start must be less than end",
+      },
+    ],
+    [
+      "bytes=0--5",
+      {
+        kind: "malformed",
+        message: "Range header: start must be less than end",
+      },
+    ],
+    ["bytes 0-1", { kind: "malformed", message: "Malformed range header." }],
+    ["items=0-1", { kind: "malformed", message: "Only support bytes range" }],
+    ...["bytes=", "bytes=-", "bytes=a-b"].map(
+      (header): [string, RangeRequest] => [
+        header,
+        { kind: "malformed", message: "Range header: range must be requested" },
+      ],
+    ),
+  ])("%s", (header, expected) => {
+    expect(parseRangeHeader(header, 100)).toEqual(expected);
   });
 });
