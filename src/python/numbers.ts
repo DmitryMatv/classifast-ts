@@ -2,12 +2,9 @@ import { PY_WHITESPACE } from "./str.js";
 
 const DECIMAL = /^\p{Nd}$/u;
 const UNICODE_SPACE = new RegExp(`^[${PY_WHITESPACE}]$`);
-// int() and float() strip only ASCII whitespace. U+001C to U+001F stay put,
-// so int("\x1c5") fails although "\x1c5".strip() is "5".
-const ASCII_SPACE_RUN = /^[\t\n\v\f\r ]+|[\t\n\v\f\r ]+$/g;
 const INT_LITERAL = /^[+-]?\d(?:_?\d)*$/;
 const FLOAT_LITERAL =
-  /^[+-]?(?:(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?|inf|infinity|nan)$/i;
+  /^[+-]?(?:(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|inf|infinity|nan)$/i;
 const PY_INT_MAX_STR_DIGITS = 4300;
 
 // Unicode encodes every Nd digit in a run of ten, ascending from zero.
@@ -26,7 +23,9 @@ function toAsciiLiteral(text: string): string | undefined {
     else if (DECIMAL.test(character)) ascii += decimalDigit(codePoint);
     else return undefined;
   }
-  return ascii.replace(ASCII_SPACE_RUN, "");
+  // On ASCII text trim() strips exactly what int() and float() strip. U+001C
+  // to U+001F stay put, so int("\x1c5") fails although "\x1c5".strip() is "5".
+  return ascii.trim();
 }
 
 export function pyInt(text: string): bigint | undefined {
