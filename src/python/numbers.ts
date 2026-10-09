@@ -80,13 +80,25 @@ function isNegative(value: number): boolean {
   return value < 0 || Object.is(value, -0);
 }
 
+// Python's negative ndigits rounds to tens, hundreds and so on; no caller
+// needs it, so it is rejected rather than ported.
+function assertDigits(name: string, digits: number): void {
+  if (!Number.isSafeInteger(digits) || digits < 0) {
+    throw new RangeError(
+      `${name} supports only non-negative integer digits, got ${digits}`,
+    );
+  }
+}
+
 export function pyRound(value: number, digits: number): number {
+  assertDigits("pyRound", digits);
   if (!Number.isFinite(value) || value === 0) return value;
   const rounded = Number(`${scaledHalfEven(value, digits)}e-${digits}`);
   return isNegative(value) ? -rounded : rounded;
 }
 
 export function pyFormatFixed(value: number, digits: number): string {
+  assertDigits("pyFormatFixed", digits);
   if (Number.isNaN(value)) return "nan";
   const sign = isNegative(value) ? "-" : "";
   if (!Number.isFinite(value)) return `${sign}inf`;

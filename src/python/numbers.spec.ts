@@ -86,4 +86,15 @@ describe("pyRound and pyFormatFixed match round() and %.2f", () => {
     expect(pyRound(fromRepr(repr)!, 4)).toBe(fromRepr(round4));
     expect(pyFormatFixed(fromRepr(repr)!, 2)).toBe(fixed2);
   });
+
+  it.each([-1, 0.5, NaN])("rejects %s digits for every value", (digits) => {
+    for (const value of [0, 1.5, NaN]) {
+      expect(() => pyRound(value, digits)).toThrow(
+        `pyRound supports only non-negative integer digits, got ${digits}`,
+      );
+      expect(() => pyFormatFixed(value, digits)).toThrow(
+        `pyFormatFixed supports only non-negative integer digits, got ${digits}`,
+      );
+    }
+  });
 });
