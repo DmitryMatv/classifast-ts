@@ -27,9 +27,11 @@ export interface EmbeddingRequest {
 const HUB_URL = "https://huggingface.co";
 const ROUTER_URL = "https://router.huggingface.co";
 
-// The feature-extraction providers that huggingface_hub routes to with an
-// OpenAI-style embeddings body. Each answers `{data: [{embedding}]}`.
-const PROVIDER_ROUTES: Readonly<
+const HF_INFERENCE = "hf-inference";
+
+// The other feature-extraction providers that huggingface_hub routes to with
+// an OpenAI-style embeddings body. Each answers `{data: [{embedding}]}`.
+const OPENAI_STYLE_ROUTES: Readonly<
   Record<string, { readonly directUrl: string; readonly route: string }>
 > = {
   scaleway: { directUrl: "https://api.scaleway.ai", route: "/v1/embeddings" },
@@ -39,6 +41,13 @@ const PROVIDER_ROUTES: Readonly<
   },
   together: { directUrl: "https://api.together.xyz", route: "/v1/embeddings" },
 };
+
+interface ProviderRequest {
+  readonly url: string;
+  readonly body: Record<string, unknown>;
+  /** hf-inference answers with the bare array; the others wrap it. */
+  readonly raw: boolean;
+}
 
 const mappingEntry = z.object({
   providerId: z.string(),
@@ -61,12 +70,18 @@ interface ProviderMapping {
   readonly task: string;
 }
 
+const modelTaskSchema = z.object({
+  pipeline_tag: z.string().nullish(),
+  tags: z.array(z.string()).nullish(),
+});
+
 const embeddingsSchema = z.object({
   data: z.array(z.object({ embedding: z.unknown() })),
 });
 
 export class HfEmbeddingClient {
   readonly #mappings = new Map<string, readonly ProviderMapping[]>();
+  readonly #hfInferenceModels = new Set<string>();
 
   constructor(
     private readonly config: HfEmbeddingConfig,
@@ -97,22 +112,62 @@ export class HfEmbeddingClient {
     text: string,
     dims: number,
     signal: AbortSignal,
-  ): Promise<unknown[]> {
-    const mappings = await this.#providerMappings(model, signal);
+  ): Promise<unknown> {
+    const request = await this.#providerRequest(model, text, dims, signal);
+    const body = await fetchJson(
+      this.fetchFn,
+      request.url,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${this.config.token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(request.body),
+      },
+      this.config.timeoutSeconds * 1000,
+      signal,
+    );
+    return request.raw
+      ? body
+      : embeddingsSchema.parse(body).data.map((item) => item.embedding);
+  }
+
+  /** huggingface_hub's get_provider_helper and prepare_request. */
+  async #providerRequest(
+    model: string,
+    text: string,
+    dims: number,
+    signal: AbortSignal,
+  ): Promise<ProviderRequest> {
+    const hfInferenceBody = { inputs: text, dimensions: dims };
+    if (/^https?:\/\//.test(model)) {
+      return { url: model, body: hfInferenceBody, raw: true };
+    }
     const provider =
       this.config.provider === "auto"
-        ? mappings[0]?.provider
+        ? (await this.#providerMappings(model, signal))[0]?.provider
         : this.config.provider;
     if (provider === undefined) {
       throw new Error(`No provider mapping found for model ${model}`);
     }
-    const route = PROVIDER_ROUTES[provider];
+    if (provider === HF_INFERENCE) {
+      await this.#checkHfInferenceTask(model, signal);
+      return {
+        url: `${ROUTER_URL}/${HF_INFERENCE}/models/${model}/pipeline/feature-extraction`,
+        body: hfInferenceBody,
+        raw: true,
+      };
+    }
+    const route = OPENAI_STYLE_ROUTES[provider];
     if (route === undefined) {
       throw new Error(
-        `Provider '${provider}' does not support feature-extraction`,
+        `Task 'feature-extraction' not supported for provider '${provider}'`,
       );
     }
-    const mapping = mappings.find((entry) => entry.provider === provider);
+    const mapping = (await this.#providerMappings(model, signal)).find(
+      (entry) => entry.provider === provider,
+    );
     if (mapping === undefined) {
       throw new Error(
         `Model ${model} is not supported by provider ${provider}`,
@@ -123,29 +178,41 @@ export class HfEmbeddingClient {
         `Model ${model} is not supported for task feature-extraction and provider ${provider}`,
       );
     }
-
     const baseUrl = this.config.token.startsWith("hf_")
       ? `${ROUTER_URL}/${provider}`
       : route.directUrl;
-    const body = await fetchJson(
-      this.fetchFn,
-      `${baseUrl}${route.route}`,
-      {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${this.config.token}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          input: text,
-          model: mapping.providerId,
-          dimensions: dims,
-        }),
-      },
-      this.config.timeoutSeconds * 1000,
-      signal,
+    return {
+      url: `${baseUrl}${route.route}`,
+      body: { input: text, model: mapping.providerId, dimensions: dims },
+      raw: false,
+    };
+  }
+
+  /** hf_inference._check_supported_task for feature-extraction. */
+  async #checkHfInferenceTask(
+    model: string,
+    signal: AbortSignal,
+  ): Promise<void> {
+    if (this.#hfInferenceModels.has(model)) return;
+    const info = modelTaskSchema.parse(
+      await fetchJson(
+        this.fetchFn,
+        `${HUB_URL}/api/models/${model}`,
+        { headers: { authorization: `Bearer ${this.config.token}` } },
+        this.config.timeoutSeconds * 1000,
+        signal,
+      ),
     );
-    return embeddingsSchema.parse(body).data.map((item) => item.embedding);
+    const supported =
+      info.pipeline_tag === "feature-extraction" ||
+      (info.pipeline_tag === "sentence-similarity" &&
+        (info.tags ?? []).includes("feature-extraction"));
+    if (!supported) {
+      throw new Error(
+        `Model '${model}' doesn't support task 'feature-extraction'`,
+      );
+    }
+    this.#hfInferenceModels.add(model);
   }
 
   async #providerMappings(

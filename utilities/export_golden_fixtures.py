@@ -1625,6 +1625,8 @@ class CapturingTransport(httpx.BaseTransport):
         return self.respond(request)
 
 
+EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-8B"
+EMBEDDING_ENDPOINT = "https://embed.example.com/v1/feature-extraction"
 EMBEDDING_PROVIDER_MAPPINGS = [
     {
         "scaleway": {"status": "live", "providerId": "qwen3-embedding-8b", "task": "feature-extraction"},
@@ -1637,7 +1639,33 @@ EMBEDDING_PROVIDER_MAPPINGS = [
     {"together": {"status": "staging", "providerId": "qwen/embed", "task": "feature-extraction"}},
     {"scaleway": {"status": "live", "providerId": "qwen3", "task": "conversational"}},
     {"cohere": {"status": "live", "providerId": "embed", "task": "feature-extraction"}},
+    {
+        "hf-inference": {"status": "live", "providerId": "qwen-hf", "task": "feature-extraction"},
+        "scaleway": {"status": "live", "providerId": "qwen3-embedding-8b", "task": "feature-extraction"},
+    },
+    [
+        {"provider": "together", "status": "live", "providerId": "qwen/embed", "task": "feature-extraction"},
+        {"provider": "deepinfra", "status": "live", "providerId": "Qwen/Qwen3-Embedding-8B", "task": "feature-extraction"},
+    ],
+    {"unknown-provider": {"status": "live", "providerId": "x", "task": "feature-extraction"}},
     {},
+]
+EMBEDDING_PROVIDERS = [
+    "auto",
+    "scaleway",
+    "deepinfra",
+    "together",
+    "hf-inference",
+    "cohere",
+    "unknown-provider",
+]
+EMBEDDING_MODEL_INFOS: list[dict[str, object]] = [
+    {"pipeline_tag": "feature-extraction", "tags": ["feature-extraction"]},
+    {"pipeline_tag": "feature-extraction"},
+    {"pipeline_tag": "sentence-similarity", "tags": ["sentence-similarity", "feature-extraction"]},
+    {"pipeline_tag": "sentence-similarity", "tags": ["sentence-similarity"]},
+    {"pipeline_tag": "text-generation", "tags": ["feature-extraction"]},
+    {"tags": ["feature-extraction"]},
 ]
 EMBEDDING_RESPONSES: list[object] = [
     {"data": [{"embedding": [0.1, 0.2, 0.3]}]},
@@ -1651,31 +1679,50 @@ EMBEDDING_RESPONSES: list[object] = [
     {"data": [{"embedding": [1e30, -1e-50, 0.333333333333]}]},
     {"embeddings": [[0.1, 0.2, 0.3]]},
 ]
+# hf-inference and endpoint URLs answer with the raw feature-extraction array.
+RAW_EMBEDDING_RESPONSES: list[object] = [
+    [0.1, 0.2, 0.3],
+    [[0.1, 0.2, 0.3]],
+    [[[0.1, 0.2, 0.3]]],
+    [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
+    [1, 2.5, "3.0"],
+    [0.1, 0.2],
+    [],
+    {"data": [{"embedding": [0.1, 0.2, 0.3]}]},
+]
 
 
 def embed_through_hub(
-    token: str, provider: str, mapping: dict[str, object], response: object
+    token: str,
+    provider: str,
+    mapping: object,
+    response: object,
+    model: str = EMBEDDING_MODEL,
+    model_info: dict[str, object] = EMBEDDING_MODEL_INFOS[0],
 ) -> dict[str, object]:
     from huggingface_hub import InferenceClient, set_client_factory
     from huggingface_hub.inference._providers._common import (
         _fetch_inference_provider_mapping,
     )
+    from huggingface_hub.inference._providers.hf_inference import _check_supported_task
 
     def respond(request: httpx.Request) -> httpx.Response:
         if request.method == "GET":
-            return httpx.Response(200, json={"id": "Qwen/Qwen3-Embedding-8B", "inferenceProviderMapping": mapping})
+            return httpx.Response(
+                200,
+                json={"id": EMBEDDING_MODEL, "inferenceProviderMapping": mapping, **model_info},
+            )
         return httpx.Response(200, json=response)
 
     transport = CapturingTransport(respond)
     _fetch_inference_provider_mapping.cache_clear()
+    _check_supported_task.cache_clear()
     set_client_factory(lambda: httpx.Client(transport=transport))
     os.environ["HF_TOKEN"] = token
     try:
         client = InferenceClient(provider=provider, api_key=token, timeout=20)
         try:
-            vector: object = get_embedding(
-                client, "Qwen/Qwen3-Embedding-8B", "industrial pump", embed_dims=3
-            )
+            vector: object = get_embedding(client, model, "industrial pump", embed_dims=3)
         except HTTPException:
             vector = None
     finally:
@@ -1683,29 +1730,67 @@ def embed_through_hub(
     return {"requests": transport.requests, "vector": vector}
 
 
+def embedding_case(
+    token: str,
+    provider: str,
+    mapping: object,
+    response: object,
+    model: str = EMBEDDING_MODEL,
+    model_info: dict[str, object] = EMBEDDING_MODEL_INFOS[0],
+) -> dict[str, object]:
+    return {
+        "token": token,
+        "provider": provider,
+        "model": model,
+        "mapping": mapping,
+        "modelInfo": model_info,
+        "response": response,
+        **embed_through_hub(token, provider, mapping, response, model, model_info),
+    }
+
+
 def embedding_cases() -> list[dict[str, object]]:
     cases = []
     for token in ["hf_test", "provider-key"]:
-        for provider in ["auto", "deepinfra", "together"]:
+        for provider in EMBEDDING_PROVIDERS:
             for mapping in EMBEDDING_PROVIDER_MAPPINGS:
-                cases.append(
-                    {
-                        "token": token,
-                        "provider": provider,
-                        "mapping": mapping,
-                        "response": EMBEDDING_RESPONSES[0],
-                        **embed_through_hub(token, provider, mapping, EMBEDDING_RESPONSES[0]),
-                    }
+                response = (
+                    RAW_EMBEDDING_RESPONSES[0]
+                    if provider == "hf-inference" or (
+                        provider == "auto"
+                        and isinstance(mapping, dict)
+                        and next(iter(mapping), None) == "hf-inference"
+                    )
+                    else EMBEDDING_RESPONSES[0]
                 )
+                cases.append(embedding_case(token, provider, mapping, response))
+            cases.append(
+                embedding_case(
+                    token,
+                    provider,
+                    EMBEDDING_PROVIDER_MAPPINGS[0],
+                    RAW_EMBEDDING_RESPONSES[0],
+                    model=EMBEDDING_ENDPOINT,
+                )
+            )
     for response in EMBEDDING_RESPONSES:
+        cases.append(embedding_case("hf_test", "auto", EMBEDDING_PROVIDER_MAPPINGS[0], response))
+    for model in [EMBEDDING_MODEL, EMBEDDING_ENDPOINT]:
+        for response in RAW_EMBEDDING_RESPONSES:
+            cases.append(
+                embedding_case(
+                    "hf_test", "hf-inference", EMBEDDING_PROVIDER_MAPPINGS[0], response, model=model
+                )
+            )
+    for model_info in EMBEDDING_MODEL_INFOS:
         cases.append(
-            {
-                "token": "hf_test",
-                "provider": "auto",
-                "mapping": EMBEDDING_PROVIDER_MAPPINGS[0],
-                "response": response,
-                **embed_through_hub("hf_test", "auto", EMBEDDING_PROVIDER_MAPPINGS[0], response),
-            }
+            embedding_case(
+                "hf_test",
+                "hf-inference",
+                EMBEDDING_PROVIDER_MAPPINGS[0],
+                RAW_EMBEDDING_RESPONSES[0],
+                model_info=model_info,
+            )
         )
     return cases
 

@@ -88,7 +88,9 @@ export const classificationGolden = readGolden(
       z.object({
         token: z.string(),
         provider: z.string(),
+        model: z.string(),
         mapping: z.unknown(),
+        modelInfo: z.record(z.string(), z.unknown()),
         response: z.unknown(),
         requests: z.array(recordedRequest),
         vector: z.array(z.number()).nullable(),

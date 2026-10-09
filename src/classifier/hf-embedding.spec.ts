@@ -43,11 +43,20 @@ const vector = json({ data: [{ embedding: [0.1, 0.2, 0.3] }] });
 
 describe("HfEmbeddingClient matches huggingface_hub", () => {
   it.each(golden.embedding)(
-    "embeds with a $token token and provider $provider",
-    async ({ token, provider, mapping, response, requests, vector }) => {
+    "embeds $model with a $token token and provider $provider",
+    async ({
+      token,
+      provider,
+      model,
+      mapping,
+      modelInfo,
+      response,
+      requests,
+      vector,
+    }) => {
       const fake = fakeFetch((request) =>
         request.method === "GET"
-          ? json({ id: MODEL, inferenceProviderMapping: mapping })
+          ? json({ id: MODEL, inferenceProviderMapping: mapping, ...modelInfo })
           : json(response),
       );
       const embedder = new HfEmbeddingClient(
@@ -57,7 +66,7 @@ describe("HfEmbeddingClient matches huggingface_hub", () => {
       );
 
       const actual = await embedder
-        .embed({ model: MODEL, text: "industrial pump", dims: 3 }, signal)
+        .embed({ model, text: "industrial pump", dims: 3 }, signal)
         .catch(() => null);
 
       expect(actual).toEqual(vector);
@@ -79,6 +88,27 @@ describe("HfEmbeddingClient matches huggingface_hub", () => {
     await embed(embedder);
 
     expect(requests.map((request) => request.method)).toEqual([
+      "GET",
+      "POST",
+      "POST",
+    ]);
+  });
+
+  it("checks the hf-inference task once per model", async () => {
+    const fake = fakeFetch(
+      json({ id: MODEL, pipeline_tag: "feature-extraction" }),
+      json([0.1, 0.2, 0.3]),
+    );
+    const embedder = new HfEmbeddingClient(
+      { token: "hf_test", provider: "hf-inference", timeoutSeconds: 20 },
+      fake.fetch,
+      new FakeClock(),
+    );
+
+    await embed(embedder);
+    await embed(embedder);
+
+    expect(fake.requests.map((request) => request.method)).toEqual([
       "GET",
       "POST",
       "POST",
