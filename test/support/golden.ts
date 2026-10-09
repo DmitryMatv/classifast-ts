@@ -62,11 +62,21 @@ function mapsIntoSet(character: string, set: Uint8Array): boolean {
   );
 }
 
-// The code points assigned in the fixtures' Unicode version, minus those
-// whose data a newer Node changed: a different general category, or a case
-// mapping into a code point the fixtures' version leaves unassigned. Any
-// other difference from Python fails the sweeps.
-function computeSweptCodePoints(): readonly number[] {
+// Code points whose data changed between the fixtures' Unicode version and a
+// newer Node's, reviewed by hand. Only sweeps that pass `unicodeDrift()` may
+// differ from Python there; a different drift set fails until reviewed.
+const REVIEWED_UNICODE_DRIFT: Readonly<Record<string, readonly number[]>> = {
+  "16.0.0 -> 17.0": [0x0295, 0xa7d3, 0xa7d5],
+};
+
+interface Sweep {
+  readonly swept: readonly number[];
+  readonly drift: ReadonlySet<number>;
+}
+
+// The code points assigned in the fixtures' Unicode version. Code points the
+// fixtures leave unassigned are not swept; Node may assign them.
+function computeSweep(): Sweep {
   const { unicodeVersion, generalCategoryRanges } = readGolden(
     "python-str.json",
     z.object({
@@ -92,26 +102,43 @@ function computeSweptCodePoints(): readonly number[] {
     const inCategory = new RegExp(`^\\p{gc=${category}}$`, "u");
     forEachCodePoint(ranges, (codePoint) => {
       const character = String.fromCodePoint(codePoint);
-      if (inCategory.test(character) && !mapsIntoSet(character, unassigned)) {
-        swept.push(codePoint);
-      } else {
+      swept.push(codePoint);
+      if (!inCategory.test(character) || mapsIntoSet(character, unassigned)) {
         changed.push(codePoint);
       }
     });
   }
-  if (order === 0 && changed.length > 0) {
+  const reviewed =
+    order === 0
+      ? []
+      : (REVIEWED_UNICODE_DRIFT[`${unicodeVersion} -> ${runtimeVersion}`] ??
+        null);
+  const describe = (codePoints: readonly number[]) =>
+    codePoints.map(formatCodePoint).join(", ") || "none";
+  if (
+    reviewed === null ||
+    describe(reviewed) !== describe([...changed].sort((a, b) => a - b))
+  ) {
     throw new Error(
-      `Node's Unicode ${runtimeVersion} data differs from the fixtures' at ${changed.map(formatCodePoint).join(", ")}`,
+      `Node's Unicode ${runtimeVersion} data differs from the fixtures' Unicode ${unicodeVersion} at ${describe(changed)}; review it and update REVIEWED_UNICODE_DRIFT`,
     );
   }
-  return swept.sort((left, right) => left - right);
+  return {
+    swept: swept.sort((left, right) => left - right),
+    drift: new Set(changed),
+  };
 }
 
-let sweptCodePoints: readonly number[] | undefined;
+let sweep: Sweep | undefined;
 
 export function* assignedCodePoints(): Generator<number> {
-  sweptCodePoints ??= computeSweptCodePoints();
-  yield* sweptCodePoints;
+  sweep ??= computeSweep();
+  yield* sweep.swept;
+}
+
+export function unicodeDrift(): ReadonlySet<number> {
+  sweep ??= computeSweep();
+  return sweep.drift;
 }
 
 export function formatCodePoint(codePoint: number): string {
@@ -121,9 +148,11 @@ export function formatCodePoint(codePoint: number): string {
 export function sweepMismatches<T>(
   actual: (character: string) => T,
   expected: (codePoint: number) => T,
+  tolerated: ReadonlySet<number> = new Set(),
 ): string[] {
   const mismatches: string[] = [];
   for (const codePoint of assignedCodePoints()) {
+    if (tolerated.has(codePoint)) continue;
     const got = actual(String.fromCodePoint(codePoint));
     const wanted = expected(codePoint);
     if (got !== wanted) {

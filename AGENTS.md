@@ -69,9 +69,10 @@ fixture covers raw-key compatibility.
 
 Two properties stay outside the suite because HTTP cannot observe them. The
 queue overflow case checks that at least five lookups in a burst succeed and
-some are refused, but staggered admission hides the exact capacity;
-`ClassificationQueue`'s specs pin it. The signed non-Pro webhook carries no
-user, so it cannot show that a missing product filter would grant Pro.
+that any refusal is the queue-full 503, but staggered admission can hide both
+the capacity and the refusal; `ClassificationQueue`'s specs pin them. The
+signed non-Pro webhook carries no user, so it cannot show that a missing
+product filter would grant Pro.
 
 With `CONTRACT_TARGET=nest`, the `retiredRoutes` table expects 404 instead of
 Python's status. Inside test files Vitest replaces `process.env.BASE_URL`
