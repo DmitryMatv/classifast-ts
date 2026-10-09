@@ -28,7 +28,7 @@ export class PaymentsController {
   ): Promise<CheckoutReply> {
     res.set(cacheHeaders("NO_STORE"));
     await this.rateLimit.enforce(
-      clientIp(req.headers, req.socket.remoteAddress),
+      clientIp(req.headersDistinct, req.socket.remoteAddress),
     );
     const userId = await this.clerk.requireSessionUser(
       req.headers.authorization,
@@ -48,7 +48,7 @@ export class PaymentsController {
   ): Promise<CheckoutReply> {
     res.set(cacheHeaders("NO_STORE"));
     await this.rateLimit.enforce(
-      clientIp(req.headers, req.socket.remoteAddress),
+      clientIp(req.headersDistinct, req.socket.remoteAddress),
     );
     return this.checkouts.createMapping(
       await readRawBody(req),

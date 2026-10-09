@@ -127,6 +127,20 @@ describe("checkout routes", () => {
     expect(polarFetch).toHaveBeenCalledTimes(CHECKOUT_LIMIT);
   });
 
+  it("keys the rate limit on the first of repeated client-IP headers", async () => {
+    const ip = uniqueId("ip");
+    const statuses = [];
+    for (let attempt = 0; attempt <= CHECKOUT_LIMIT; attempt += 1) {
+      const reply = await post("/api/create-checkout", ip)
+        // superagent hands arrays to setHeader, which sends one line each;
+        // its types allow arrays only for Cookie.
+        .set("cf-connecting-ip", [ip, uniqueId("ip")] as unknown as string)
+        .send({});
+      statuses.push(reply.status);
+    }
+    expect(statuses).toEqual([401, 401, 429]);
+  });
+
   it("counts unauthenticated Pro checkouts against the IP", async () => {
     const ip = uniqueId("ip");
     const statuses = [];
