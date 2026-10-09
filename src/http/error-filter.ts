@@ -15,11 +15,13 @@ export type ErrorBody = {
   readonly [key: string]: unknown;
 };
 
-export type ErrorReply = {
+export type JsonReply = {
   readonly status: number;
-  readonly body: ErrorBody;
+  readonly body: unknown;
   readonly headers?: HeaderRecord;
 };
+
+export type ErrorReply = JsonReply & { readonly body: ErrorBody };
 
 function reasonPhrase(status: number): string {
   return STATUS_CODES[status] ?? "Error";
@@ -63,7 +65,7 @@ export function errorReply(error: unknown): ErrorReply {
   return { status, body: { detail } };
 }
 
-export function sendJson(res: ServerResponse, reply: ErrorReply): void {
+export function sendJson(res: ServerResponse, reply: JsonReply): void {
   const payload = Buffer.from(JSON.stringify(reply.body));
   res.statusCode = reply.status;
   for (const [name, value] of Object.entries(reply.headers ?? {})) {

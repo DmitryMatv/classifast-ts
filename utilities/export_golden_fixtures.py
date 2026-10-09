@@ -2163,6 +2163,99 @@ def parsed_ip(parse: Callable[[str], object], text: str) -> str | None:
         return None
 
 
+RAPIDAPI_TOP_K_INPUTS = [
+    "1", "3", "100", "0", "101", "-1", "-0", "+0", "+3", "00003", "00",
+    "3.0", "3.00", "+3.0", "-0.0", "100.0", "3.", ".5", "3.5", "3.0000000001",
+    "1_0", "1_0.0", "3_0.0", "3.0_0", "1__0", "_1", "1_", "1e1", "1e0",
+    "0x10", "0b1", "0o7", "1,0", "1.0.0", "1 0", "-", "+", ".", "", "abc",
+    " 3 ", "\t3\n", "\x0b3", "\x0c3", "\x1c3", "\x853", "\xa03", "3\u2003",
+    "\u20283", "\u30003", "\u200b3", "\ufeff3", "\u0663", "\uff13",
+    "99999999999999999999999", "-99999999999999999999999",
+    "1" * 4300, "1" * 4301, " " + "1" * 4300, "0" * 4299 + "5",
+]
+RAPIDAPI_QUERY_STRINGS = [
+    "",
+    "query=a",
+    "standard=x",
+    "top_k=0",
+    "query=a&standard=x",
+    "query=&standard=",
+    "query=+&standard=x",
+    "query=a&standard=%20%09",
+    "query=%20%20a%20b%0A&standard=+unspsc+",
+    "query=a&query=b&standard=x&standard=y",
+    "query=a&standard=x&top_k=0&top_k=5",
+    "query=a&standard=x&top_k=5&top_k=0",
+    "query=a&standard=x&version=",
+    "query=a&standard=x&version=+v1+",
+    "query=a&standard=x&version=1&version=2",
+    "query&standard=x",
+    "query=a&standard=\xdf",
+    "query=a&standard=%C3%9F",
+    "query=a&standard=%FF",
+    "query=%E2%80%83a%E2%80%83&standard=x",
+    "query=%1Ca%1C&standard=x",
+    "query=a+b&standard=x&top_k=abc&version=v",
+    "standard=x&top_k=101",
+    "Query=a&standard=x",
+]
+
+
+def build_rapidapi_query_fixture() -> dict[str, object]:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app import api
+
+    calls: list[dict[str, object]] = []
+
+    class RecordingService:
+        async def classify(self, **kwargs: object) -> SimpleNamespace:
+            calls.append(kwargs)
+            return SimpleNamespace(results=[], version_config={}, version_name="v")
+
+    rapid_app = FastAPI()
+    rapid_app.include_router(api.router, prefix="/api/v1/rapid")
+    rapid_app.state.classification_service = RecordingService()
+    client = TestClient(rapid_app)
+
+    def outcome(raw_query: str) -> dict[str, object]:
+        calls.clear()
+        response = client.get(
+            f"/api/v1/rapid/classify?{raw_query}",
+            headers={"X-RapidAPI-Proxy-Secret": "fixture-secret"},
+        )
+        record: dict[str, object] = {"status": response.status_code}
+        if response.status_code == 200:
+            (call,) = calls
+            record["classify"] = call
+            record["body"] = {
+                key: value
+                for key, value in response.json().items()
+                if key != "processing_time"
+            }
+        else:
+            record["body"] = response.json()
+        return record
+
+    with patch.object(api, "RAPIDAPI_SECRET", "fixture-secret"):
+        return {
+            "queries": [
+                {"rawQuery": raw_query, **outcome(raw_query)}
+                for raw_query in RAPIDAPI_QUERY_STRINGS
+            ],
+            "topK": [
+                {
+                    "input": value,
+                    **outcome(
+                        "query=a&standard=x&top_k=" + quote(value.encode(), safe="")
+                    ),
+                }
+                for value in RAPIDAPI_TOP_K_INPUTS
+            ],
+        }
+
+
 def build_ip_network_fixture() -> dict[str, object]:
     addresses = [a for a in IP_ADDRESS_INPUTS if parsed_ip(ipaddress.ip_address, a)]
     networks = [n for n in IP_NETWORK_INPUTS if parsed_ip(ipaddress.ip_network, n)]
@@ -2247,6 +2340,7 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "classification.json": build_classification_fixture,
     "static-files.json": build_static_files_fixture,
     "ip-network.json": build_ip_network_fixture,
+    "rapidapi-query.json": build_rapidapi_query_fixture,
 }
 
 
