@@ -1,4 +1,6 @@
+import { once } from "node:events";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { type AddressInfo, connect } from "node:net";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { Controller, Get, Req } from "@nestjs/common";
@@ -463,6 +465,30 @@ describe("HTTP layer (e2e)", () => {
 
       expect(response.status).toBe(308);
       expect(response.headers["location"]).toBe(`http://testserver${location}`);
+    });
+
+    it("builds an absolute Location from the server address without a Host header", async () => {
+      const listening = server.listen(0, "127.0.0.1");
+      await once(listening, "listening");
+      const { port } = listening.address() as AddressInfo;
+      try {
+        const reply = await new Promise<string>((resolve, reject) => {
+          const socket = connect(port, "127.0.0.1", () =>
+            socket.end("GET //evil.example/x?q=%20a HTTP/1.0\r\n\r\n"),
+          );
+          let data = "";
+          socket.on("data", (chunk) => (data += chunk));
+          socket.on("end", () => resolve(data));
+          socket.on("error", reject);
+        });
+
+        expect(reply).toMatch(/^HTTP\/1\.1 308 /);
+        expect(reply).toContain(
+          `\r\nLocation: http://127.0.0.1:${port}//evil.example/x?q=a\r\n`,
+        );
+      } finally {
+        await new Promise((resolve) => listening.close(resolve));
+      }
     });
 
     it("does not redirect a canonical query again", async () => {

@@ -111,6 +111,14 @@ export function withQuery(url: string, query: string): string {
   return `${base}?${query}${fragment ? `#${fragment}` : ""}`;
 }
 
+// Like Starlette, fall back to the server's own address, so a decoded path
+// such as //evil.example never becomes a protocol-relative Location.
+function serverAuthority(req: Request): string {
+  const address = (req.socket.localAddress ?? "").replace(/^::ffff:/, "");
+  const host = address.includes(":") ? `[${address}]` : address;
+  return `${host}:${req.socket.localPort}`;
+}
+
 export const redirectToCanonicalQuery: RequestHandler = (req, res, next) => {
   const { rawPath, rawQuery } = splitRequestTarget(req.originalUrl);
   const query = canonicalQuery(parseQueryString(rawQuery));
@@ -118,9 +126,8 @@ export const redirectToCanonicalQuery: RequestHandler = (req, res, next) => {
     next();
     return;
   }
-  const host = req.headers.host;
   const path = `${unquote(rawPath)}?${rawQuery}`;
-  const url = host ? `${requestScheme(req)}://${host}${path}` : path;
+  const url = `${requestScheme(req)}://${req.headers.host || serverAuthority(req)}${path}`;
   logger.log(`Redirecting to normalized URL for path: ${rawPath}`);
   res.statusCode = 308;
   // A character above U+00FF makes setHeader throw, and Python answers 500
