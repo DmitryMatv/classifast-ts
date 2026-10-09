@@ -18,7 +18,7 @@ import re
 import sys
 import tempfile
 import unicodedata
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from urllib.parse import quote, quote_plus, unquote, unquote_plus, urlencode
 
@@ -368,11 +368,9 @@ TITLE_INPUTS = [
 ]
 
 
-def code_point_ranges(predicate: Callable[[str], bool]) -> list[str]:
+def ranges_of(code_points: Iterable[int]) -> list[str]:
     ranges: list[list[int]] = []
-    for code_point in CODE_POINTS:
-        if not predicate(chr(code_point)):
-            continue
+    for code_point in code_points:
         if ranges and ranges[-1][1] == code_point - 1:
             ranges[-1][1] = code_point
         else:
@@ -381,6 +379,23 @@ def code_point_ranges(predicate: Callable[[str], bool]) -> list[str]:
         f"{start:04X}" if start == end else f"{start:04X}-{end:04X}"
         for start, end in ranges
     ]
+
+
+def code_point_ranges(predicate: Callable[[str], bool]) -> list[str]:
+    return ranges_of(
+        code_point for code_point in CODE_POINTS if predicate(chr(code_point))
+    )
+
+
+def general_category_ranges() -> dict[str, list[str]]:
+    by_category: dict[str, list[int]] = {}
+    for code_point in CODE_POINTS:
+        category = unicodedata.category(chr(code_point))
+        by_category.setdefault(category, []).append(code_point)
+    return {
+        category: ranges_of(code_points)
+        for category, code_points in sorted(by_category.items())
+    }
 
 
 STRIP_CHARS_INPUTS = [
@@ -429,9 +444,7 @@ def build_python_str_fixture() -> dict[str, object]:
     ), "str.strip and str.isspace disagree"
     return {
         "unicodeVersion": unicodedata.unidata_version,
-        "unassignedRanges": code_point_ranges(
-            lambda character: unicodedata.category(character) == "Cn"
-        ),
+        "generalCategoryRanges": general_category_ranges(),
         "whitespaceRanges": whitespace,
         "wordRanges": code_point_ranges(
             lambda character: re.fullmatch(r"\w", character) is not None
