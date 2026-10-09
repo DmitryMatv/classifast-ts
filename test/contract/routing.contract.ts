@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { contract } from "./support/env.js";
 import {
   expectStatus,
   locationOf,
@@ -269,11 +270,22 @@ const headOnGetOnlyRoutes: {
   },
 ];
 
-describe("HEAD on GET-only routes", () => {
+// Python declares HEAD only on page routes, so HEAD elsewhere falls through
+// to the classifier catch-all. Nest answers HEAD like GET on every GET route.
+describe(`HEAD on GET-only routes (target: ${contract.target})`, () => {
   it.each(headOnGetOnlyRoutes)(
     "HEAD $path -> $status",
     async ({ path, status, location }) => {
       const reply = await send(path, { method: "HEAD" });
+      if (contract.target === "nest") {
+        const get = await send(path);
+        expectStatus(reply, get.status);
+        expect(locationOf(reply), `${reply.label} Location`).toBe(
+          locationOf(get),
+        );
+        expect(reply.body).toBe("");
+        return;
+      }
       expectStatus(reply, status);
       expect(locationOf(reply), `${reply.label} Location`).toBe(
         location ?? null,
