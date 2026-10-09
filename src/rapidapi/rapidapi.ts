@@ -38,10 +38,63 @@ export type ValidationIssue = {
 export const TOP_K_DEFAULT = 3;
 const TOP_K_MIN = 1;
 const TOP_K_MAX = 100;
-// pydantic-core refuses longer integer strings before parsing them.
+// jiter refuses a longer leading integer before parsing it.
 const MAX_INT_STRING_LENGTH = 4300;
 const UNICODE_WHITESPACE = /^\p{White_Space}+|\p{White_Space}+$/gu;
-const PYDANTIC_INT = /^[+-]?[0-9]+(?:_[0-9]+)*(?:\.0+)?$/;
+const JSON_INT_PREFIX = /^-?(?:0|[1-9][0-9]*)/;
+
+/** jiter's `NumberInt::try_from`: a whole JSON integer, nothing else. */
+function jsonInt(text: string): bigint | "too-long" | undefined {
+  const prefix = JSON_INT_PREFIX.exec(text)?.[0];
+  if (prefix === undefined) return undefined;
+  if (prefix.length > MAX_INT_STRING_LENGTH) return "too-long";
+  return prefix.length === text.length ? BigInt(text) : undefined;
+}
+
+/** pydantic-core's `strip_leading_zeros`, underscores included. */
+function stripLeadingZeros(text: string): string | undefined {
+  const first = text[0];
+  if (first !== "0") {
+    return first !== undefined && /[1-9-]/.test(first) ? text : undefined;
+  }
+  for (let i = 1; i < text.length; i++) {
+    const character = text[i]!;
+    if (character === "0" || character === "_") continue;
+    if (/[1-9-]/.test(character)) return text.slice(i);
+    if (character === ".") return text.slice(i - 1);
+    return undefined;
+  }
+  return text.slice(-1);
+}
+
+/** pydantic-core's `clean_int_str`, quirks included: `0-3` becomes `-3`. */
+function cleanIntString(raw: string): string | undefined {
+  let text = raw.replace(UNICODE_WHITESPACE, "");
+  if (text.startsWith("+")) {
+    text = text.slice(1);
+    if (text.startsWith("-")) return undefined;
+  }
+  const negative = text.startsWith("-");
+  if (negative) {
+    text = text.slice(1);
+    if (text.startsWith("-") || text.startsWith("+")) return undefined;
+  }
+  const stripped = stripLeadingZeros(text);
+  if (stripped === undefined) return undefined;
+  text = stripped;
+  const dot = text.indexOf(".");
+  if (dot !== -1 && /^0+$/.test(text.slice(dot + 1))) text = text.slice(0, dot);
+  const sign = negative ? "-" : "";
+  if (
+    text.includes("_") &&
+    !text.startsWith("_") &&
+    !text.endsWith("_") &&
+    !text.includes("__")
+  ) {
+    return sign + text.replaceAll("_", "");
+  }
+  return text.length === raw.length ? undefined : sign + text;
+}
 
 /** FastAPI's `top_k: int = Query(3, ge=1, le=100)` in pydantic's lax mode. */
 export function parseTopK(raw: string): number | ValidationIssue {
@@ -56,20 +109,22 @@ export function parseTopK(raw: string): number | ValidationIssue {
     input: raw,
     ...(ctx ? { ctx } : {}),
   });
-  const text = raw.replace(UNICODE_WHITESPACE, "");
-  if (text.length > MAX_INT_STRING_LENGTH) {
+  const direct = jsonInt(raw);
+  if (direct === "too-long") {
     return issue(
       "int_parsing_size",
       "Unable to parse input string as an integer, exceeded maximum size",
     );
   }
-  if (!PYDANTIC_INT.test(text)) {
+  const cleaned = direct === undefined ? cleanIntString(raw) : undefined;
+  const value =
+    direct ?? (cleaned === undefined ? undefined : jsonInt(cleaned));
+  if (typeof value !== "bigint") {
     return issue(
       "int_parsing",
       "Input should be a valid integer, unable to parse string as an integer",
     );
   }
-  const value = BigInt(text.replace(/\.0+$/, "").replaceAll("_", ""));
   if (value < TOP_K_MIN) {
     return issue(
       "greater_than_equal",

@@ -129,7 +129,9 @@ product filter would grant Pro.
 With `CONTRACT_TARGET=nest`, the `retiredRoutes` table expects 404 instead of
 Python's status, HEAD on a GET-only route must answer like GET with an empty
 body, and `.gif` and `.webmanifest` static files expect `STATIC_MEDIA`, which
-Python's `get_static_cache_profile` omits. These are decided divergences.
+Python's `get_static_cache_profile` omits. The public-mode RapidAPI ping
+expects `database: "healthy"`, because Nest refuses to boot without Qdrant.
+These are decided divergences.
 
 Inside test files Vitest replaces `process.env.BASE_URL` with Vite's base
 path, so the config passes the URL on as `CONTRACT_BASE_URL`.
