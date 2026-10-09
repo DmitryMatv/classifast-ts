@@ -429,6 +429,17 @@ describe("Quota.check", () => {
     },
   );
 
+  it("fails as Python's int() does on a counter with a leading BOM", async () => {
+    const { quota } = await setup();
+    const caller = free();
+    await redis.set(userKey(caller.userId), "\ufeff5");
+
+    const error = await quota.check(caller).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(QuotaUnavailableError);
+  });
+
   it("test_check_usage_for_pro_caller_does_not_touch_redis", async () => {
     const { quota } = await setup({ client: closedRedis() });
     const caller = { kind: "pro", userId: "user-123" } as const;
