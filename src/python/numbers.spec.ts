@@ -59,6 +59,19 @@ describe("pyInt and pyFloat match int() and float()", () => {
   });
 });
 
+describe("pyInt and pyFloat take linear time on adversarial input", () => {
+  const length = 100_000;
+  it.each([
+    ["spaces before a trailing letter", `1${" ".repeat(length)}x`],
+    ["digits before a trailing letter", `${"1".repeat(length)}x`],
+  ])("rejects %s within 100 ms", (_, input) => {
+    const start = performance.now();
+    expect(pyInt(input)).toBeUndefined();
+    expect(pyFloat(input)).toBeUndefined();
+    expect(performance.now() - start).toBeLessThan(100);
+  });
+});
+
 describe("pyRound and pyFormatFixed match round() and %.2f", () => {
   it.each(golden.round)(
     "rounds $value",
