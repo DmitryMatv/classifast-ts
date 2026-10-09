@@ -211,6 +211,11 @@
     {"input": "}", "safe": "", "quoted": "%7D"},
     {"input": "~", "safe": "", "quoted": "~"},
     {"input": "", "safe": "", "quoted": "%7F"},
+    {"input": "\ud800", "safe": "", "quoted": null},
+    {"input": "a\udfffb", "safe": "", "quoted": null},
+    {"input": "\udc00\ud800", "safe": "", "quoted": null},
+    {"input": "\ud83d😀", "safe": "", "quoted": null},
+    {"input": "%41\ud800%42", "safe": "", "quoted": null},
     {"input": "", "safe": "/", "quoted": ""},
     {"input": " ", "safe": "/", "quoted": "%20"},
     {"input": "a", "safe": "/", "quoted": "a"},
@@ -422,6 +427,11 @@
     {"input": "}", "safe": "/", "quoted": "%7D"},
     {"input": "~", "safe": "/", "quoted": "~"},
     {"input": "", "safe": "/", "quoted": "%7F"},
+    {"input": "\ud800", "safe": "/", "quoted": null},
+    {"input": "a\udfffb", "safe": "/", "quoted": null},
+    {"input": "\udc00\ud800", "safe": "/", "quoted": null},
+    {"input": "\ud83d😀", "safe": "/", "quoted": null},
+    {"input": "%41\ud800%42", "safe": "/", "quoted": null},
     {"input": "", "safe": "()*,:", "quoted": ""},
     {"input": " ", "safe": "()*,:", "quoted": "%20"},
     {"input": "a", "safe": "()*,:", "quoted": "a"},
@@ -632,7 +642,12 @@
     {"input": "|", "safe": "()*,:", "quoted": "%7C"},
     {"input": "}", "safe": "()*,:", "quoted": "%7D"},
     {"input": "~", "safe": "()*,:", "quoted": "~"},
-    {"input": "", "safe": "()*,:", "quoted": "%7F"}
+    {"input": "", "safe": "()*,:", "quoted": "%7F"},
+    {"input": "\ud800", "safe": "()*,:", "quoted": null},
+    {"input": "a\udfffb", "safe": "()*,:", "quoted": null},
+    {"input": "\udc00\ud800", "safe": "()*,:", "quoted": null},
+    {"input": "\ud83d😀", "safe": "()*,:", "quoted": null},
+    {"input": "%41\ud800%42", "safe": "()*,:", "quoted": null}
   ],
   "quotePlus": [
     {"input": "", "quoted": ""},
@@ -845,7 +860,12 @@
     {"input": "|", "quoted": "%7C"},
     {"input": "}", "quoted": "%7D"},
     {"input": "~", "quoted": "~"},
-    {"input": "", "quoted": "%7F"}
+    {"input": "", "quoted": "%7F"},
+    {"input": "\ud800", "quoted": null},
+    {"input": "a\udfffb", "quoted": null},
+    {"input": "\udc00\ud800", "quoted": null},
+    {"input": "\ud83d😀", "quoted": null},
+    {"input": "%41\ud800%42", "quoted": null}
   ],
   "unquote": {
     "": "",
@@ -947,6 +967,11 @@
     "%EF%BB%BFbom": "﻿bom",
     "é%EF%BB%BF": "é﻿",
     "a%2Fb": "a/b",
+    "\ud800": "\ud800",
+    "a\udfffb": "a\udfffb",
+    "\udc00\ud800": "\udc00\ud800",
+    "\ud83d😀": "\ud83d😀",
+    "%41\ud800%42": "A\ud800B",
     "%00": "\u0000",
     "%01": "\u0001",
     "%02": "\u0002",
@@ -3355,13 +3380,19 @@
     "+%2B+": " + ",
     "%EF%BB%BFbom": "﻿bom",
     "é%EF%BB%BF": "é﻿",
-    "a%2Fb": "a/b"
+    "a%2Fb": "a/b",
+    "\ud800": "\ud800",
+    "a\udfffb": "a\udfffb",
+    "\udc00\ud800": "\udc00\ud800",
+    "\ud83d😀": "\ud83d😀",
+    "%41\ud800%42": "A\ud800B"
   },
   "urlencode": [
     {"pairs": [], "encoded": ""},
     {"pairs": [["version", "CPV 2008 (ver. 2013)"]], "encoded": "version=CPV+2008+%28ver.+2013%29"},
     {"pairs": [["version", "HS6 2022"], ["top_k", "25"], ["enhance_query", "1"]], "encoded": "version=HS6+2022&top_k=25&enhance_query=1"},
     {"pairs": [["q", "a&b=c+d/é😀"], ["empty", ""]], "encoded": "q=a%26b%3Dc%2Bd%2F%C3%A9%F0%9F%98%80&empty="},
-    {"pairs": [["key with space", "~*'()!"]], "encoded": "key+with+space=~%2A%27%28%29%21"}
+    {"pairs": [["key with space", "~*'()!"]], "encoded": "key+with+space=~%2A%27%28%29%21"},
+    {"pairs": [["q", "\ud800"]], "encoded": null}
   ]
 }

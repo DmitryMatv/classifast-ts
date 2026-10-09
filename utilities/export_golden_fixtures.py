@@ -486,6 +486,13 @@ def build_python_str_fixture() -> dict[str, object]:
 
 
 QUOTE_SAFE_SETS = ["", "/", "()*,:"]
+LONE_SURROGATE_INPUTS = [
+    "\ud800",
+    "a\udfffb",
+    "\udc00\ud800",
+    "\ud83d\U0001f600",
+    "%41\ud800%42",
+]
 PERCENT_SWEEP_SECOND_BYTES = [0x41, 0x80, 0x8F, 0x90, 0x9F, 0xA0, 0xBF, 0xC0]
 
 
@@ -517,6 +524,7 @@ UNQUOTE_INPUTS = [
     "%EF%BB%BFbom",
     "\u00e9%EF%BB%BF",
     "a%2Fb",
+    *LONE_SURROGATE_INPUTS,
 ]
 
 URLENCODE_INPUTS = [
@@ -525,19 +533,40 @@ URLENCODE_INPUTS = [
     [["version", "HS6 2022"], ["top_k", "25"], ["enhance_query", "1"]],
     [["q", "a&b=c+d/\u00e9\U0001f600"], ["empty", ""]],
     [["key with space", "~*'()!"]],
+    [["q", "\ud800"]],
 ]
 
 
+def unless_unicode_encode_error(call: Callable[[], str]) -> str | None:
+    try:
+        return call()
+    except UnicodeEncodeError:
+        return None
+
+
 def build_python_urllib_fixture() -> dict[str, object]:
-    quote_inputs = [*SHORT_TEXT_INPUTS, *(chr(code_point) for code_point in range(128))]
+    quote_inputs = [
+        *SHORT_TEXT_INPUTS,
+        *(chr(code_point) for code_point in range(128)),
+        *LONE_SURROGATE_INPUTS,
+    ]
     return {
         "quote": [
-            {"input": value, "safe": safe, "quoted": quote(value, safe=safe)}
+            {
+                "input": value,
+                "safe": safe,
+                "quoted": unless_unicode_encode_error(lambda: quote(value, safe=safe)),
+            }
             for safe in QUOTE_SAFE_SETS
             for value in quote_inputs
         ],
         "quotePlus": [
-            {"input": value, "quoted": quote_plus(value, safe="")}
+            {
+                "input": value,
+                "quoted": unless_unicode_encode_error(
+                    lambda: quote_plus(value, safe="")
+                ),
+            }
             for value in quote_inputs
         ],
         "unquote": {
@@ -546,7 +575,12 @@ def build_python_urllib_fixture() -> dict[str, object]:
         },
         "unquotePlus": {value: unquote_plus(value) for value in UNQUOTE_INPUTS},
         "urlencode": [
-            {"pairs": pairs, "encoded": urlencode([tuple(pair) for pair in pairs])}
+            {
+                "pairs": pairs,
+                "encoded": unless_unicode_encode_error(
+                    lambda: urlencode([tuple(pair) for pair in pairs])
+                ),
+            }
             for pairs in URLENCODE_INPUTS
         ],
     }
@@ -1383,6 +1417,17 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
 }
 
 
+SURROGATE = re.compile("[\ud800-\udfff]")
+HIGH_THEN_LOW_SURROGATE = re.compile("[\ud800-\udbff][\udc00-\udfff]")
+
+
+def escape_lone_surrogates(text: str) -> str:
+    # JSON.parse joins an escaped high and low surrogate into one character,
+    # where Python had two.
+    assert not HIGH_THEN_LOW_SURROGATE.search(text), "surrogate pair in a fixture"
+    return SURROGATE.sub(lambda match: f"\\u{ord(match.group()):04x}", text)
+
+
 def to_json(fixture: dict[str, object]) -> str:
     fields = []
     for key, value in fixture.items():
@@ -1395,7 +1440,7 @@ def to_json(fixture: dict[str, object]) -> str:
             text = json.dumps(value, ensure_ascii=False, indent=2)
             text = text.replace("\n", "\n  ")
         fields.append(f"  {json.dumps(key)}: {text}")
-    return "{\n" + ",\n".join(fields) + "\n}\n"
+    return escape_lone_surrogates("{\n" + ",\n".join(fields) + "\n}\n")
 
 
 def main() -> None:
