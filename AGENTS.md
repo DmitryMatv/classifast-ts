@@ -103,6 +103,11 @@ answers 405. A route that reads a body, such as the checkout JSON or the raw
 Polar webhook body, must add its own parser. Pass `HTTP_APP_OPTIONS` to every
 `NestFactory.create` and `createNestApplication` call.
 
+Nest answers `If-None-Match: *` on `/favicon.ico`, `/robots.txt`, and
+`/sitemap.xml` with 304, as `/static` files do in both apps. Python's
+`FileResponse` routes ignore the header and answer 200. HTTP allows both, so
+this divergence is deliberate.
+
 Always use `pytest` for backend tests. The suite retains `unittest`-compatible
 test classes and standard-library mocks, but pytest is the official runner.
 
