@@ -224,6 +224,18 @@ describe("ProAccess.lookUpTier", () => {
     expect(await lookup).toEqual({ status: "confirmed_pro" });
   });
 
+  it("reads a cached tier with a leading BOM as that non-Pro tier", async () => {
+    const userId = uniqueId("user");
+    await redis.set(`user_tier:${userId}`, "\ufeffpro");
+    const { access, http } = proAccess(userId, () => tierResponse("pro"));
+
+    expect(await access.lookUpTier(userId)).toEqual({
+      status: "confirmed_non_pro",
+      tier: "\ufeffpro",
+    });
+    expect(http.fetch).not.toHaveBeenCalled();
+  });
+
   it("asks Clerk when the cached value is not UTF-8", async () => {
     const userId = uniqueId("user");
     await redis.set(`user_tier:${userId}`, Buffer.from([0xff]));
@@ -374,6 +386,14 @@ describe("ProAccess.isPro", () => {
     expect(await isPro).toBe(true);
     expect(http.fetch).toHaveBeenCalledOnce();
     await close();
+  });
+
+  it("keeps a Clerk tier with a leading BOM metered after the cache fill", async () => {
+    const userId = uniqueId("user");
+    const { access } = proAccess(userId, () => tierResponse("\ufeffpro"));
+
+    expect(await access.isPro(userId, undefined)).toBe(false);
+    expect(await redis.get(`user_tier:${userId}`)).toBe("\ufeffpro");
   });
 
   it("test_redis_unavailable_short_circuits_before_tier_or_grace_checks", async () => {
