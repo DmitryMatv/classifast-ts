@@ -96,9 +96,9 @@ test classes and standard-library mocks, but pytest is the official runner.
 Fresh checkouts may lack `.venv`, `node_modules`, and generated frontend assets
 because they are ignored. If `.venv` is absent, run `python -m venv .venv` and
 `.venv/bin/pip install -r requirements-dev.txt` before `pytest`. If
-`node_modules` is absent, run `npm ci` before frontend tests or builds. The
-verification driver (`.agents/skills/verify/`) also requires a frontend build
-(`npm run build`).
+`node_modules` is absent, run `npm ci` before frontend tests or builds.
+`tests/test_asset_urls.py` and the verification driver (`.agents/skills/verify/`)
+require a frontend build (`npm run build`) in a fresh checkout.
 
 pytest.ini scopes pytest collection to `tests/`. The `utilities/test_*.py` files are
 manual live/debug helpers, and the ignored `embedders/tests/` tree contains
@@ -217,6 +217,12 @@ markup moves to a new directory, add a `@source` line for it.
   respects `.gitignore`; use `--no-ignore` or explicit paths. If `embedders/`
   is absent, `pytest` fails while collecting `tests/test_emdn_embedder.py`.
   Run `pytest --ignore=tests/test_emdn_embedder.py` for the remaining suite.
+- `groupOriginalIdTokens` accepts a narrower parsed-scalar domain than Python's
+  object helper: strings, null, booleans, safe integers and ordinary fractions
+  with absolute values in [1e-4, 1e16). Other types and numbers throw.
+  Parsed integral numbers mean integer IDs; JSON parsing cannot recover the
+  distinction between `12` and `12.0`, or `0` and `0.0`. Preserve source numeric
+  metadata or Python display text if a future decoder needs that distinction.
 - `app/classifier_page_delivery.py` parses `app/static/sitemap.xml` at import
   time to build `SITEMAP_QUERY_PATHS`, which gates SSR eligibility and homepage
   anchor links. Editing the sitemap only changes app behavior after a restart.

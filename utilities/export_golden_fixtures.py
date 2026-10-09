@@ -1411,18 +1411,32 @@ ORIGINAL_ID_TOKEN_INPUTS = [
 ]
 
 
+def original_id_token_output(value: object) -> dict[str, object]:
+    tokens = group_original_id_tokens(value)
+    return {
+        "chars": [token["char"] for token in tokens],
+        "gapsAfter": [
+            index for index, token in enumerate(tokens) if token["gap_after"]
+        ],
+    }
+
+
 def build_original_id_tokens_fixture() -> dict[str, object]:
     return {
         "tokens": [
             {
                 "input": value,
-                "chars": [token["char"] for token in tokens],
-                "gapsAfter": [
-                    index for index, token in enumerate(tokens) if token["gap_after"]
-                ],
+                **original_id_token_output(value),
             }
             for value in ORIGINAL_ID_TOKEN_INPUTS
-            if (tokens := group_original_id_tokens(value)) is not None
+        ],
+        "sourceLoss": [
+            {
+                "inputJson": input_json,
+                "source": original_id_token_output(json.loads(input_json)),
+                "parsedInteger": original_id_token_output(int(json.loads(input_json))),
+            }
+            for input_json in ["12", "12.0", "0", "0.0"]
         ],
     }
 

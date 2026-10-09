@@ -5,8 +5,39 @@ export interface OriginalIdToken {
   readonly gapAfter: boolean;
 }
 
-export function groupOriginalIdTokens(originalId: string): OriginalIdToken[] {
-  const characters = Array.from(originalId);
+function originalIdDisplayText(originalId: unknown): string {
+  if (originalId === null) return "";
+  switch (typeof originalId) {
+    case "string":
+      return originalId;
+    case "boolean":
+      return originalId ? "True" : "False";
+    case "number":
+      if (
+        !Number.isFinite(originalId) ||
+        Object.is(originalId, -0) ||
+        (Number.isInteger(originalId)
+          ? !Number.isSafeInteger(originalId)
+          : Math.abs(originalId) < 1e-4 || Math.abs(originalId) >= 1e16)
+      ) {
+        throw new RangeError("Original ID number cannot be displayed safely");
+      }
+      return String(originalId);
+    default:
+      throw new TypeError(
+        "Original ID must be a string, null, boolean or number",
+      );
+  }
+}
+
+/**
+ * Group strings or parsed scalar IDs. Null is empty; booleans use Python casing.
+ * Safe integral numbers mean integer IDs, since JSON parsing loses a float's .0.
+ * Fractions require absolute values in [1e-4, 1e16). Other numbers throw
+ * RangeError; unsupported types throw TypeError.
+ */
+export function groupOriginalIdTokens(originalId: unknown): OriginalIdToken[] {
+  const characters = Array.from(originalIdDisplayText(originalId));
   const gapAfter = characters.map(
     (character, index) =>
       pyIsAlpha(character) &&

@@ -208,7 +208,7 @@ const overflow = 3;
 
 describe.runIf(fullMode)(
   "queue overflow",
-  { timeout: classificationTimeout(queueCapacity) },
+  { timeout: classificationTimeout(queueCapacity + overflow) },
   () => {
     // Pre-queue work can stagger admission, so a burst can neither pin the
     // capacity nor guarantee a refusal. ClassificationQueue's specs pin both.

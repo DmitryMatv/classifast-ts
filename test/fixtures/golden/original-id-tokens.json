@@ -122,5 +122,11 @@
     {"input": 0.0001, "chars": ["0", ".", "0", "0", "0", "1"], "gapsAfter": [3]},
     {"input": -0.0001, "chars": ["-", "0", ".", "0", "0", "0", "1"], "gapsAfter": [4]},
     {"input": 4300.25, "chars": ["4", "3", "0", "0", ".", "2", "5"], "gapsAfter": [1]}
+  ],
+  "sourceLoss": [
+    {"inputJson": "12", "source": {"chars": ["1", "2"], "gapsAfter": []}, "parsedInteger": {"chars": ["1", "2"], "gapsAfter": []}},
+    {"inputJson": "12.0", "source": {"chars": ["1", "2", ".", "0"], "gapsAfter": []}, "parsedInteger": {"chars": ["1", "2"], "gapsAfter": []}},
+    {"inputJson": "0", "source": {"chars": ["0"], "gapsAfter": []}, "parsedInteger": {"chars": ["0"], "gapsAfter": []}},
+    {"inputJson": "0.0", "source": {"chars": ["0", ".", "0"], "gapsAfter": []}, "parsedInteger": {"chars": ["0"], "gapsAfter": []}}
   ]
 }
