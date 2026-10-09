@@ -1,6 +1,6 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { Controller, Get, Req } from "@nestjs/common";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
@@ -145,6 +145,42 @@ describe("mounted static files (e2e)", () => {
     expect(changed.headers["etag"]).not.toBe(original.headers["etag"]);
     expect(revalidated.status).toBe(304);
     expect(revalidated.headers["etag"]).toBe(changed.headers["etag"]);
+  });
+
+  it.each(["/%73tatic/app.js", "/static%2Fapp.js"])(
+    "mounts %s on the decoded path like Starlette",
+    async (path) => {
+      await writeFile(join(root, "app.js"), "mounted");
+      const server = app.getHttpServer();
+
+      const response = await request(server).get(path);
+      const posted = await request(server).post(path);
+
+      expect(response.status).toBe(200);
+      expect(response.text).toBe("mounted");
+      expectProfile(response, "STATIC_CODE");
+      expect(posted.status).toBe(405);
+    },
+  );
+
+  it.each([
+    "/static%2F..%2Foutside.txt",
+    "/%73tatic/..%2F..%2Foutside.txt",
+    "/static%2F%2E%2E%2Foutside.txt",
+  ])("keeps %s inside the mount", async (path) => {
+    const outside = `${root}-outside`;
+    await mkdir(outside);
+    await writeFile(join(outside, "outside.txt"), "secret");
+    try {
+      const response = await request(app.getHttpServer()).get(
+        path.replace("outside.txt", `${basename(outside)}%2Foutside.txt`),
+      );
+
+      expect(response.status).toBe(404);
+      expect(response.text).not.toContain("secret");
+    } finally {
+      await rm(outside, { recursive: true, force: true });
+    }
   });
 
   describe("byte ranges", () => {

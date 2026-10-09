@@ -374,17 +374,17 @@ const MOUNT_PREFIX = "/static";
 export function staticFilesMount(directory: string): RequestHandler {
   const root = realpathSync(directory);
   return async (req, res, next) => {
-    const { rawPath } = splitRequestTarget(req.originalUrl);
-    if (!rawPath.startsWith(`${MOUNT_PREFIX}/`)) {
+    // Starlette matches the mount on the percent-decoded path, so
+    // /%73tatic/x and /static%2Fx are mounted too.
+    const path = unquote(splitRequestTarget(req.originalUrl).rawPath);
+    if (!path.startsWith(`${MOUNT_PREFIX}/`)) {
       next();
       return;
     }
     if (req.method !== "GET" && req.method !== "HEAD") {
       throw new HttpException({ detail: "Method Not Allowed" }, 405);
     }
-    const relativePath = normalizeRoutePath(
-      unquote(rawPath).slice(MOUNT_PREFIX.length),
-    );
+    const relativePath = normalizeRoutePath(path.slice(MOUNT_PREFIX.length));
     const file =
       relativePath === undefined
         ? undefined
