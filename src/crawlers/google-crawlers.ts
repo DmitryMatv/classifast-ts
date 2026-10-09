@@ -47,7 +47,7 @@ export async function fetchGoogleCrawlerNetworks(
 ): Promise<IpNetwork[]> {
   const response = await fetch(GOOGLE_COMMON_CRAWLERS_URL, {
     redirect: "manual",
-    signal: AbortSignal.timeout(timeoutSeconds * 1000),
+    signal: AbortSignal.timeout(Math.ceil(timeoutSeconds * 1000)),
   });
   if (!response.ok) {
     throw new Error(`Google crawler IP ranges answered ${response.status}`);

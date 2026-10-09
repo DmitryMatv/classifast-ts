@@ -2,6 +2,7 @@ import type { AppConfig } from "../config/app-config.js";
 import {
   GoogleCrawlerRanges,
   GoogleCrawlerVerifier,
+  fetchGoogleCrawlerNetworks,
   parseGoogleCrawlerNetworks,
   type CrawlerRequest,
 } from "./google-crawlers.js";
@@ -282,5 +283,23 @@ describe("GoogleCrawlerRanges", () => {
     await ranges.current();
 
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("fetchGoogleCrawlerNetworks", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("fetches with a fractional timeout that is not a whole millisecond", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({ prefixes: [{ ipv4Prefix: "66.249.64.0/27" }] }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const networks = await fetchGoogleCrawlerNetworks(1.001);
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(networks).toHaveLength(1);
   });
 });
