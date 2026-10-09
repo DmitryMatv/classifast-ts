@@ -94,14 +94,24 @@ const classifierEnvSchema = z.object({
 export function buildClassifierConfig(
   env: NodeJS.ProcessEnv,
 ): ClassifierConfigMap {
-  const { HF_EMBEDDING_MODEL: embedModelName, HF_EMBEDDING_DIMS: embedDims } =
+  const { HF_EMBEDDING_MODEL: model, HF_EMBEDDING_DIMS: dims } =
     classifierEnvSchema.parse(env);
+  return classifierConfigFor({ model, dims });
+}
+
+export function classifierConfigFor({
+  model,
+  dims,
+}: {
+  readonly model: string;
+  readonly dims: number;
+}): ClassifierConfigMap {
   return Object.fromEntries(
     Object.entries(CLASSIFIERS).map(([classifierType, definition]) => [
       classifierType,
       {
-        embedModelName,
-        embedDims,
+        embedModelName: model,
+        embedDims: dims,
         queryInstruction:
           definition.queryInstruction ?? DEFAULT_QUERY_INSTRUCTION,
         rerankInstruction:

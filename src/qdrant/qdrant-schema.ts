@@ -296,3 +296,26 @@ export async function inspectConfiguredCollections(
   }
   return { quantizationCache, issues };
 }
+
+export class QdrantSchemaValidationError extends Error {
+  constructor(readonly issues: readonly QdrantValidationIssue[]) {
+    super("Failed to initialize Qdrant client: invalid schema");
+    this.name = "QdrantSchemaValidationError";
+  }
+}
+
+/**
+ * The boot check: returns the quantization cache, or throws when any
+ * configured collection breaks the contract. It only reads Qdrant.
+ */
+export async function validateConfiguredCollections(
+  client: QdrantSchemaReader,
+  config: CollectionLayout,
+): Promise<ReadonlyMap<string, boolean>> {
+  const { issues, quantizationCache } = await inspectConfiguredCollections(
+    client,
+    config,
+  );
+  if (issues.length > 0) throw new QdrantSchemaValidationError(issues);
+  return quantizationCache;
+}
