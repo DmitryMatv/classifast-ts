@@ -1363,6 +1363,42 @@ def resolve_type(value: str) -> dict[str, object]:
     return {"status": 200, "upperType": upper_type}
 
 
+CLASSIFIER_CONFIG_KEYS = {
+    "title": "title",
+    "heading": "heading",
+    "description": "description",
+    "example": "example",
+    "query_instruction": "queryInstruction",
+    "rerank_instruction": "rerankInstruction",
+}
+VERSION_CONFIG_KEYS = {
+    "collection_name": "collectionName",
+    "base_url": "baseUrl",
+    "append_code_to_url": "appendCodeToUrl",
+    "code_url_suffix": "codeUrlSuffix",
+    "tooltip": "tooltip",
+}
+
+
+def build_classifier_config_fixture() -> dict[str, object]:
+    return {
+        classifier_type: {
+            **{
+                key: config[python_key]
+                for python_key, key in CLASSIFIER_CONFIG_KEYS.items()
+            },
+            "versions": {
+                version_name: {
+                    VERSION_CONFIG_KEYS[key]: value
+                    for key, value in version_config.items()
+                }
+                for version_name, version_config in config["versions"].items()
+            },
+        }
+        for classifier_type, config in CLASSIFIER_CONFIG.items()
+    }
+
+
 def build_classifier_options_fixture() -> dict[str, object]:
     return {
         "versions": {
@@ -2200,6 +2236,7 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "query-text.json": build_query_text_fixture,
     "classifier-urls.json": build_classifier_urls_fixture,
     "classifier-options.json": build_classifier_options_fixture,
+    "classifier-config.json": build_classifier_config_fixture,
     "original-id-tokens.json": build_original_id_tokens_fixture,
     "result-score.json": build_result_score_fixture,
     "model-text.json": build_model_text_fixture,
