@@ -6,7 +6,7 @@ import request from "supertest";
 import { vi } from "vitest";
 import { AppModule } from "../src/app.module.js";
 import { ConfigError } from "../src/config/app-config.js";
-import { configureHttpApp } from "../src/http-app.js";
+import { configureHttpApp, createHttpAdapter } from "../src/http-app.js";
 
 async function listen(server: Server): Promise<string> {
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -64,7 +64,10 @@ async function bootApp(env: Partial<Record<string, string>>) {
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
   }).compile();
-  const app = moduleRef.createNestApplication<NestExpressApplication>();
+  const app =
+    moduleRef.createNestApplication<NestExpressApplication>(
+      createHttpAdapter(),
+    );
   configureHttpApp(app);
   await app.init();
   return app;

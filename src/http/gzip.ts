@@ -1,5 +1,3 @@
-export const GZIP_MINIMUM_SIZE = 1000;
-
 export const GZIP_EXCLUDED_PATHS: ReadonlySet<string> = new Set([
   "/sitemap.xml",
   "/robots.txt",
@@ -40,14 +38,16 @@ function isExcludedContentType(contentType: string | undefined): boolean {
   );
 }
 
-// Starlette's GZipMiddleware adds Vary: Accept-Encoding to every eligible body
-// of minimum size, even when the client cannot take gzip.
+// Python's minimum_size=1000 never applies: PerformanceMiddleware streams
+// every body through GZipMiddleware, which compresses any streamed body and
+// adds Vary: Accept-Encoding even when the client cannot take gzip. Only an
+// empty body, such as HEAD's or a 304's, arrives as one final chunk.
 export function compressionPlan(input: CompressionInput): CompressionPlan {
   if (
     input.hasContentEncoding ||
     input.status === 206 ||
     isExcludedContentType(input.contentType) ||
-    input.bodyLength < GZIP_MINIMUM_SIZE
+    input.bodyLength === 0
   ) {
     return "untouched";
   }

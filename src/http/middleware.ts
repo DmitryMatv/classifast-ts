@@ -2,6 +2,7 @@ import { gzip } from "node:zlib";
 import { HttpException, Logger } from "@nestjs/common";
 import type { Request, RequestHandler, Response } from "express";
 import { pyRepr } from "../python/float-repr.js";
+import { pyStrip } from "../python/str.js";
 import { unquote } from "../python/urllib.js";
 import {
   canonicalQuery,
@@ -57,13 +58,35 @@ export function splitRequestTarget(target: string): {
       };
 }
 
-// uvicorn runs with --forwarded-allow-ips "*", so Python trusts any
-// X-Forwarded-Proto when it builds the redirect URL.
+const FORWARDED_SCHEMES: ReadonlySet<string> = new Set([
+  "http",
+  "https",
+  "ws",
+  "wss",
+]);
+
+// uvicorn runs with --forwarded-allow-ips "*", so Python trusts the last
+// X-Forwarded-Proto header when it builds the redirect URL.
 function requestScheme(req: Request): string {
-  const forwarded = req.headers["x-forwarded-proto"];
-  if (forwarded === "http" || forwarded === "https") return forwarded;
+  const forwarded = req.headersDistinct["x-forwarded-proto"]?.at(-1);
+  const scheme = forwarded === undefined ? undefined : pyStrip(forwarded);
+  if (scheme !== undefined && FORWARDED_SCHEMES.has(scheme)) return scheme;
   return "encrypted" in req.socket && req.socket.encrypted ? "https" : "http";
 }
+
+// Starlette routes on the percent-decoded path, so /robots%2Etxt serves
+// robots.txt and %2F separates segments. Express matches req.url, so it gets
+// the decoded path with only the characters that would change its parse
+// re-encoded. req.originalUrl keeps the raw target.
+export const routeOnDecodedPath: RequestHandler = (req, _res, next) => {
+  const { rawPath } = splitRequestTarget(req.originalUrl);
+  const path = unquote(rawPath).replace(
+    /[%?#]/g,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  req.url = path + req.originalUrl.slice(rawPath.length);
+  next();
+};
 
 export const setSecurityHeaders: RequestHandler = (_req, res, next) => {
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
@@ -79,7 +102,9 @@ export const redirectToCanonicalQuery: RequestHandler = (req, res, next) => {
     next();
     return;
   }
-  const target = `${rawPath}?${query}`;
+  // Starlette builds request.url from the percent-decoded path. A character
+  // above U+00FF makes setHeader throw, and Python answers 500 there too.
+  const target = `${unquote(rawPath)}?${query}`;
   const host = req.headers.host;
   logger.log(`Redirecting to normalized URL for path: ${rawPath}`);
   res.statusCode = 308;

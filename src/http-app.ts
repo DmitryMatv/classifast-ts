@@ -1,23 +1,38 @@
-import type { NestExpressApplication } from "@nestjs/platform-express";
+import express from "express";
+import {
+  ExpressAdapter,
+  type NestExpressApplication,
+} from "@nestjs/platform-express";
 import { FastApiErrorFilter } from "./http/error-filter.js";
 import {
   gzipResponses,
   recordProcessTime,
   redirectToCanonicalQuery,
   rejectSuspiciousUrls,
+  routeOnDecodedPath,
   setSecurityHeaders,
 } from "./http/middleware.js";
 import { STATIC_ROOT, staticFilesMount } from "./static/static-files.js";
 
+// Express reads the routing settings when it creates its router, and
+// ExpressAdapter's constructor already registers middleware on it.
+export function createHttpAdapter(): ExpressAdapter {
+  const server = express();
+  server.disable("x-powered-by");
+  server.set("etag", false);
+  server.set("case sensitive routing", true);
+  server.set("strict routing", true);
+  return new ExpressAdapter(server);
+}
+
+// Starlette runs the last added middleware first, so this is Python's
+// add_middleware order reversed, ending with the /static mount.
 export function configureHttpApp(
   app: NestExpressApplication,
   staticRoot = STATIC_ROOT,
 ): void {
-  app.disable("x-powered-by");
-  app.set("etag", false);
-  app.set("case sensitive routing", true);
-  app.set("strict routing", true);
   app.use(
+    routeOnDecodedPath,
     setSecurityHeaders,
     redirectToCanonicalQuery,
     rejectSuspiciousUrls,
