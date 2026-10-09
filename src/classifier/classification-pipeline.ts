@@ -12,6 +12,7 @@ import {
   useRerankScores,
   withRerankScore,
   type ClassificationResult,
+  type RerankedResult,
 } from "./classification.js";
 import type {
   ClassifierConfig,
@@ -65,6 +66,7 @@ export interface PreparedClassification {
   readonly version: ClassifierVersion;
   readonly query: string;
   readonly exactResults: readonly ClassificationResult[];
+  readonly exactMs: number;
 }
 
 export interface CompletionOptions {
@@ -123,6 +125,7 @@ export async function prepareClassification(
     `CLASSIFICATION_QUERY: classifier=${classifierType} query='${sanitized.query}'`,
   );
 
+  const exactStart = deps.clock.now();
   let exactResults: ClassificationResult[];
   try {
     exactResults = await exactIdSearch(
@@ -134,7 +137,13 @@ export async function prepareClassification(
     logger.warn(`Exact ID search failed: ${errorText(error)}`);
     exactResults = [];
   }
-  return { ...resolved, classifierType, query: sanitized.query, exactResults };
+  return {
+    ...resolved,
+    classifierType,
+    query: sanitized.query,
+    exactResults,
+    exactMs: deps.clock.now() - exactStart,
+  };
 }
 
 function classification(
@@ -155,6 +164,9 @@ export function exactOutcome(
   topK: number,
 ): Classification | undefined {
   if (prepared.exactResults.length === 0) return undefined;
+  logger.log(
+    `ID_SEARCH: exact=${prepared.exactResults.length} partial=0 exact_ms=${prepared.exactMs.toFixed(2)} partial_ms=0.00`,
+  );
   logger.log(
     `ID_SEARCH_SHORTCUT: classifier=${prepared.classifierType} query='${prepared.query}' matches=${prepared.exactResults.length}`,
   );
@@ -233,7 +245,7 @@ export async function rerankCandidates(
   if (candidates.length === 0) return [];
   const toRerank = candidates.slice(0, rerankTopN);
   const remaining = candidates.slice(toRerank.length);
-  let reranked: ClassificationResult[];
+  let reranked: RerankedResult[];
   try {
     logger.log(
       `RERANK: OpenRouter reranking ${toRerank.length} candidates for query='${Array.from(query).slice(0, 50).join("")}'`,
@@ -244,6 +256,12 @@ export async function rerankCandidates(
       { timeoutSeconds, signal },
     );
     reranked = applyRerankScores(toRerank, scores);
+    const top = reranked[0];
+    if (top) {
+      logger.log(
+        `RERANK_COMPLETE: Top result=${String(top.payload.original_id ?? "N/A")} score=${(top.rerankRelevanceScore * 100).toFixed(2)} (reranked ${toRerank.length} docs)`,
+      );
+    }
   } catch (error) {
     if (signal.aborted) throw error;
     logger.warn(
@@ -254,7 +272,7 @@ export async function rerankCandidates(
   return [...reranked, ...withRerankScore(remaining, 0.0)].slice(0, topK);
 }
 
-async function rankSemanticResults(
+export async function rankSemanticResults(
   deps: PipelineDeps,
   query: string,
   semantic: readonly ClassificationResult[],
@@ -271,6 +289,9 @@ async function rankSemanticResults(
       );
       return withRerankScore(semantic.slice(0, topK), 0.0);
     }
+    logger.log(
+      `RERANK_STATUS: Using OpenRouter for ${semantic.length} semantic candidates`,
+    );
     return useRerankScores(
       await rerankCandidates(
         deps.reranker,
@@ -280,6 +301,11 @@ async function rankSemanticResults(
         signal,
       ),
     );
+  }
+  if (idMatches.length > 0) {
+    logger.log("RERANK_STATUS: Skipped - ID matches present");
+  } else if (!deps.reranker) {
+    logger.log("RERANK_STATUS: Skipped - OpenRouter reranker not available");
   }
   return withRerankScore(semantic.slice(0, topK), 0.0);
 }
@@ -305,15 +331,22 @@ export async function completeClassification(
     options.deadline ?? deps.clock.now() + deps.outboundBudgetSeconds * 1000;
   const { config, version, classifierType } = prepared;
   try {
+    const partialStart = deps.clock.now();
     const partialResults = await partialIdResults(
       deps,
       version.collectionName,
       prepared.query,
     );
+    logger.log(
+      `ID_SEARCH: exact=0 partial=${partialResults.length} exact_ms=${prepared.exactMs.toFixed(2)} partial_ms=${(deps.clock.now() - partialStart).toFixed(2)}`,
+    );
     signal.throwIfAborted();
     const rerankingEnabled =
       deps.reranker !== null && partialResults.length === 0;
     const limit = semanticRetrieveLimit(topK, rerankingEnabled);
+    logger.log(
+      `SEMANTIC_SEARCH: Fetching top ${limit} candidates (reranking=${rerankingEnabled ? "enabled" : "disabled"}, id_matches=${partialResults.length})`,
+    );
     const semanticText = semanticQuery || prepared.query;
 
     const vector = await embedQuery(

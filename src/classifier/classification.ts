@@ -24,6 +24,10 @@ export interface ClassificationResult {
   readonly rerankRelevanceScore?: number;
 }
 
+export type RerankedResult = ClassificationResult & {
+  readonly rerankRelevanceScore: number;
+};
+
 export interface StoredPoint {
   readonly id: PointId;
   readonly payload?: Readonly<Record<string, unknown>> | null;
@@ -66,7 +70,7 @@ export function sortByScoreDesc(
 export function withRerankScore(
   results: readonly ClassificationResult[],
   score: number,
-): ClassificationResult[] {
+): RerankedResult[] {
   return results.map((result) => ({ ...result, rerankRelevanceScore: score }));
 }
 
@@ -106,7 +110,7 @@ export function mergeClassificationResults(
 export function applyRerankScores(
   candidates: readonly ClassificationResult[],
   scores: readonly number[],
-): ClassificationResult[] {
+): RerankedResult[] {
   if (scores.length !== candidates.length) {
     throw new Error("Reranker score count does not match candidate count");
   }
@@ -138,7 +142,9 @@ function pythonStr(value: unknown): string | undefined {
 function storedNormalizedId(payload: Payload): string | undefined {
   const raw = payload[ORIGINAL_ID_NORMALIZED_FIELD];
   if (raw !== undefined && raw !== null) return pythonStr(raw);
-  const originalId = pythonStr(payload[ORIGINAL_ID_FIELD] ?? "");
+  const originalId = pythonStr(
+    Object.hasOwn(payload, ORIGINAL_ID_FIELD) ? payload[ORIGINAL_ID_FIELD] : "",
+  );
   return originalId === undefined
     ? undefined
     : normalizeOriginalIdForLookup(originalId);

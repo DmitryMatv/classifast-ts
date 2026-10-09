@@ -19,12 +19,12 @@ import re
 import sys
 import tempfile
 import threading
-import time
 import unicodedata
 from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import patch
 from urllib.parse import quote, quote_plus, unquote, unquote_plus, urlencode
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -1473,29 +1473,32 @@ def rerank_cases() -> list[dict[str, object]]:
     return cases
 
 
+NOW = 1000.0
+RANKING_SCORES: list[object] = [0.2, 0.8, 0.5, 0.1, 0.9]
+
+
 def ranking_cases() -> list[dict[str, object]]:
     cases = []
     for has_reranker in [True, False]:
         for id_matches in [[], [candidate("p2", 0.9, original_id="5678")]]:
             for remaining in [None, 1.99, 2.0, 30.0]:
                 for semantic in [[], RERANK_CANDIDATES]:
-                    reranker = RecordingReranker([0.2, 0.8, 0.5, 0.1, 0.9])
-                    deadline = (
-                        None if remaining is None else time.monotonic() + remaining
-                    )
+                    reranker = RecordingReranker(RANKING_SCORES)
+                    deadline = None if remaining is None else NOW + remaining
                     filtered = _exclude_id_match_results(
                         [dict(item) for item in semantic], id_matches
                     )
-                    ranked = _rank_semantic_results(
-                        reranker if has_reranker else None,
-                        "industrial pump",
-                        filtered,
-                        id_matches,
-                        3,
-                        100,
-                        "Find matching codes.",
-                        deadline=deadline,
-                    )
+                    with patch("app.classifier.time.monotonic", return_value=NOW):
+                        ranked = _rank_semantic_results(
+                            reranker if has_reranker else None,
+                            "industrial pump",
+                            filtered,
+                            id_matches,
+                            3,
+                            100,
+                            "Find matching codes.",
+                            deadline=deadline,
+                        )
                     cases.append(
                         {
                             "reranker": has_reranker,
@@ -1596,7 +1599,7 @@ EMBEDDING_RESPONSES: list[object] = [
     {"data": [{"embedding": []}]},
     {"data": []},
     {"data": [{"embedding": [0.1, "x", 0.3]}]},
-    {"data": [{"embedding": [1e40, -1e-50, 0.333333333333]}]},
+    {"data": [{"embedding": [1e30, -1e-50, 0.333333333333]}]},
     {"embeddings": [[0.1, 0.2, 0.3]]},
 ]
 
@@ -1870,6 +1873,7 @@ def build_classification_fixture() -> dict[str, object]:
             }
             for classifier_type, config in CLASSIFIER_CONFIG.items()
         },
+        "tiedResults": [result_record(item) for item in TIED_RESULTS],
         "sorting": [
             {
                 "topK": top_k,
@@ -1886,8 +1890,11 @@ def build_classification_fixture() -> dict[str, object]:
             for top_k in [1, 3, 10, 99, 100, 101, 150]
             for reranking in [False, True]
         ],
+        "rerankCandidates": RERANK_CANDIDATES,
+        "rankingScores": RANKING_SCORES,
         "rerank": rerank_cases(),
         "ranking": ranking_cases(),
+        "partialIdPoints": PARTIAL_ID_POINTS,
         "partialIds": partial_id_cases(),
         "rerankResponses": rerank_response_cases(),
         "enhancer": enhancer_cases(),
@@ -1921,11 +1928,11 @@ def to_json(fixture: dict[str, object]) -> str:
     for key, value in fixture.items():
         if isinstance(value, list) and value and isinstance(value[0], dict):
             cases = ",\n".join(
-                "    " + json.dumps(case, ensure_ascii=False) for case in value
+                "    " + json.dumps(case, ensure_ascii=False, allow_nan=False) for case in value
             )
             text = f"[\n{cases}\n  ]"
         else:
-            text = json.dumps(value, ensure_ascii=False, indent=2)
+            text = json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False)
             text = text.replace("\n", "\n  ")
         fields.append(f"  {json.dumps(key)}: {text}")
     return "{\n" + ",\n".join(fields) + "\n}\n"

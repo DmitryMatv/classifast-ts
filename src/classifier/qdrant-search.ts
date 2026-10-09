@@ -34,7 +34,7 @@ export async function semanticSearch(
     params.quantization = { ignore: false, rescore: true, oversampling: 3.0 };
   }
   const { points } = await client.query(collectionName, {
-    query: [...vector],
+    query: { nearest: [...vector] },
     limit,
     with_payload: true,
     with_vector: false,
@@ -49,9 +49,11 @@ export async function exactIdSearch(
   query: string,
 ): Promise<ClassificationResult[]> {
   const searchText = sanitizeSearchText(query);
-  const value = searchText.kind === "valid" ? searchText.query : "";
+  if (searchText.kind === "invalid") return [];
   const { points } = await client.scroll(collectionName, {
-    filter: { must: [{ key: ORIGINAL_ID_FIELD, match: { value } }] },
+    filter: {
+      must: [{ key: ORIGINAL_ID_FIELD, match: { value: searchText.query } }],
+    },
     limit: EXACT_ID_LIMIT,
     with_payload: true,
     with_vector: false,

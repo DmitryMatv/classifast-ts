@@ -111,6 +111,15 @@
       }
     }
   },
+  "tiedResults": [
+    {"id": "a", "score": 0.5},
+    {"id": "b", "score": 0.9},
+    {"id": "c", "score": 0.5},
+    {"id": "d", "score": 0.9},
+    {"id": "e", "score": 0.1},
+    {"id": "f", "score": 0.5},
+    {"id": "g", "score": 1.0}
+  ],
   "sorting": [
     {"topK": 0, "ids": []},
     {"topK": 1, "ids": ["g"]},
@@ -135,6 +144,20 @@
     {"topK": 101, "reranking": true, "limit": 101},
     {"topK": 150, "reranking": false, "limit": 150},
     {"topK": 150, "reranking": true, "limit": 150}
+  ],
+  "rerankCandidates": [
+    {"id": "p1", "score": 0.41, "payload": {"original_id": "1234", "class_name": "Pump body"}},
+    {"id": "p2", "score": 0.39, "payload": {"original_id": "5678", "class_name": "Pump casing", "definition": "Shell"}},
+    {"id": "p3", "score": 0.38, "payload": {"original_id": "9012", "definition": "Impeller housing"}},
+    {"id": "p4", "score": 0.37, "payload": {"original_id": "3456"}},
+    {"id": "p5", "score": 0.36, "payload": {"original_id": "7890", "class_name": "Seal"}}
+  ],
+  "rankingScores": [
+    0.2,
+    0.8,
+    0.5,
+    0.1,
+    0.9
   ],
   "rerank": [
     {"scores": [0.52, 0.91, 0.1, 0.1, 0.0], "topK": 2, "rerankTopN": 5, "instruction": null, "format": "legacy", "calls": [{"query": "industrial pump", "documents": ["Pump body", "Pump casing - Definition: Shell", "Impeller housing", "", "Seal"]}], "results": [{"id": "p2", "score": 0.39, "rerankRelevanceScore": 0.91}, {"id": "p1", "score": 0.41, "rerankRelevanceScore": 0.52}]},
@@ -216,7 +239,7 @@
     {"reranker": true, "idMatches": [], "remainingSeconds": 1.99, "semantic": [], "rerankCalls": 0, "ranked": [], "merged": []},
     {"reranker": true, "idMatches": [], "remainingSeconds": 1.99, "semantic": [{"id": "p1", "score": 0.41}, {"id": "p2", "score": 0.39}, {"id": "p3", "score": 0.38}, {"id": "p4", "score": 0.37}, {"id": "p5", "score": 0.36}], "rerankCalls": 0, "ranked": [{"id": "p1", "score": 0.41, "rerankRelevanceScore": 0.0}, {"id": "p2", "score": 0.39, "rerankRelevanceScore": 0.0}, {"id": "p3", "score": 0.38, "rerankRelevanceScore": 0.0}], "merged": [{"id": "p1", "score": 0.41, "rerankRelevanceScore": 0.0}, {"id": "p2", "score": 0.39, "rerankRelevanceScore": 0.0}, {"id": "p3", "score": 0.38, "rerankRelevanceScore": 0.0}]},
     {"reranker": true, "idMatches": [], "remainingSeconds": 2.0, "semantic": [], "rerankCalls": 0, "ranked": [], "merged": []},
-    {"reranker": true, "idMatches": [], "remainingSeconds": 2.0, "semantic": [{"id": "p1", "score": 0.41}, {"id": "p2", "score": 0.39}, {"id": "p3", "score": 0.38}, {"id": "p4", "score": 0.37}, {"id": "p5", "score": 0.36}], "rerankCalls": 0, "ranked": [{"id": "p1", "score": 0.41, "rerankRelevanceScore": 0.0}, {"id": "p2", "score": 0.39, "rerankRelevanceScore": 0.0}, {"id": "p3", "score": 0.38, "rerankRelevanceScore": 0.0}], "merged": [{"id": "p1", "score": 0.41, "rerankRelevanceScore": 0.0}, {"id": "p2", "score": 0.39, "rerankRelevanceScore": 0.0}, {"id": "p3", "score": 0.38, "rerankRelevanceScore": 0.0}]},
+    {"reranker": true, "idMatches": [], "remainingSeconds": 2.0, "semantic": [{"id": "p1", "score": 0.41}, {"id": "p2", "score": 0.39}, {"id": "p3", "score": 0.38}, {"id": "p4", "score": 0.37}, {"id": "p5", "score": 0.36}], "rerankCalls": 1, "ranked": [{"id": "p5", "score": 0.9, "rerankRelevanceScore": 0.9}, {"id": "p2", "score": 0.8, "rerankRelevanceScore": 0.8}, {"id": "p3", "score": 0.5, "rerankRelevanceScore": 0.5}], "merged": [{"id": "p5", "score": 0.9, "rerankRelevanceScore": 0.9}, {"id": "p2", "score": 0.8, "rerankRelevanceScore": 0.8}, {"id": "p3", "score": 0.5, "rerankRelevanceScore": 0.5}]},
     {"reranker": true, "idMatches": [], "remainingSeconds": 30.0, "semantic": [], "rerankCalls": 0, "ranked": [], "merged": []},
     {"reranker": true, "idMatches": [], "remainingSeconds": 30.0, "semantic": [{"id": "p1", "score": 0.41}, {"id": "p2", "score": 0.39}, {"id": "p3", "score": 0.38}, {"id": "p4", "score": 0.37}, {"id": "p5", "score": 0.36}], "rerankCalls": 1, "ranked": [{"id": "p5", "score": 0.9, "rerankRelevanceScore": 0.9}, {"id": "p2", "score": 0.8, "rerankRelevanceScore": 0.8}, {"id": "p3", "score": 0.5, "rerankRelevanceScore": 0.5}], "merged": [{"id": "p5", "score": 0.9, "rerankRelevanceScore": 0.9}, {"id": "p2", "score": 0.8, "rerankRelevanceScore": 0.8}, {"id": "p3", "score": 0.5, "rerankRelevanceScore": 0.5}]},
     {"reranker": true, "idMatches": [{"id": "p2", "score": 0.9}], "remainingSeconds": null, "semantic": [], "rerankCalls": 0, "ranked": [], "merged": [{"id": "p2", "score": 0.9}]},
@@ -243,6 +266,23 @@
     {"reranker": false, "idMatches": [{"id": "p2", "score": 0.9}], "remainingSeconds": 2.0, "semantic": [{"id": "p1", "score": 0.41}, {"id": "p2", "score": 0.39}, {"id": "p3", "score": 0.38}, {"id": "p4", "score": 0.37}, {"id": "p5", "score": 0.36}], "rerankCalls": 0, "ranked": [{"id": "p1", "score": 0.41, "rerankRelevanceScore": 0.0}, {"id": "p3", "score": 0.38, "rerankRelevanceScore": 0.0}, {"id": "p4", "score": 0.37, "rerankRelevanceScore": 0.0}], "merged": [{"id": "p2", "score": 0.9}, {"id": "p1", "score": 0.41, "rerankRelevanceScore": 0.0}, {"id": "p3", "score": 0.38, "rerankRelevanceScore": 0.0}]},
     {"reranker": false, "idMatches": [{"id": "p2", "score": 0.9}], "remainingSeconds": 30.0, "semantic": [], "rerankCalls": 0, "ranked": [], "merged": [{"id": "p2", "score": 0.9}]},
     {"reranker": false, "idMatches": [{"id": "p2", "score": 0.9}], "remainingSeconds": 30.0, "semantic": [{"id": "p1", "score": 0.41}, {"id": "p2", "score": 0.39}, {"id": "p3", "score": 0.38}, {"id": "p4", "score": 0.37}, {"id": "p5", "score": 0.36}], "rerankCalls": 0, "ranked": [{"id": "p1", "score": 0.41, "rerankRelevanceScore": 0.0}, {"id": "p3", "score": 0.38, "rerankRelevanceScore": 0.0}, {"id": "p4", "score": 0.37, "rerankRelevanceScore": 0.0}], "merged": [{"id": "p2", "score": 0.9}, {"id": "p1", "score": 0.41, "rerankRelevanceScore": 0.0}, {"id": "p3", "score": 0.38, "rerankRelevanceScore": 0.0}]}
+  ],
+  "partialIdPoints": [
+    {"id": "p1", "payload": {"original_id": "03111000-2"}},
+    {"id": "p2", "payload": {"original_id": "AA-1002"}},
+    {"id": "p2", "payload": {"original_id": "AA-1002"}},
+    {"id": "p3", "payload": {"original_id": "x", "original_id_normalized": "311abc"}},
+    {"id": "p4", "payload": {"original_id": "BAD-311", "original_id_normalized": 12345}},
+    {"id": "p5", "payload": {"original_id": "ZZ-9311"}},
+    {"id": "p6", "payload": {}},
+    {"id": "p7", "payload": null},
+    {"id": "p8", "payload": {"class_name": "No ID"}},
+    {"id": "p9", "payload": {"original_id": 3110}},
+    {"id": "p10", "payload": {"original_id": true}},
+    {"id": "p11", "payload": {"original_id": null}},
+    {"id": "p12", "payload": {"original_id": "0311-1000", "original_id_normalized": null}},
+    {"id": 13, "payload": {"original_id": "311"}},
+    {"id": "p14", "payload": {"original_id": "x", "original_id_normalized": true}}
   ],
   "partialIds": [
     {"query": "311", "ids": ["p1", "p3", "p5", "p9", "p12", 13]},
@@ -437,7 +477,7 @@
     {"token": "hf_test", "provider": "auto", "mapping": {"scaleway": {"status": "live", "providerId": "qwen3-embedding-8b", "task": "feature-extraction"}, "deepinfra": {"status": "live", "providerId": "Qwen/Qwen3-Embedding-8B", "task": "feature-extraction"}}, "response": {"data": [{"embedding": []}]}, "requests": [{"method": "GET", "url": "https://huggingface.co/api/models/Qwen/Qwen3-Embedding-8B?expand=inferenceProviderMapping", "authorization": "Bearer hf_test", "contentType": null, "body": null}, {"method": "POST", "url": "https://router.huggingface.co/scaleway/v1/embeddings", "authorization": "Bearer hf_test", "contentType": "application/json", "body": {"input": "industrial pump", "model": "qwen3-embedding-8b", "dimensions": 3}}], "vector": null},
     {"token": "hf_test", "provider": "auto", "mapping": {"scaleway": {"status": "live", "providerId": "qwen3-embedding-8b", "task": "feature-extraction"}, "deepinfra": {"status": "live", "providerId": "Qwen/Qwen3-Embedding-8B", "task": "feature-extraction"}}, "response": {"data": []}, "requests": [{"method": "GET", "url": "https://huggingface.co/api/models/Qwen/Qwen3-Embedding-8B?expand=inferenceProviderMapping", "authorization": "Bearer hf_test", "contentType": null, "body": null}, {"method": "POST", "url": "https://router.huggingface.co/scaleway/v1/embeddings", "authorization": "Bearer hf_test", "contentType": "application/json", "body": {"input": "industrial pump", "model": "qwen3-embedding-8b", "dimensions": 3}}], "vector": null},
     {"token": "hf_test", "provider": "auto", "mapping": {"scaleway": {"status": "live", "providerId": "qwen3-embedding-8b", "task": "feature-extraction"}, "deepinfra": {"status": "live", "providerId": "Qwen/Qwen3-Embedding-8B", "task": "feature-extraction"}}, "response": {"data": [{"embedding": [0.1, "x", 0.3]}]}, "requests": [{"method": "GET", "url": "https://huggingface.co/api/models/Qwen/Qwen3-Embedding-8B?expand=inferenceProviderMapping", "authorization": "Bearer hf_test", "contentType": null, "body": null}, {"method": "POST", "url": "https://router.huggingface.co/scaleway/v1/embeddings", "authorization": "Bearer hf_test", "contentType": "application/json", "body": {"input": "industrial pump", "model": "qwen3-embedding-8b", "dimensions": 3}}], "vector": null},
-    {"token": "hf_test", "provider": "auto", "mapping": {"scaleway": {"status": "live", "providerId": "qwen3-embedding-8b", "task": "feature-extraction"}, "deepinfra": {"status": "live", "providerId": "Qwen/Qwen3-Embedding-8B", "task": "feature-extraction"}}, "response": {"data": [{"embedding": [1e+40, -1e-50, 0.333333333333]}]}, "requests": [{"method": "GET", "url": "https://huggingface.co/api/models/Qwen/Qwen3-Embedding-8B?expand=inferenceProviderMapping", "authorization": "Bearer hf_test", "contentType": null, "body": null}, {"method": "POST", "url": "https://router.huggingface.co/scaleway/v1/embeddings", "authorization": "Bearer hf_test", "contentType": "application/json", "body": {"input": "industrial pump", "model": "qwen3-embedding-8b", "dimensions": 3}}], "vector": [Infinity, -0.0, 0.3333333432674408]},
+    {"token": "hf_test", "provider": "auto", "mapping": {"scaleway": {"status": "live", "providerId": "qwen3-embedding-8b", "task": "feature-extraction"}, "deepinfra": {"status": "live", "providerId": "Qwen/Qwen3-Embedding-8B", "task": "feature-extraction"}}, "response": {"data": [{"embedding": [1e+30, -1e-50, 0.333333333333]}]}, "requests": [{"method": "GET", "url": "https://huggingface.co/api/models/Qwen/Qwen3-Embedding-8B?expand=inferenceProviderMapping", "authorization": "Bearer hf_test", "contentType": null, "body": null}, {"method": "POST", "url": "https://router.huggingface.co/scaleway/v1/embeddings", "authorization": "Bearer hf_test", "contentType": "application/json", "body": {"input": "industrial pump", "model": "qwen3-embedding-8b", "dimensions": 3}}], "vector": [1.0000000150474662e+30, -0.0, 0.3333333432674408]},
     {"token": "hf_test", "provider": "auto", "mapping": {"scaleway": {"status": "live", "providerId": "qwen3-embedding-8b", "task": "feature-extraction"}, "deepinfra": {"status": "live", "providerId": "Qwen/Qwen3-Embedding-8B", "task": "feature-extraction"}}, "response": {"embeddings": [[0.1, 0.2, 0.3]]}, "requests": [{"method": "GET", "url": "https://huggingface.co/api/models/Qwen/Qwen3-Embedding-8B?expand=inferenceProviderMapping", "authorization": "Bearer hf_test", "contentType": null, "body": null}, {"method": "POST", "url": "https://router.huggingface.co/scaleway/v1/embeddings", "authorization": "Bearer hf_test", "contentType": "application/json", "body": {"input": "industrial pump", "model": "qwen3-embedding-8b", "dimensions": 3}}], "vector": null}
   ],
   "openRouterRequests": {
