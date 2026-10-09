@@ -9,6 +9,9 @@ regenerated fixtures.
 """
 
 import asyncio
+import base64
+import hashlib
+import hmac
 import ipaddress
 import json
 import logging
@@ -21,11 +24,15 @@ import tempfile
 import unicodedata
 from collections.abc import Callable, Iterable
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 from urllib.parse import quote, quote_plus, unquote, unquote_plus, urlencode
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import dotenv
+import httpx
+import polar.webhooks
 from jinja2 import Template
 
 
@@ -35,7 +42,7 @@ def ignore_developer_dotenv() -> None:
 
 ignore_developer_dotenv()
 
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
 from starlette.requests import Request
 from starlette.responses import FileResponse, Response
 
@@ -63,12 +70,14 @@ from app.classifier_page_delivery import (
     should_ssr,
     slugify,
 )
+from app import payments
 from app.dependencies import group_original_id_tokens, templates
 from app.id_lookup import normalize_original_id_for_lookup, reverse_normalized_id
 from app.main import QueryNormalizationMiddleware, URLEncodingValidationMiddleware
 from app.mapping_store import list_mapping_products
 from app.query_enhancer import _is_code_like
 from app.web import build_mapping_canonical_url
+from tests.test_polar_sdk_integration import PRO_PRODUCT_ID, _subscription_payload
 
 logging.disable(logging.CRITICAL)
 
@@ -1567,6 +1576,272 @@ def build_static_files_fixture() -> dict[str, object]:
     return {"validators": validators}
 
 
+RETURN_URL_HOSTS = ["classifast.com", "www.classifast.com:8443"]
+
+
+def validate_return_url_outcome(return_url: object, base_url: str) -> object:
+    request = SimpleNamespace(base_url=base_url)
+    with patch.dict(os.environ, {"ALLOWED_REDIRECT_HOSTS": ",".join(RETURN_URL_HOSTS)}):
+        try:
+            return payments.validate_return_url(request, return_url)
+        except HTTPException as error:
+            return {"status": error.status_code, "detail": error.detail}
+        except (ValueError, TypeError, AttributeError):
+            return {"status": 500}
+
+
+def return_url_inputs() -> list[object]:
+    hosts = ["testserver", "classifast.com", "www.classifast.com:8443", "evil.example"]
+    shapes = [
+        "http://{h}/NAICS/",
+        "https://{h}",
+        "//{h}/path",
+        "HTTP://{h}?x=1",
+        " \x01http://{h}/",
+        "ht\ttp://{h}/",
+        "http://u:p@{h}/",
+        "http:/{h}/",
+        "{h}/path",
+        "1http://{h}/",
+        "http://{h}#frag",
+        "http://{h}:80/",
+        "mailto://{h}",
+    ]
+    inputs: list[object] = [s.format(h=h) for s in shapes for h in hosts]
+    inputs += [
+        None, "", 0, False, [], {}, 5, True, ["http://testserver/"], {"a": 1},
+        "http://[::1]/", "http://[::1]:8000/", "http://[127.0.0.1]/",
+        "http://[v1.fe]/", "http://[vx]/", "http://[::1/", "http://::1]/",
+        "http://a[::1]/", "http://[::1]x/", "http://u@[::1]/", "http://[::1]@h/",
+        "http://test\uff0fserver/", "http://test\u2100server/",
+        "http://caf\xe9.example/", "http://\u24c9estserver/",
+        "http://testserver\u3002com/", "/relative", "http://", "http:///x",
+        "\x00//testserver/", "javascript://testserver/%0aalert(1)",
+    ]
+    return inputs
+
+
+def build_return_urls() -> list[dict[str, object]]:
+    cases = []
+    for base_url in ["http://testserver/", "https://classifast.com/", "http://[::1]:8000/"]:
+        for return_url in return_url_inputs():
+            outcome = validate_return_url_outcome(return_url, base_url)
+            cases.append({"returnUrl": return_url, "baseUrl": base_url, "outcome": outcome})
+    return cases
+
+
+WEBHOOK_NOW = 1_790_000_000
+WEBHOOK_SECRET = "whsec_" + base64.b64encode(b"golden-signing-key").decode()
+
+
+def webhook_signature(body: bytes, key: bytes, webhook_id: str, timestamp: object) -> str:
+    try:
+        seconds = math.floor(float(timestamp))
+    except (ValueError, OverflowError):
+        seconds = WEBHOOK_NOW
+    signed = f"{webhook_id}.{seconds}.".encode() + body
+    return "v1," + base64.b64encode(hmac.new(key, signed, hashlib.sha256).digest()).decode()
+
+
+def secret_key(secret: str) -> bytes:
+    remainder = secret.removeprefix("whsec_")
+    return base64.b64decode(remainder + "=" * (-len(remainder) % 4))
+
+
+def webhook_case(name, body, *, secret=WEBHOOK_SECRET, key=None, timestamp=None,
+                 webhook_id="msg_golden", signature=None, drop=(), pro=PRO_PRODUCT_ID):
+    body = body if isinstance(body, bytes) else json.dumps(body).encode()
+    timestamp = WEBHOOK_NOW if timestamp is None else timestamp
+    key = secret_key(secret) if key is None else key
+    headers = {
+        "webhook-id": webhook_id,
+        "webhook-timestamp": str(timestamp),
+        "webhook-signature": signature
+        if signature is not None
+        else webhook_signature(body, key, webhook_id, timestamp),
+    }
+    for header in drop:
+        del headers[header]
+    return {"name": name, "secret": secret, "proProductId": pro,
+            "body": base64.b64encode(body).decode(), "headers": headers}
+
+
+def subscription(event_type, status="active", **changes):
+    payload = _subscription_payload(event_type, status)
+    for path, value in changes.items():
+        target = payload["data"]
+        *parents, leaf = path.split("__")
+        for parent in parents:
+            target = target[int(parent)] if isinstance(target, list) else target[parent]
+        if value is DROP:
+            del target[leaf]
+        else:
+            target[leaf] = value
+    return payload
+
+
+DROP = object()
+
+
+def webhook_inputs() -> list[dict[str, object]]:
+    other = "00000000-0000-4000-8000-000000000000"
+    active = subscription("subscription.active")
+    active_bytes = json.dumps(active).encode()
+    cases = []
+    for event_type, status in [
+        ("subscription.created", "trialing"), ("subscription.active", "active"),
+        ("subscription.updated", "trialing"), ("subscription.updated", "active"),
+        ("subscription.updated", "canceled"), ("subscription.updated", "past_due"),
+        ("subscription.updated", "unpaid"), ("subscription.updated", "incomplete_expired"),
+        ("subscription.updated", "incomplete"), ("subscription.updated", "paused"),
+        ("subscription.canceled", "active"), ("subscription.revoked", "canceled"),
+        ("subscription.cycled", "active"), ("subscription.uncanceled", "active"),
+    ]:
+        cases.append(webhook_case(f"{event_type} {status}", subscription(event_type, status)))
+    cases += [
+        webhook_case("UTF-8 key", active, key=WEBHOOK_SECRET.encode()),
+        webhook_case("non-base64 secret", active, secret="plain secret!", key=b"plain secret!"),
+        webhook_case("unpadded secret", active, secret="whsec_YWJjZA", key=b"abcd"),
+        webhook_case("secret without prefix", active, secret="YWJjZA==", key=b"abcd"),
+        webhook_case("other product", subscription("subscription.active", product_id=other,
+                     product__id=other, prices__0__product_id=other)),
+        webhook_case("product only in metadata", subscription(
+            "subscription.updated", product_id=other, product__id=other,
+            prices__0__product_id=other,
+            metadata={"user_id": "user_123", "product_ids": f" x, {PRO_PRODUCT_ID},"})),
+        webhook_case("product only in prices", subscription(
+            "subscription.updated", product_id=other, product__id=other)),
+        webhook_case("product only in undeclared items", subscription(
+            "subscription.active", product_id=other, product__id=other,
+            prices__0__product_id=other, items=[{"product_id": PRO_PRODUCT_ID}])),
+        webhook_case("product only in undeclared product field", subscription(
+            "subscription.active", product_id=other, product__id=other,
+            prices__0__product_id=other, product__product_id=PRO_PRODUCT_ID)),
+        webhook_case("comma list product_id", subscription(
+            "subscription.active", product_id=f"{other},{PRO_PRODUCT_ID}",
+            product__id=other, prices__0__product_id=other)),
+        webhook_case("no product identity", subscription(
+            "subscription.active", product_id="", product__id=" ",
+            prices__0__product_id=",", prices__0__id="")),
+        webhook_case("missing Pro product config", active, pro=None),
+        webhook_case("missing Pro product config, cycled event",
+                     subscription("subscription.cycled"), pro=None),
+        webhook_case("missing Pro product config, unknown type",
+                     {"type": "future.event"}, pro=None),
+        webhook_case("boolean user_id", subscription("subscription.active", metadata={"user_id": True})),
+        webhook_case("empty user_id", subscription("subscription.active", metadata={"user_id": ""})),
+        webhook_case("no user_id", subscription("subscription.active", metadata={})),
+        webhook_case("tampered body", active_bytes + b" ", signature=webhook_signature(
+            active_bytes, secret_key(WEBHOOK_SECRET), "msg_golden", WEBHOOK_NOW)),
+        webhook_case("wrong secret", active, key=b"wrong"),
+        webhook_case("stale timestamp", active, timestamp=WEBHOOK_NOW - 301),
+        webhook_case("oldest accepted timestamp", active, timestamp=WEBHOOK_NOW - 300),
+        webhook_case("future timestamp", active, timestamp=WEBHOOK_NOW + 301),
+        webhook_case("newest accepted timestamp", active, timestamp=WEBHOOK_NOW + 300),
+        webhook_case("fractional timestamp", active, timestamp=f"{WEBHOOK_NOW}.9"),
+        webhook_case("exponent timestamp", active, timestamp="1.79e9"),
+        webhook_case("underscore timestamp", active, timestamp="1_790_000_000"),
+        webhook_case("padded timestamp", active, timestamp=f" {WEBHOOK_NOW} "),
+        webhook_case("NaN timestamp", active, timestamp="nan"),
+        webhook_case("infinite timestamp", active, timestamp="inf"),
+        webhook_case("text timestamp", active, timestamp="soon"),
+        webhook_case("missing signature", active, drop=["webhook-signature"]),
+        webhook_case("missing id", active, drop=["webhook-id"]),
+        webhook_case("missing timestamp", active, drop=["webhook-timestamp"]),
+        webhook_case("empty id", active, webhook_id=""),
+        webhook_case("Latin-1 id", active, webhook_id="msg_\xe9"),
+    ]
+    good = webhook_signature(active_bytes, secret_key(WEBHOOK_SECRET), "msg_golden", WEBHOOK_NOW)
+    for name, signature in [
+        ("second of two signatures", "v1,AAAA " + good),
+        ("tab-separated signatures", "v1,AAAA\t" + good),
+        ("v2 signature", "v2," + good.removeprefix("v1,")),
+        ("signature without comma", "v1" + good.removeprefix("v1,")),
+        ("unpadded signature", good.rstrip("=")),
+        ("signature with invalid base64", good + "!"),
+    ]:
+        cases.append(webhook_case(name, active, signature=signature))
+    cases += [
+        webhook_case("invalid JSON", b"{"),
+        webhook_case("JSON array", b"[]"),
+        webhook_case("missing type", b"{}"),
+        webhook_case("empty type", {"type": ""}),
+        webhook_case("numeric type", {"type": 5}),
+        webhook_case("unknown type", {"type": "future.event", "data": {}}),
+        webhook_case("UTF-8 BOM", b"\xef\xbb\xbf" + active_bytes),
+        webhook_case("invalid UTF-8", b'{"type": "\xff"}'),
+        webhook_case("invalid UTF-8 unsigned", b'{"type": "\xff"}', signature="v1,AAAA"),
+        webhook_case("non-UTF-8 surrogate", b'{"type": "\xed\xa0\x80"}'),
+        webhook_case("incomplete subscription", {"type": "subscription.updated", "data": {}}),
+        webhook_case("missing api_version", {
+            key: value for key, value in active.items() if key != "api_version"}),
+        webhook_case("numeric timestamp", {**active, "timestamp": 5}),
+        webhook_case("null data", {**active, "data": None}),
+        webhook_case("unknown status", subscription("subscription.updated", status="weird")),
+        webhook_case("boolean amount", subscription("subscription.active", amount=True)),
+        webhook_case("integer flag", subscription("subscription.active", cancel_at_period_end=1)),
+        webhook_case("null metadata value", subscription("subscription.active", metadata={"x": None})),
+        webhook_case("nested metadata value", subscription("subscription.active", metadata={"x": [1]})),
+        webhook_case("missing customer", subscription("subscription.active", customer=DROP)),
+        webhook_case("missing meters", subscription("subscription.active", meters=DROP)),
+        webhook_case("null customer", subscription("subscription.active", customer=None)),
+        webhook_case("product without id", subscription("subscription.active", product__id=DROP)),
+        webhook_case("price without product_id", subscription("subscription.active", prices__0__product_id=DROP)),
+        webhook_case("null custom_field_data", subscription("subscription.active", custom_field_data=None)),
+        webhook_case("integer past_due_at", subscription("subscription.active", past_due_at=5)),
+        webhook_case("migrated without provider", subscription("subscription.migrated")),
+        webhook_case("migrated", {**subscription("subscription.migrated"), "provider": "stripe",
+                                  "provider_subscription_id": "sub_1"}),
+    ]
+    return cases
+
+
+async def run_webhook_case(case: dict[str, object]) -> dict[str, object]:
+    app = FastAPI()
+    app.include_router(payments.router, prefix="/api")
+    app.state.redis_client = None
+    clerk_update = AsyncMock(return_value=True)
+    tier_write = AsyncMock()
+    environment = {"POLAR_PRO_PRODUCT_ID": case["proProductId"] or ""}
+    headers = {
+        name: value if value.isascii() else value.encode("latin-1")
+        for name, value in case["headers"].items()
+    }
+    with (
+        patch.dict(os.environ, environment),
+        patch.object(payments, "POLAR_WEBHOOK_SECRET", case["secret"]),
+        patch.object(payments, "update_clerk_user_metadata", clerk_update),
+        patch.object(payments, "set_cached_user_tier", tier_write),
+        patch.object(polar.webhooks, "time", SimpleNamespace(time=lambda: WEBHOOK_NOW)),
+    ):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            response = await client.post(
+                "/api/webhooks/polar",
+                content=base64.b64decode(case["body"]),
+                headers={"content-type": "application/json", **headers},
+            )
+    return {
+        "status": response.status_code,
+        "json": response.json(),
+        "clerkUpdates": [[c.args[0], c.args[1]["tier"]] for c in clerk_update.await_args_list],
+        "tierWrites": [[c.args[0], c.args[1]] for c in tier_write.await_args_list],
+    }
+
+
+def build_payments_fixture() -> dict[str, object]:
+    webhooks = []
+    for case in webhook_inputs():
+        webhooks.append({**case, **asyncio.run(run_webhook_case(case))})
+    return {
+        "allowedRedirectHosts": RETURN_URL_HOSTS,
+        "returnUrls": build_return_urls(),
+        "webhookNow": WEBHOOK_NOW,
+        "webhooks": webhooks,
+    }
+
+
 FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "id-lookup.json": build_id_lookup_fixture,
     "python-str.json": build_python_str_fixture,
@@ -1585,6 +1860,7 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "request-url.json": build_request_url_fixture,
     "static-files.json": build_static_files_fixture,
     "ip-network.json": build_ip_network_fixture,
+    "payments.json": build_payments_fixture,
 }
 
 
