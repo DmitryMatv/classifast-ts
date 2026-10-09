@@ -85,3 +85,8 @@ export async function connectRedis(
   logger.log("Redis client initialized successfully.");
   return client;
 }
+
+export async function closeRedis(client: RedisClient): Promise<void> {
+  if (!client.isOpen) return;
+  await withinTimeout(client.close()).catch(() => client.destroy());
+}

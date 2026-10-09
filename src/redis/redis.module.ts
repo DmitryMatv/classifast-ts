@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { APP_CONFIG, type AppConfig } from "../config/app-config.js";
 import {
+  closeRedis,
   connectRedis,
   REDIS_CLIENT,
   type RedisClient,
@@ -28,6 +29,6 @@ export class RedisModule implements OnApplicationShutdown {
   ) {}
 
   async onApplicationShutdown(): Promise<void> {
-    if (this.redis?.isOpen) await this.redis.close();
+    if (this.redis) await closeRedis(this.redis);
   }
 }
