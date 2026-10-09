@@ -34,6 +34,17 @@ The Qdrant JS client requests `GET /` to check the server version when it is
 constructed, and logs a warning when that fails. Fake Qdrant servers in tests
 must answer `GET /` with a compatible `version` to keep the output clean.
 
+Like Python's startup, Nest boot runs the read-only Qdrant schema check
+(`QdrantModule`) and fails when Qdrant is unreachable or any configured
+collection breaks the contract. A Nest e2e test that boots `AppModule` needs a
+fake Qdrant that serves every configured collection: use `startQdrantServer`
+with `validCollections` from `test/support/qdrant-server.ts`. Pipeline Qdrant
+calls do not take the queue's `AbortSignal`, because the JS client has no
+per-call signal, so a Qdrant stage runs to completion after cancellation.
+
+The repository has no `tsx`. To run a one-off script against the Nest code,
+build with `npx nest build` and import the compiled modules from `dist/`.
+
 Always use `pytest` for backend tests. The suite retains `unittest`-compatible
 test classes and standard-library mocks, but pytest is the official runner.
 
