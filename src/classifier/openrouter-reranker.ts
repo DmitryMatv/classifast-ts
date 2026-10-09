@@ -81,6 +81,16 @@ export function parseRerankScores(
   return scores as number[];
 }
 
+/** A budget lowers the configured timeout but never raises it. */
+export function requestTimeoutSeconds(
+  configuredSeconds: number,
+  budgetSeconds: number | undefined,
+): number {
+  return budgetSeconds === undefined
+    ? configuredSeconds
+    : Math.max(0.1, Math.min(budgetSeconds, configuredSeconds));
+}
+
 export class OpenRouterReranker {
   constructor(
     private readonly config: OpenRouterRerankConfig,
@@ -102,10 +112,10 @@ export class OpenRouterReranker {
     }: { timeoutSeconds?: number; signal: AbortSignal },
   ): Promise<number[]> {
     if (documents.length === 0) return [];
-    const requestTimeout =
-      timeoutSeconds === undefined
-        ? this.config.timeoutSeconds
-        : Math.max(0.1, Math.min(timeoutSeconds, this.config.timeoutSeconds));
+    const requestTimeout = requestTimeoutSeconds(
+      this.config.timeoutSeconds,
+      timeoutSeconds,
+    );
     const body = JSON.stringify({
       model: this.config.model,
       query,
