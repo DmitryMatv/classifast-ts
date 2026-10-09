@@ -273,6 +273,21 @@ markup moves to a new directory, add a `@source` line for it.
 
 `app/api.py` is specifically made for the Rapid API platform. It contains endpoints that make the classification service accessible on that platform. Ignore api.py unless explicitly asked to work on Rapid API service integration.
 
+The Nest port lives in `src/rapidapi/`. `rapidapi-query.json` drives
+`app/api.py`'s real router, so it pins FastAPI's 422 bodies and pydantic's
+lax `top_k` parsing: `3.0`, `1_0` and `3` padded with any Unicode
+`White_Space` are accepted, while `3.`, `1e1`, a zero-width space and
+fullwidth digits are rejected. Regenerate the fixture
+after changing `app/api.py` or `app/classifier_config.py`.
+`classifier-config.json` pins the display and link fields of the classifier
+table in `src/classifier/classifier-config.ts`. `FastApiErrorFilter` writes
+only the status and the `detail` body. To send a header with an error, such as
+`WWW-Authenticate` or the no-store profile, set it on the response before
+throwing. The canonical-query middleware answers 308 to `?query=%20a` before
+the route strips the value, in both apps. The Nest app cannot boot without
+Qdrant, so `/ping` reports the database as `healthy` or `unhealthy` and never
+as `unavailable`.
+
 ## Gotchas and Non-Obvious Behaviors
 
 - Polar SDK version range is declared in `requirements.txt`.
