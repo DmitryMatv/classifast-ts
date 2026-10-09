@@ -48,7 +48,15 @@ node-redis's command `timeout` stops counting once a command is written, and
 its `socketTimeout` is an idle timeout. Neither fails a command that a hung
 Redis never answers. Wrap every Redis call in `withReplyTimeout`, which fails
 it after redis-py's five-second `socket_timeout`. Without it, a hung Redis
-would block the charge, which holds the only classification turn.
+would block the charge, which holds the only classification turn. A timeout
+also destroys the connection and reconnects, as redis-py does; otherwise the
+stuck connection fails every later call. `close()` waits for pending replies,
+so shut down with `closeRedis`, which destroys the client after five seconds.
+
+`TextDecoder` and `Response.text()` strip a leading UTF-8 BOM; Python's
+`.decode()` keeps it. Decode Redis bytes with `ignoreBOM: true` (a cached tier
+of `\ufeffpro` is not Pro in Python). `httpx`'s `response.json()` parses bytes
+and does strip a leading body BOM, so `Response.text()` matches it there.
 
 Python's `check_usage` and `reserve_usage` each call
 `get_or_create_tracking_id`. A request without a valid `cf_track` cookie
