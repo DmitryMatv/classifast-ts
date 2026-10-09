@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { createServer, type Socket } from "node:net";
+import { connect, createServer, type Server, type Socket } from "node:net";
 import { createClient } from "redis";
 import { inject } from "vitest";
 import {
@@ -24,6 +24,21 @@ export function uniqueId(prefix: string): string {
   return `${prefix}-${randomUUID()}`;
 }
 
+async function listenOnLoopback(server: Server, sockets: Set<Socket>) {
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (address === null || typeof address === "string") {
+    throw new Error("expected a TCP address");
+  }
+  return {
+    port: address.port,
+    close: () => {
+      for (const socket of sockets) socket.destroy();
+      return new Promise<void>((resolve) => server.close(() => resolve()));
+    },
+  };
+}
+
 export async function hangingRedisServer() {
   let answering = true;
   const sockets = new Set<Socket>();
@@ -35,19 +50,44 @@ export async function hangingRedisServer() {
       socket.write("+OK\r\n".repeat(commands.length));
     });
   });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address();
-  if (address === null || typeof address === "string") {
-    throw new Error("expected a TCP address");
-  }
   return {
-    port: address.port,
+    ...(await listenOnLoopback(server, sockets)),
     hang: () => {
       answering = false;
     },
-    close: () => {
-      for (const socket of sockets) socket.destroy();
-      return new Promise<void>((resolve) => server.close(() => resolve()));
+  };
+}
+
+/**
+ * Forwards connections to the test Redis. Freezing drops Redis's replies on
+ * the connections open at that moment, while later connections still work.
+ */
+export async function freezableRedisProxy() {
+  const { hostname, port } = new URL(inject("redisUrl"));
+  const sockets = new Set<Socket>();
+  const open = new Set<Socket>();
+  const frozen = new WeakSet<Socket>();
+  const server = createServer((downstream) => {
+    const upstream = connect(Number(port), hostname);
+    sockets.add(downstream).add(upstream);
+    open.add(downstream);
+    downstream.pipe(upstream);
+    upstream.on("data", (chunk) => {
+      if (!frozen.has(downstream)) downstream.write(chunk);
+    });
+    for (const socket of [downstream, upstream]) {
+      socket.on("error", () => undefined);
+      socket.on("close", () => {
+        open.delete(downstream);
+        downstream.destroy();
+        upstream.destroy();
+      });
+    }
+  });
+  return {
+    ...(await listenOnLoopback(server, sockets)),
+    freezeOpenConnections: () => {
+      for (const socket of open) frozen.add(socket);
     },
   };
 }

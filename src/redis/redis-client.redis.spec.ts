@@ -1,7 +1,8 @@
 import { createServer } from "node:net";
-import { inject, vi } from "vitest";
+import { inject, onTestFinished, vi } from "vitest";
 import {
   connectTestRedis,
+  freezableRedisProxy,
   hangingRedisServer,
   hungRedis,
 } from "../../test/support/redis.js";
@@ -87,6 +88,32 @@ describe("withReplyTimeout", () => {
     await rejection;
     await close();
   });
+
+  it("answers the next call on a fresh connection after a reply times out", async () => {
+    const proxy = await freezableRedisProxy();
+    const client = await connectRedis({
+      host: "127.0.0.1",
+      port: proxy.port,
+      auth: undefined,
+    });
+    if (!client) throw new Error("expected the proxy to reach Redis");
+    onTestFinished(async () => {
+      client.destroy();
+      await proxy.close();
+    });
+    proxy.freezeOpenConnections();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+
+    const stuck = expect(withReplyTimeout(client.ping())).rejects.toThrow(
+      "Redis did not reply within 5000 ms",
+    );
+    await vi.advanceTimersByTimeAsync(5_000);
+    await stuck;
+    vi.useRealTimers();
+    await vi.waitFor(() => expect(client.isReady).toBe(true));
+
+    expect(await withReplyTimeout(client.ping())).toBe("PONG");
+  }, 10_000);
 
   it("passes a prompt reply through", async () => {
     const client = await connectTestRedis();
