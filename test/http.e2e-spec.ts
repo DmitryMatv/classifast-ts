@@ -23,6 +23,15 @@ import {
   SECURITY_HEADERS,
   splitRequestTarget,
 } from "../src/http/middleware.js";
+import {
+  buildClassifierConfig,
+  getAllCollectionNames,
+} from "../src/classifier/classifier-config.js";
+import {
+  startQdrantServer,
+  validCollections,
+  type QdrantServer,
+} from "./support/qdrant-server.js";
 
 @Controller()
 class EchoController {
@@ -35,10 +44,21 @@ class EchoController {
   }
 }
 
+// Boot runs the Qdrant schema check, so every app gets a valid fake Qdrant.
+let qdrant: Promise<QdrantServer> | undefined;
+
+afterAll(async () => {
+  await (await qdrant)?.close();
+});
+
 async function bootApp(staticRoot?: string): Promise<NestExpressApplication> {
-  for (const name of ["HF_TOKEN", "QDRANT_URL", "QDRANT_HOST", "QDRANT_PORT"]) {
+  for (const name of ["HF_TOKEN", "QDRANT_HOST", "QDRANT_PORT"]) {
     vi.stubEnv(name, undefined);
   }
+  qdrant ??= startQdrantServer(
+    validCollections(getAllCollectionNames(buildClassifierConfig({}))),
+  );
+  vi.stubEnv("QDRANT_URL", (await qdrant).url);
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
     controllers: [EchoController],
