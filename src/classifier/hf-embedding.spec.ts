@@ -116,6 +116,44 @@ describe("HfEmbeddingClient matches huggingface_hub", () => {
   });
 });
 
+describe("HfEmbeddingClient hf-inference task check", () => {
+  it("is bounded by the outbound budget, not the embedding timeout", async () => {
+    const taskInfo = json({ id: MODEL, pipeline_tag: "feature-extraction" });
+    const fetchFn: typeof fetch = async (_input, init) => {
+      if ((init?.method ?? "GET") === "POST") return json([0.1, 0.2, 0.3]);
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(resolve, 150);
+        init?.signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          reject(init.signal?.reason);
+        });
+      });
+      return taskInfo.clone();
+    };
+    const embedder = new HfEmbeddingClient(
+      { token: "hf_test", provider: "hf-inference", timeoutSeconds: 0.05 },
+      fetchFn,
+      new FakeClock(),
+    );
+
+    await expect(embed(embedder, 5)).resolves.toHaveLength(3);
+  });
+
+  it("sends no request when the outbound budget is already spent", async () => {
+    const fake = fakeFetch(json({}, 503));
+    const embedder = new HfEmbeddingClient(
+      { token: "hf_test", provider: "hf-inference", timeoutSeconds: 20 },
+      fake.fetch,
+      new FakeClock(),
+    );
+
+    await expect(embed(embedder, 0)).rejects.toMatchObject({
+      name: "TimeoutError",
+    });
+    expect(fake.requests).toHaveLength(0);
+  });
+});
+
 describe("HfEmbeddingClient retries like tenacity", () => {
   it.each([
     ["a timeout", new DOMException("timed out", "TimeoutError")],

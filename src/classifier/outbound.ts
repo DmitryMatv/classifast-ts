@@ -44,11 +44,10 @@ export function isTransientHttpError(error: unknown): boolean {
 
 /**
  * AbortSignal.timeout() throws RangeError for a fractional delay. Rounding
- * down keeps a request inside its budget; the 1 ms floor keeps a remaining
- * sub-millisecond budget from becoming an immediate abort.
+ * down keeps a request inside its budget.
  */
 export function timeoutMilliseconds(ms: number): number {
-  return Math.max(1, Math.floor(ms));
+  return Math.floor(ms);
 }
 
 export async function fetchJson(
@@ -58,12 +57,15 @@ export async function fetchJson(
   timeoutMs: number,
   signal: AbortSignal,
 ): Promise<unknown> {
+  const timeout = timeoutMilliseconds(timeoutMs);
+  // An exhausted budget fails like the timeout it would have become, so
+  // isTransientHttpError and the pipeline treat both alike.
+  if (timeout < 1) {
+    throw new DOMException("The operation timed out.", "TimeoutError");
+  }
   const response = await fetchFn(url, {
     ...init,
-    signal: AbortSignal.any([
-      signal,
-      AbortSignal.timeout(timeoutMilliseconds(timeoutMs)),
-    ]),
+    signal: AbortSignal.any([signal, AbortSignal.timeout(timeout)]),
   });
   if (!response.ok) throw new HttpStatusError(response.status, url);
   return response.json();

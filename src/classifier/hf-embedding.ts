@@ -93,8 +93,12 @@ export class HfEmbeddingClient {
     { model, text, dims, maxSeconds }: EmbeddingRequest,
     signal: AbortSignal,
   ): Promise<number[]> {
+    const deadline =
+      maxSeconds === undefined
+        ? undefined
+        : this.clock.now() + maxSeconds * 1000;
     const response = await withRetry(
-      () => this.#featureExtraction(model, text, dims, signal),
+      () => this.#featureExtraction(model, text, dims, signal, deadline),
       isTransientHttpError,
       { clock: this.clock, signal, maxSeconds },
     );
@@ -112,8 +116,15 @@ export class HfEmbeddingClient {
     text: string,
     dims: number,
     signal: AbortSignal,
+    deadline: number | undefined,
   ): Promise<unknown> {
-    const request = await this.#providerRequest(model, text, dims, signal);
+    const request = await this.#providerRequest(
+      model,
+      text,
+      dims,
+      signal,
+      deadline,
+    );
     const body = await fetchJson(
       this.fetchFn,
       request.url,
@@ -139,6 +150,7 @@ export class HfEmbeddingClient {
     text: string,
     dims: number,
     signal: AbortSignal,
+    deadline: number | undefined,
   ): Promise<ProviderRequest> {
     const hfInferenceBody = { inputs: text, dimensions: dims };
     if (/^https?:\/\//.test(model)) {
@@ -152,7 +164,7 @@ export class HfEmbeddingClient {
       throw new Error(`No provider mapping found for model ${model}`);
     }
     if (provider === HF_INFERENCE) {
-      await this.#checkHfInferenceTask(model, signal);
+      await this.#checkHfInferenceTask(model, signal, deadline);
       return {
         url: `${ROUTER_URL}/${HF_INFERENCE}/models/${model}/pipeline/feature-extraction`,
         body: hfInferenceBody,
@@ -188,10 +200,15 @@ export class HfEmbeddingClient {
     };
   }
 
-  /** hf_inference._check_supported_task for feature-extraction. */
+  /**
+   * hf_inference._check_supported_task for feature-extraction. Python sets no
+   * timeout; this runs inside the classification turn, so what is left of the
+   * outbound budget bounds it.
+   */
   async #checkHfInferenceTask(
     model: string,
     signal: AbortSignal,
+    deadline: number | undefined,
   ): Promise<void> {
     if (this.#hfInferenceModels.has(model)) return;
     const info = modelTaskSchema.parse(
@@ -199,7 +216,9 @@ export class HfEmbeddingClient {
         this.fetchFn,
         `${HUB_URL}/api/models/${model}`,
         { headers: { authorization: `Bearer ${this.config.token}` } },
-        this.config.timeoutSeconds * 1000,
+        deadline === undefined
+          ? this.config.timeoutSeconds * 1000
+          : deadline - this.clock.now(),
         signal,
       ),
     );
