@@ -646,17 +646,6 @@ def round_inputs() -> list[float]:
     return values
 
 
-def repr_inputs() -> list[float]:
-    rng = random.Random(20261009)
-    values = [0.0, -0.0, 1.0, -1.5, 0.1, 1e-4, 1e-5, 1.5e-5, 9.99e-5, 123.0]
-    values += [1e15, 1e16, 1.5e16, 9999999999999998.0, 1e22, 1e100, 5e-324]
-    values += [1.7976931348623157e308, 0.30000000000000004, 1759912345.25]
-    values += [rng.uniform(1.6e9, 1.9e9) for _ in range(200)]
-    values += [10 ** rng.uniform(-8, 20) for _ in range(300)]
-    values += [rng.random() / 1000 for _ in range(100)]
-    return values
-
-
 def build_python_numbers_fixture() -> dict[str, object]:
     return {
         "parse": [
@@ -678,9 +667,6 @@ def build_python_numbers_fixture() -> dict[str, object]:
                 "fixed2": "%.2f" % value,
             }
             for value in round_inputs()
-        ],
-        "repr": [
-            {"value": value, "repr": repr(value)} for value in repr_inputs()
         ],
         "nonFinite": [
             {
@@ -1377,6 +1363,24 @@ def build_original_id_tokens_fixture() -> dict[str, object]:
     }
 
 
+def repr_inputs() -> list[float]:
+    rng = random.Random(20261009)
+    values = [0.0, -0.0, 1.0, -1.5, 0.1, 1e-4, 1e-5, 1.5e-5, 9.99e-5, 123.0]
+    values += [1e15, 1e16, 1.5e16, 9999999999999998.0, 1e22, 1e100, 5e-324]
+    values += [1.7976931348623157e308, 0.30000000000000004, 1759912345.25]
+    values += [rng.uniform(1.6e9, 1.9e9) for _ in range(200)]
+    values += [10 ** rng.uniform(-8, 20) for _ in range(300)]
+    values += [rng.random() / 1000 for _ in range(100)]
+    return values
+
+
+def build_python_float_repr_fixture() -> dict[str, object]:
+    return {
+        "finite": [{"value": value, "repr": repr(value)} for value in repr_inputs()],
+        "nonFinite": [repr(value) for value in [math.inf, -math.inf, math.nan]],
+    }
+
+
 STATIC_FILE_STATS = [
     (1759952481_123456789, 5639),
     (1759952481_000000000, 0),
@@ -1422,6 +1426,7 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "python-str.json": build_python_str_fixture,
     "python-urllib.json": build_python_urllib_fixture,
     "python-numbers.json": build_python_numbers_fixture,
+    "python-float-repr.json": build_python_float_repr_fixture,
     "query-text.json": build_query_text_fixture,
     "classifier-urls.json": build_classifier_urls_fixture,
     "classifier-options.json": build_classifier_options_fixture,

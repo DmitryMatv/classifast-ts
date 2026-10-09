@@ -11,7 +11,7 @@ import {
   type HeaderRecord,
 } from "../http/cache-profiles.js";
 import { splitRequestTarget } from "../http/middleware.js";
-import { pyRepr } from "../python/numbers.js";
+import { pyRepr } from "../python/float-repr.js";
 import { pyStrip } from "../python/str.js";
 import { unquote } from "../python/urllib.js";
 
