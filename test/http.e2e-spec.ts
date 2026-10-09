@@ -392,6 +392,26 @@ describe("HTTP layer (e2e)", () => {
       );
     });
 
+    // Expected locations come from Python's _build_canonical_url, which
+    // reparses Starlette's URL built from the percent-decoded path.
+    it.each([
+      ["/echo%3Fignored", "/echo?q=a"],
+      ["/echo%23frag", "/echo?q=a#frag?q=%20a"],
+      ["/echo%0A", "/echo?q=a"],
+      ["/echo%0D%0Atail", "/echotail?q=a"],
+      ["/echo%3B", "/echo?q=a"],
+      ["/echo;a%3Bb", "/echo;a;b?q=a"],
+      ["/%20echo%20", "/ echo ?q=a"],
+    ])("rebuilds %s like Python", async (path, location) => {
+      const response = await request(server)
+        .get(`${path}?q=%20a`)
+        .set("Host", "testserver")
+        .redirects(0);
+
+      expect(response.status).toBe(308);
+      expect(response.headers["location"]).toBe(`http://testserver${location}`);
+    });
+
     it("does not redirect a canonical query again", async () => {
       const response = await request(server)
         .get("/echo?q=industrial%20pump")

@@ -95,6 +95,22 @@ export const setSecurityHeaders: RequestHandler = (_req, res, next) => {
   next();
 };
 
+// Python's _build_canonical_url runs urlparse and urlunparse over Starlette's
+// request.url, whose path is percent-decoded. So a decoded "?" or "#" in the
+// path starts the query or fragment, urlsplit deletes tab, CR, and LF, and an
+// empty ";" parameter in the last segment disappears.
+export function withQuery(url: string, query: string): string {
+  const cleaned = url.replace(/[\t\r\n]/g, "");
+  const hash = cleaned.indexOf("#");
+  const fragment = hash === -1 ? "" : cleaned.slice(hash + 1);
+  let base = hash === -1 ? cleaned : cleaned.slice(0, hash);
+  const question = base.indexOf("?");
+  if (question !== -1) base = base.slice(0, question);
+  const semicolon = base.indexOf(";", base.lastIndexOf("/"));
+  if (semicolon === base.length - 1) base = base.slice(0, semicolon);
+  return `${base}?${query}${fragment ? `#${fragment}` : ""}`;
+}
+
 export const redirectToCanonicalQuery: RequestHandler = (req, res, next) => {
   const { rawPath, rawQuery } = splitRequestTarget(req.originalUrl);
   const query = canonicalQuery(parseQueryString(rawQuery));
@@ -102,16 +118,14 @@ export const redirectToCanonicalQuery: RequestHandler = (req, res, next) => {
     next();
     return;
   }
-  // Starlette builds request.url from the percent-decoded path. A character
-  // above U+00FF makes setHeader throw, and Python answers 500 there too.
-  const target = `${unquote(rawPath)}?${query}`;
   const host = req.headers.host;
+  const path = `${unquote(rawPath)}?${rawQuery}`;
+  const url = host ? `${requestScheme(req)}://${host}${path}` : path;
   logger.log(`Redirecting to normalized URL for path: ${rawPath}`);
   res.statusCode = 308;
-  res.setHeader(
-    "Location",
-    host ? `${requestScheme(req)}://${host}${target}` : target,
-  );
+  // A character above U+00FF makes setHeader throw, and Python answers 500
+  // there too.
+  res.setHeader("Location", withQuery(url, query));
   res.setHeader("Content-Length", 0);
   res.end();
 };
