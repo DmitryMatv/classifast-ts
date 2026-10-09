@@ -27,6 +27,9 @@ function urlPath(url: string): string {
   return params === -1 ? path : path.slice(0, params);
 }
 
+// Reads the repo's own fixed-format app/static/sitemap.xml with regular
+// expressions; it is not a parser for arbitrary sitemap XML (no CDATA, no
+// namespaced or attribute-bearing <loc> tags).
 export function parseSitemapQueryPaths(
   sitemapXml: string,
   classifierTypes: ReadonlySet<string>,
