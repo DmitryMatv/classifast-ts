@@ -146,6 +146,17 @@ describe("OpenRouterReranker matches app/reranker.py", () => {
     expect(requestTimeoutSeconds(30, 0)).toBe(0.1);
   });
 
+  it("reranks with a fractional remaining budget", async () => {
+    const { reranker: client } = reranker(oneScore);
+
+    await expect(
+      client.rerank("query", ["document"], {
+        timeoutSeconds: 5.989834,
+        signal,
+      }),
+    ).resolves.toEqual([0.6]);
+  });
+
   it("aborts and retries a request that outlasts the timeout", async () => {
     let attempts = 0;
     const hanging: Fetch = async (_input, init) => {
