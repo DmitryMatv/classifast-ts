@@ -69,9 +69,10 @@ fixture covers raw-key compatibility.
 
 Two properties stay outside the suite because HTTP cannot observe them. The
 queue overflow case checks that at least five lookups in a burst succeed and
-some are refused, but staggered admission hides the exact capacity;
-`ClassificationQueue`'s specs pin it. The signed non-Pro webhook carries no
-user, so it cannot show that a missing product filter would grant Pro.
+that any refusal is the queue-full 503, but staggered admission can hide both
+the capacity and the refusal; `ClassificationQueue`'s specs pin them. The
+signed non-Pro webhook carries no user, so it cannot show that a missing
+product filter would grant Pro.
 
 With `CONTRACT_TARGET=nest`, the `retiredRoutes` table expects 404 instead of
 Python's status, HEAD on a GET-only route must answer like GET with an empty
@@ -146,9 +147,15 @@ disagree with Python on some inputs. Each ported function has a spec that
 reads a fixture written by `python utilities/export_golden_fixtures.py`
 (about 45 seconds, one file per area). The exporter refuses to run if its
 source contains a non-ASCII character, because editors can NFC-normalize
-literals such as `e` plus U+0301; write such inputs as escapes. Code-point
-sweeps skip code points that Python's Unicode version leaves unassigned,
-because Node's ICU can be newer. Two Python quirks surprised the port. In
+literals such as `e` plus U+0301; write such inputs as escapes. Parity with
+Python holds only where Node and Python implement the same Unicode version.
+The fixtures record Python's Unicode 16.0, while Node 24.21 (the `node:24`
+line in `Dockerfile.node`, verified locally) and Node 26 ship Unicode 17.0
+(ICU 78). Code-point sweeps (`test/support/golden.ts`) therefore skip the
+code points unassigned in the fixtures' version, plus the assigned ones whose
+general category or case mapping Node's newer data changed (U+0295, U+A7D3
+and U+A7D5 at Unicode 17). They fail if Node's Unicode is older than the
+fixtures' or any other code point differs. Two Python quirks surprised the port. In
 `URLEncodingValidationMiddleware`, `(\d{2,4})\1{15,}` refers back to the
 `(%25)` group and never matches; a verbatim JavaScript copy rejects any URL
 with two adjacent digits. `QueryNormalizationMiddleware` answers 500 when the

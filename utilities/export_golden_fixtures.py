@@ -19,7 +19,7 @@ import re
 import sys
 import tempfile
 import unicodedata
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from urllib.parse import quote, quote_plus, unquote, unquote_plus, urlencode
 
@@ -369,11 +369,9 @@ TITLE_INPUTS = [
 ]
 
 
-def code_point_ranges(predicate: Callable[[str], bool]) -> list[str]:
+def ranges_of(code_points: Iterable[int]) -> list[str]:
     ranges: list[list[int]] = []
-    for code_point in CODE_POINTS:
-        if not predicate(chr(code_point)):
-            continue
+    for code_point in code_points:
         if ranges and ranges[-1][1] == code_point - 1:
             ranges[-1][1] = code_point
         else:
@@ -382,6 +380,23 @@ def code_point_ranges(predicate: Callable[[str], bool]) -> list[str]:
         f"{start:04X}" if start == end else f"{start:04X}-{end:04X}"
         for start, end in ranges
     ]
+
+
+def code_point_ranges(predicate: Callable[[str], bool]) -> list[str]:
+    return ranges_of(
+        code_point for code_point in CODE_POINTS if predicate(chr(code_point))
+    )
+
+
+def general_category_ranges() -> dict[str, list[str]]:
+    by_category: dict[str, list[int]] = {}
+    for code_point in CODE_POINTS:
+        category = unicodedata.category(chr(code_point))
+        by_category.setdefault(category, []).append(code_point)
+    return {
+        category: ranges_of(code_points)
+        for category, code_points in sorted(by_category.items())
+    }
 
 
 STRIP_CHARS_INPUTS = [
@@ -430,9 +445,7 @@ def build_python_str_fixture() -> dict[str, object]:
     ), "str.strip and str.isspace disagree"
     return {
         "unicodeVersion": unicodedata.unidata_version,
-        "unassignedRanges": code_point_ranges(
-            lambda character: unicodedata.category(character) == "Cn"
-        ),
+        "generalCategoryRanges": general_category_ranges(),
         "whitespaceRanges": whitespace,
         "wordRanges": code_point_ranges(
             lambda character: re.fullmatch(r"\w", character) is not None
@@ -487,6 +500,13 @@ def build_python_str_fixture() -> dict[str, object]:
 
 
 QUOTE_SAFE_SETS = ["", "/", "()*,:"]
+LONE_SURROGATE_INPUTS = [
+    "\ud800",
+    "a\udfffb",
+    "\udc00\ud800",
+    "\ud83d\U0001f600",
+    "%41\ud800%42",
+]
 PERCENT_SWEEP_SECOND_BYTES = [0x41, 0x80, 0x8F, 0x90, 0x9F, 0xA0, 0xBF, 0xC0]
 
 
@@ -518,6 +538,7 @@ UNQUOTE_INPUTS = [
     "%EF%BB%BFbom",
     "\u00e9%EF%BB%BF",
     "a%2Fb",
+    *LONE_SURROGATE_INPUTS,
 ]
 
 URLENCODE_INPUTS = [
@@ -526,19 +547,40 @@ URLENCODE_INPUTS = [
     [["version", "HS6 2022"], ["top_k", "25"], ["enhance_query", "1"]],
     [["q", "a&b=c+d/\u00e9\U0001f600"], ["empty", ""]],
     [["key with space", "~*'()!"]],
+    [["q", "\ud800"]],
 ]
 
 
+def unless_unicode_encode_error(call: Callable[[], str]) -> str | None:
+    try:
+        return call()
+    except UnicodeEncodeError:
+        return None
+
+
 def build_python_urllib_fixture() -> dict[str, object]:
-    quote_inputs = [*SHORT_TEXT_INPUTS, *(chr(code_point) for code_point in range(128))]
+    quote_inputs = [
+        *SHORT_TEXT_INPUTS,
+        *(chr(code_point) for code_point in range(128)),
+        *LONE_SURROGATE_INPUTS,
+    ]
     return {
         "quote": [
-            {"input": value, "safe": safe, "quoted": quote(value, safe=safe)}
+            {
+                "input": value,
+                "safe": safe,
+                "quoted": unless_unicode_encode_error(lambda: quote(value, safe=safe)),
+            }
             for safe in QUOTE_SAFE_SETS
             for value in quote_inputs
         ],
         "quotePlus": [
-            {"input": value, "quoted": quote_plus(value, safe="")}
+            {
+                "input": value,
+                "quoted": unless_unicode_encode_error(
+                    lambda: quote_plus(value, safe="")
+                ),
+            }
             for value in quote_inputs
         ],
         "unquote": {
@@ -547,7 +589,12 @@ def build_python_urllib_fixture() -> dict[str, object]:
         },
         "unquotePlus": {value: unquote_plus(value) for value in UNQUOTE_INPUTS},
         "urlencode": [
-            {"pairs": pairs, "encoded": urlencode([tuple(pair) for pair in pairs])}
+            {
+                "pairs": pairs,
+                "encoded": unless_unicode_encode_error(
+                    lambda: urlencode([tuple(pair) for pair in pairs])
+                ),
+            }
             for pairs in URLENCODE_INPUTS
         ],
     }
@@ -613,6 +660,8 @@ NUMBER_INPUTS = [
     "123456789012345678901234567890",
     "1" * 4300,
     "1" * 4301,
+    "1" + " " * 64 + "x",
+    "1" * 64 + "x",
     "0.1",
     "2.675",
     "0.30000000000000004",
@@ -1539,6 +1588,17 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
 }
 
 
+SURROGATE = re.compile("[\ud800-\udfff]")
+HIGH_THEN_LOW_SURROGATE = re.compile("[\ud800-\udbff][\udc00-\udfff]")
+
+
+def escape_lone_surrogates(text: str) -> str:
+    # JSON.parse joins an escaped high and low surrogate into one character,
+    # where Python had two.
+    assert not HIGH_THEN_LOW_SURROGATE.search(text), "surrogate pair in a fixture"
+    return SURROGATE.sub(lambda match: f"\\u{ord(match.group()):04x}", text)
+
+
 def to_json(fixture: dict[str, object]) -> str:
     fields = []
     for key, value in fixture.items():
@@ -1551,7 +1611,7 @@ def to_json(fixture: dict[str, object]) -> str:
             text = json.dumps(value, ensure_ascii=False, indent=2)
             text = text.replace("\n", "\n  ")
         fields.append(f"  {json.dumps(key)}: {text}")
-    return "{\n" + ",\n".join(fields) + "\n}\n"
+    return escape_lone_surrogates("{\n" + ",\n".join(fields) + "\n}\n")
 
 
 def main() -> None:
