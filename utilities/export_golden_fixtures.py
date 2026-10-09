@@ -1392,11 +1392,26 @@ ORIGINAL_ID_TOKEN_INPUTS = [
     "_12",
     "4300",
     "12.0",
+    None,
+    True,
+    False,
+    0,
+    12,
+    4300,
+    -4300,
+    9007199254740991,
+    -9007199254740991,
+    12.5,
+    -12.5,
+    0.125,
+    -0.125,
+    0.0001,
+    -0.0001,
+    4300.25,
 ]
 
 
 def build_original_id_tokens_fixture() -> dict[str, object]:
-    assert group_original_id_tokens(None) == []
     return {
         "tokens": [
             {

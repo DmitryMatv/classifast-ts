@@ -7,7 +7,7 @@ const golden = readGolden(
   z.object({
     tokens: z.array(
       z.object({
-        input: z.string(),
+        input: z.union([z.string(), z.number(), z.boolean(), z.null()]),
         chars: z.array(z.string()),
         gapsAfter: z.array(z.number().int()),
       }),
