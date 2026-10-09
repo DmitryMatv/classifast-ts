@@ -50,6 +50,28 @@ export function parseIpAddress(text: string): IpAddress | undefined {
   }
 }
 
+// _prefix_from_ip_int: a mask is some ones followed only by zeros.
+function maskPrefixLength(mask: bigint, bits: number): number | undefined {
+  let trailingZeros = 0;
+  while (
+    trailingZeros < bits &&
+    ((mask >> BigInt(trailingZeros)) & 1n) === 0n
+  ) {
+    trailingZeros += 1;
+  }
+  const prefixLength = bits - trailingZeros;
+  const ones = (1n << BigInt(prefixLength)) - 1n;
+  return mask >> BigInt(trailingZeros) === ones ? prefixLength : undefined;
+}
+
+// IPv4 also takes a netmask or a hostmask after the slash.
+function prefixLengthOf(text: string, version: 4 | 6): number | undefined {
+  if (/^[0-9]+$/.test(text)) return Number(text);
+  if (version === 6 || isIP(text) !== 4) return undefined;
+  const mask = ipv4Value(text);
+  return maskPrefixLength(mask, 32) ?? maskPrefixLength(mask ^ 0xffffffffn, 32);
+}
+
 // Mirrors ipaddress.ip_network(text) with strict=True: host bits must be zero.
 export function parseIpNetwork(text: string): IpNetwork | undefined {
   const [addressText = "", prefixText, ...extra] = text.split("/");
@@ -57,10 +79,11 @@ export function parseIpNetwork(text: string): IpNetwork | undefined {
   const address = parseIpAddress(addressText);
   if (address === undefined) return undefined;
   const bits = BITS[address.version];
-  if (prefixText !== undefined && !/^[0-9]+$/.test(prefixText))
-    return undefined;
-  const prefixLength = prefixText === undefined ? bits : Number(prefixText);
-  if (prefixLength > bits) return undefined;
+  const prefixLength =
+    prefixText === undefined
+      ? bits
+      : prefixLengthOf(prefixText, address.version);
+  if (prefixLength === undefined || prefixLength > bits) return undefined;
   const hostMask = (1n << BigInt(bits - prefixLength)) - 1n;
   if ((address.value & hostMask) !== 0n) return undefined;
   return { ...address, prefixLength };

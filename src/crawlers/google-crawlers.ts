@@ -19,8 +19,8 @@ type CrawlerConfig = AppConfig["googleCrawler"];
 
 const rangesPayload = z.object({ prefixes: z.array(z.unknown()) });
 const prefixEntry = z.object({
-  ipv4Prefix: z.unknown(),
-  ipv6Prefix: z.unknown(),
+  ipv4Prefix: z.unknown().optional(),
+  ipv6Prefix: z.unknown().optional(),
 });
 
 export function parseGoogleCrawlerNetworks(payload: unknown): IpNetwork[] {
@@ -128,7 +128,7 @@ export type CrawlerRequest = {
 export function crawlerRequestOf(req: Request): CrawlerRequest {
   return {
     userAgent: req.get("user-agent") ?? "",
-    cfConnectingIp: req.get("cf-connecting-ip"),
+    cfConnectingIp: req.headersDistinct["cf-connecting-ip"]?.[0],
     peerAddress: req.socket.remoteAddress,
   };
 }

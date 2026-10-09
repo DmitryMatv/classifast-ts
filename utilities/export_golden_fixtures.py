@@ -9,6 +9,7 @@ regenerated fixtures.
 """
 
 import asyncio
+import ipaddress
 import json
 import logging
 import math
@@ -1381,6 +1382,102 @@ def build_python_float_repr_fixture() -> dict[str, object]:
     }
 
 
+IP_ADDRESS_INPUTS = [
+    "66.249.64.1",
+    "66.249.64.31",
+    "66.249.64.32",
+    "66.249.63.255",
+    "0.0.0.0",
+    "255.255.255.255",
+    "203.0.113.10",
+    "066.249.64.1",
+    "66.249.64",
+    "66.249.64.1.",
+    "66.249.64.256",
+    " 66.249.64.1",
+    "66.249.64.1 ",
+    "",
+    "not-an-ip",
+    "unknown",
+    "16843009",
+    "2001:4860:4801:10::1",
+    "2001:4860:4801:10::",
+    "2001:4860:4801:11::1",
+    "2001:4860:4801:0010:0000:0000:0000:0001",
+    "2001:4860:4801:10:0:0:0:1",
+    "2001:4860:4801:10::1%eth0",
+    "::ffff:66.249.64.1",
+    "::ffff:4231:4001",
+    "::",
+    "::1",
+    "1::",
+    "2001:db8::1:2:3:4:5",
+    "2001:db8:::1",
+    "2001:db8::1::2",
+    "2001:DB8::ABCD",
+    "12345::1",
+    "[2001:db8::1]",
+    "fe80::1%",
+]
+IP_NETWORK_INPUTS = [
+    "66.249.64.0/27",
+    "66.249.64.0/24",
+    "66.249.64.1/27",
+    "66.249.64.0",
+    "66.249.64.0/32",
+    "66.249.64.0/33",
+    "66.249.64.0/0",
+    "0.0.0.0/0",
+    "66.249.64.0/027",
+    "66.249.64.0/+27",
+    "66.249.64.0/ 27",
+    "66.249.64.0/27/1",
+    "66.249.64.0/",
+    "66.249.64.0/255.255.255.224",
+    "66.249.64.0/0.0.0.31",
+    "2001:4860:4801:10::/64",
+    "2001:4860:4801:10::1/64",
+    "2001:4860:4801:10::/128",
+    "2001:4860:4801:10::/129",
+    "::/0",
+    "::ffff:66.249.64.0/120",
+    "2001:4860:4801:10::/064",
+    "not-a-cidr",
+    "",
+]
+
+
+def parsed_ip(parse: Callable[[str], object], text: str) -> str | None:
+    try:
+        return str(parse(text))
+    except ValueError:
+        return None
+
+
+def build_ip_network_fixture() -> dict[str, object]:
+    addresses = [a for a in IP_ADDRESS_INPUTS if parsed_ip(ipaddress.ip_address, a)]
+    networks = [n for n in IP_NETWORK_INPUTS if parsed_ip(ipaddress.ip_network, n)]
+    return {
+        "addresses": [
+            {"input": a, "valid": parsed_ip(ipaddress.ip_address, a) is not None}
+            for a in IP_ADDRESS_INPUTS
+        ],
+        "networks": [
+            {"input": n, "valid": parsed_ip(ipaddress.ip_network, n) is not None}
+            for n in IP_NETWORK_INPUTS
+        ],
+        "membership": [
+            {
+                "address": a,
+                "network": n,
+                "contains": ipaddress.ip_address(a) in ipaddress.ip_network(n),
+            }
+            for a in addresses
+            for n in networks
+        ],
+    }
+
+
 STATIC_FILE_STATS = [
     (1759952481_123456789, 5639),
     (1759952481_000000000, 0),
@@ -1438,6 +1535,7 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "mapping-urls.json": build_mapping_urls_fixture,
     "request-url.json": build_request_url_fixture,
     "static-files.json": build_static_files_fixture,
+    "ip-network.json": build_ip_network_fixture,
 }
 
 
