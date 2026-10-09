@@ -19,6 +19,15 @@ export default defineConfig({
           name: "server",
           globals: true,
           include: ["src/**/*.spec.ts"],
+          exclude: ["src/**/*.redis.spec.ts"],
+        },
+      },
+      {
+        test: {
+          name: "redis",
+          globals: true,
+          include: ["src/**/*.redis.spec.ts"],
+          globalSetup: ["test/support/redis-server.global-setup.ts"],
         },
       },
     ],
