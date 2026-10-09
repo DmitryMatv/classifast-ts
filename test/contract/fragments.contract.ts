@@ -3,7 +3,7 @@ import {
   classificationTimeout,
   contract,
   fullMode,
-  meets,
+  unmetPrerequisites,
 } from "./support/env.js";
 import {
   expectCacheProfile,
@@ -111,9 +111,13 @@ describe.runIf(fullMode)(
       expect(results).toHaveLength(items);
       for (const result of results) {
         const bar = result.querySelector("[data-score-bar]");
-        expect(Number(bar?.getAttribute("data-score-width"))).toBeGreaterThan(
-          0,
-        );
+        expect(bar).not.toBeNull();
+        const widthAttribute = bar?.getAttribute("data-score-width");
+        expect(widthAttribute).toMatch(/\S/);
+        const width = Number(widthAttribute);
+        expect(Number.isFinite(width)).toBe(true);
+        expect(width).toBeGreaterThanOrEqual(0);
+        expect(width).toBeLessThanOrEqual(100);
         expect(
           result
             .querySelector("[data-copy-original-id]")
@@ -135,11 +139,15 @@ function originalIds(reply: Reply): (string | null)[] {
   );
 }
 
-describe.runIf(meets("noOpenRouterKey"))(
+describe.runIf(fullMode)(
   "failed query enhancement",
   { timeout: classificationTimeout(2) },
   () => {
-    it("enhance_query=1 returns the plain results uncached", async () => {
+    it("enhance_query=1 returns the plain results uncached", async ({
+      skip,
+    }) => {
+      const unmet = unmetPrerequisites(["noOpenRouterKey"]);
+      skip(unmet.length > 0, unmet.join(", "));
       const enhanced = await fragment("laptop computer", "&enhance_query=1");
       expectStatus(enhanced, 200);
       expectHtmlFragment(enhanced);
@@ -204,7 +212,7 @@ describe.runIf(fullMode)(
   () => {
     // Pre-queue work can stagger admission, so a burst cannot pin the
     // capacity from outside. ClassificationQueue's specs pin it exactly.
-    it("a burst admits at least one active and four waiting and refuses the rest", async () => {
+    it("a burst returns at least five successes and an overflow response", async () => {
       const run = randomUUID().slice(0, 8);
       const started = performance.now();
       const outcomes = await Promise.all(

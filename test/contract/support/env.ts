@@ -99,10 +99,6 @@ export function unmetPrerequisites(
     .map((name) => `set ${prerequisites[name].declaredBy}`);
 }
 
-export function meets(...requires: Prerequisite[]): boolean {
-  return fullMode && unmetPrerequisites(requires).length === 0;
-}
-
 const outboundBudgetMs = 60_000;
 const requestOverheadMs = 15_000;
 const classificationBudgetMs = outboundBudgetMs + requestOverheadMs;

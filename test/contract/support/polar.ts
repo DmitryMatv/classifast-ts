@@ -1,14 +1,21 @@
 import { createHmac, randomUUID } from "node:crypto";
 
-// Standard Webhooks signing as Polar does it: HMAC-SHA256 keyed with the
-// secret's UTF-8 bytes over "<id>.<timestamp>.<body>".
+// Standard Webhooks uses the base64-decoded key. Non-base64 legacy secrets
+// use UTF-8 bytes, which Polar's Python SDK also accepts.
 export function signWebhook(
   body: string,
   secret: string,
   timestamp = Math.floor(Date.now() / 1000),
 ): Record<string, string> {
+  const encodedSecret = secret.replace(/^whsec_/, "");
+  const decodedSecret = Buffer.from(encodedSecret, "base64");
+  const key =
+    decodedSecret.length > 0 &&
+    decodedSecret.toString("base64") === encodedSecret
+      ? decodedSecret
+      : Buffer.from(secret, "utf8");
   const id = `contract-${randomUUID()}`;
-  const signature = createHmac("sha256", secret)
+  const signature = createHmac("sha256", key)
     .update(`${id}.${timestamp}.${body}`)
     .digest("base64");
   return {
