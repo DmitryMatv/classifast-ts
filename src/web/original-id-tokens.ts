@@ -32,7 +32,8 @@ function originalIdDisplayText(originalId: unknown): string {
 
 /**
  * Group strings or parsed scalar IDs. Null is empty; booleans use Python casing.
- * Safe integral numbers mean integer IDs, since JSON parsing loses a float's .0.
+ * Safe integral numbers except negative zero mean integer IDs, since JSON
+ * parsing loses a float's .0.
  * Fractions require absolute values in [1e-4, 1e16). Other numbers throw
  * RangeError; unsupported types throw TypeError.
  */

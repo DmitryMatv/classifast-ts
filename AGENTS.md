@@ -116,9 +116,12 @@ signed non-Pro webhook carries no user, so it cannot show that a missing
 product filter would grant Pro.
 
 With `CONTRACT_TARGET=nest`, the `retiredRoutes` table expects 404 instead of
-Python's status. Inside test files Vitest replaces `process.env.BASE_URL`
-with Vite's base path, so the config passes the URL on as
-`CONTRACT_BASE_URL`.
+Python's status, HEAD on a GET-only route must answer like GET with an empty
+body, and `.gif` and `.webmanifest` static files expect `STATIC_MEDIA`, which
+Python's `get_static_cache_profile` omits. These are decided divergences.
+
+Inside test files Vitest replaces `process.env.BASE_URL` with Vite's base
+path, so the config passes the URL on as `CONTRACT_BASE_URL`.
 
 The public-mode cases expect a server without `POLAR_WEBHOOK_SECRET`,
 `RAPIDAPI_SECRET`, or Redis. The app's `load_dotenv()` searches upward from
@@ -129,7 +132,23 @@ answers.
 Python declares HEAD only on page routes. HEAD on a GET-only route, such as
 `/robots.txt` or `/health`, falls through to the classifier catch-all and
 answers 404. HEAD on `/{TYPE}/fragment` answers 301. The contract suite pins
-this behavior.
+this behavior for the Python target.
+
+Starlette's `add_vary_header` appends without deduplicating, so Python sends
+`Vary: Accept-Encoding, Accept-Encoding` on gzipped static files. The Nest
+port matches it; compare `Vary` as a token set.
+
+The Nest app is created with `bodyParser: false` (`HTTP_APP_OPTIONS` in
+`src/http-app.ts`). Nest's global parsers run before routing, so a malformed
+or oversized JSON body sent to `/robots.txt` answered 400 or 413 where Python
+answers 405. A route that reads a body, such as the checkout JSON or the raw
+Polar webhook body, must add its own parser. Pass `HTTP_APP_OPTIONS` to every
+`NestFactory.create` and `createNestApplication` call.
+
+Nest answers `If-None-Match: *` on `/favicon.ico`, `/robots.txt`, and
+`/sitemap.xml` with 304, as `/static` files do in both apps. Python's
+`FileResponse` routes ignore the header and answer 200. HTTP allows both, so
+this divergence is deliberate.
 
 Always use `pytest` for backend tests. The suite retains `unittest`-compatible
 test classes and standard-library mocks, but pytest is the official runner.
@@ -150,6 +169,14 @@ collect the full suite. Report that limitation when excluding this test.
 
 Activate the Python environment with `source .venv/bin/activate` before backend
 tests or the verification driver.
+
+HTTP e2e tests that import `AppModule` need a fake Qdrant server with valid
+schemas for every configured collection, because startup validates them.
+Use `test/support/qdrant-server.ts` and clear inherited Qdrant and
+embedding-dimension configuration.
+
+Git rerere may automatically stage an old conflict resolution. Inspect every
+conflicted file even when no conflict markers remain.
 
 jsdom prints an exception thrown inside an event listener, but the test still
 passes and `npm test` exits 0. Read the test output as well as the exit status.

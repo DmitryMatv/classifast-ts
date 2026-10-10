@@ -1,4 +1,4 @@
-import { readRepoFile } from "./support/env.js";
+import { contract, readRepoFile } from "./support/env.js";
 import type { CacheProfileName } from "./support/headers.js";
 import {
   expectCacheProfile,
@@ -17,6 +17,11 @@ type FileCase = {
 };
 
 const gzipVary = ["accept-encoding"];
+
+// Python's get_static_cache_profile omits .gif and .webmanifest, so they fall
+// through to STATIC_TEXT. The Nest port serves them as media on purpose.
+const mediaOnNest: CacheProfileName =
+  contract.target === "nest" ? "STATIC_MEDIA" : "STATIC_TEXT";
 
 const rootFiles: (FileCase & { gzip: boolean })[] = [
   {
@@ -92,7 +97,14 @@ const staticFiles: FileCase[] = [
     path: "/static/images/unspsc-logo.gif",
     repoFile: "app/static/images/unspsc-logo.gif",
     contentType: "image/gif",
-    profile: "STATIC_TEXT",
+    profile: mediaOnNest,
+    vary: gzipVary,
+  },
+  {
+    path: "/static/images/site.webmanifest",
+    repoFile: "app/static/images/site.webmanifest",
+    contentType: "application/manifest+json",
+    profile: mediaOnNest,
     vary: gzipVary,
   },
   {
