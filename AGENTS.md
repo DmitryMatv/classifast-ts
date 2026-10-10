@@ -220,6 +220,14 @@ markup moves to a new directory, add a `@source` line for it.
 
 ## Gotchas and Non-Obvious Behaviors
 
+- Clerk JWKS refresh behavior depends on the PyJWT version. Versions through
+  2.13.0 refreshed immediately for unknown key IDs. PyJWT 2.14.0 introduced a
+  30-second cooldown after every successful fetch to prevent unauthenticated
+  JWKS request amplification. Locally installed PyJWT 2.15.1 and
+  `src/auth/clerk.ts` both use that cooldown. The deployed PyJWT version remains
+  unverified, and `requirements.txt` does not pin it. The owner has adopted
+  the cooldown as the Nest policy, including brief rejection of newly rotated
+  keys. `src/auth/clerk.spec.ts` covers rotation and cached-key reuse.
 - Polar SDK version range is declared in `requirements.txt`.
   SDK 1.x uses versioned `polar` imports, direct checkout keyword arguments, and
   webhook dataclasses with `event.type` instead of `event.TYPE`.
