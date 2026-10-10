@@ -11,6 +11,7 @@ import {
   PY_WORD,
   codePointLength,
   collapseWhitespace,
+  pyCasefold,
   pyIsAlpha,
   pyIsDigit,
   pyRstrip,
@@ -32,8 +33,10 @@ const golden = readGolden(
     caseIgnorableRanges: codePointRangesSchema,
     upperMappings: z.record(z.string(), z.string()),
     titleMappings: z.record(z.string(), z.string()),
+    casefoldMappings: z.record(z.string(), z.string()),
     title: z.array(z.object({ input: z.string(), title: z.string() })),
     upper: z.array(z.object({ input: z.string(), upper: z.string() })),
+    casefold: z.array(z.object({ input: z.string(), casefold: z.string() })),
     strip: z.array(
       z.object({
         input: z.string(),
@@ -150,6 +153,21 @@ describe("Python case mappings", () => {
 
   it.each(golden.upper)("uppercases $input", ({ input, upper }) => {
     expect(input.toUpperCase()).toBe(upper);
+  });
+
+  it("pyCasefold matches str.casefold() on every code point", () => {
+    const casefold = byCodePoint(golden.casefoldMappings);
+    expect(
+      sweepMismatches(
+        pyCasefold,
+        (codePoint) =>
+          casefold.get(codePoint) ?? String.fromCodePoint(codePoint),
+      ),
+    ).toEqual([]);
+  });
+
+  it.each(golden.casefold)("casefolds $input", ({ input, casefold }) => {
+    expect(pyCasefold(input)).toBe(casefold);
   });
 });
 

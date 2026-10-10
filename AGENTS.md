@@ -75,6 +75,17 @@ The Qdrant JS client requests `GET /` to check the server version when it is
 constructed, and logs a warning when that fails. Fake Qdrant servers in tests
 must answer `GET /` with a compatible `version` to keep the output clean.
 
+Like Python's startup, Nest boot runs the read-only Qdrant schema check
+(`QdrantModule`) and fails when Qdrant is unreachable or any configured
+collection breaks the contract. A Nest e2e test that boots `AppModule` needs a
+fake Qdrant that serves every configured collection: use `startQdrantServer`
+with `validCollections` from `test/support/qdrant-server.ts`. Pipeline Qdrant
+calls do not take the queue's `AbortSignal`, because the JS client has no
+per-call signal, so a Qdrant stage runs to completion after cancellation.
+
+The repository has no `tsx`. To run a one-off script against the Nest code,
+build with `npx nest build` and import the compiled modules from `dist/`.
+
 `npm run test:contract` runs the HTTP contract suite in `test/contract/`
 against the server at `BASE_URL`, which is required. `npm test` does not run
 it. The suite refuses a `BASE_URL` host other than `localhost`, `127.0.0.0/8`,
@@ -207,9 +218,12 @@ Ports of Python text, URL and number logic must use `src/python/` (`str.ts`,
 `\w`, `\d`, `trim`, `encodeURIComponent`, `Number()` and `toFixed` all
 disagree with Python on some inputs. Each ported function has a spec that
 reads a fixture written by `python utilities/export_golden_fixtures.py`
-(about 45 seconds, one file per area). The exporter refuses to run if its
-source contains a non-ASCII character, because editors can NFC-normalize
-literals such as `e` plus U+0301; write such inputs as escapes. Parity with
+(about 45 seconds, one file per area). The exporter disables Hugging Face
+telemetry before imports; recent SDKs otherwise add a harness-detection
+`GET /api/agent-harnesses` request to the first embedding fixture. The exporter
+refuses to run if its source contains a non-ASCII character, because editors
+can NFC-normalize literals such as `e` plus U+0301; write such inputs as escapes.
+Parity with
 Python holds only where Node and Python implement the same Unicode version.
 The fixtures record Python's Unicode 16.0, while Node 24.21 (the `node:24`
 line in `Dockerfile.node`, verified locally) and Node 26 ship Unicode 17.0
@@ -272,6 +286,10 @@ markup moves to a new directory, add a `@source` line for it.
 
 ## Gotchas and Non-Obvious Behaviors
 
+- `HfEmbeddingClient` deliberately gives a budgeted hf-inference task-discovery
+  GET the entire remaining outbound budget, even when the configured embedding
+  timeout is shorter. Provider-mapping GETs and embedding POSTs use the smaller
+  limit. Keep the task-discovery timeout exception and its regression test.
 - Clerk JWKS refresh behavior depends on the PyJWT version. Versions through
   2.13.0 refreshed immediately for unknown key IDs. PyJWT 2.14.0 introduced a
   30-second cooldown after every successful fetch to prevent unauthenticated

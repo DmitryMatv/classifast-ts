@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   buildClassifierConfig,
   getAllCollectionNames,
-  type ClassifierConfigMap,
+  type CollectionLayout,
 } from "../classifier/classifier-config.js";
 import { loadEnvFileIfPresent } from "../config/env-file.js";
 import {
@@ -95,7 +95,7 @@ function parseCliArgs(argv: readonly string[]): ParsedArgs {
 
 function selectCollections(
   requested: readonly string[],
-  config: ClassifierConfigMap,
+  config: CollectionLayout,
 ): Set<string> | undefined {
   if (requested.length === 0) return undefined;
   const configured = new Set(getAllCollectionNames(config));
@@ -124,7 +124,7 @@ function printValidationReport(report: QdrantValidationReport): void {
 
 async function runCheck(
   client: QdrantIndexClient,
-  config: ClassifierConfigMap,
+  config: CollectionLayout,
   collectionNames: ReadonlySet<string> | undefined,
 ): Promise<number> {
   const report = await inspectConfiguredCollections(
@@ -138,7 +138,7 @@ async function runCheck(
 
 async function runApply(
   client: QdrantIndexClient,
-  config: ClassifierConfigMap,
+  config: CollectionLayout,
   collectionNames: ReadonlySet<string> | undefined,
 ): Promise<number> {
   const { successCount, errorCount } = await migrateConfiguredCollections(
@@ -167,7 +167,7 @@ export async function main(
   deps: CliDeps = defaultDeps,
 ): Promise<number> {
   let args: ParsedArgs;
-  let config: ClassifierConfigMap;
+  let config: CollectionLayout;
   let collectionNames: Set<string> | undefined;
   try {
     args = parseCliArgs(argv);

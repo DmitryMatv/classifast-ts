@@ -56,6 +56,35 @@ export function collapseWhitespace(value: string): string {
   return pyStrip(value.replace(WHITESPACE_RUN, " "));
 }
 
+const DOTLESS_I = "\u0131";
+const CHEROKEE_SMALL_LETTER = /[\u13f8-\u13fd\uab70-\uabbf]/gu;
+
+// Python folds Cherokee small letters to the capitals, the reverse of
+// lowercasing. Going through uppercase twice reaches the full folding of
+// ß, ẞ, ligatures and Greek final forms, but it would fold ı to i.
+export function pyCasefold(value: string): string {
+  let folded = "";
+  for (const character of value) {
+    folded +=
+      character === DOTLESS_I
+        ? character
+        : character
+            .toUpperCase()
+            .toLowerCase()
+            .toUpperCase()
+            .toLowerCase()
+            .replace(CHEROKEE_SMALL_LETTER, (small) => {
+              const codePoint = small.codePointAt(0)!;
+              return String.fromCodePoint(
+                codePoint >= 0xab70
+                  ? codePoint - 0xab70 + 0x13a0
+                  : codePoint - 8,
+              );
+            });
+  }
+  return folded;
+}
+
 export function pyIsAlpha(character: string): boolean {
   return ALPHA.test(character);
 }

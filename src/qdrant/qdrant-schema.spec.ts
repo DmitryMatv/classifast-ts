@@ -6,7 +6,7 @@ import {
   textIndex,
   writeCalls,
 } from "../../test/support/fake-qdrant.js";
-import type { ClassifierConfigMap } from "../classifier/classifier-config.js";
+import type { CollectionLayout } from "../classifier/classifier-config.js";
 import {
   formatValidationIssue,
   getPayloadIndexSchema,
@@ -17,7 +17,7 @@ import {
 function testConfig(collectionName = "products", dims = 128) {
   return {
     TEST: { embedDims: dims, versions: { v1: { collectionName } } },
-  } satisfies ClassifierConfigMap;
+  } satisfies CollectionLayout;
 }
 
 describe("payload index contract", () => {
@@ -206,7 +206,7 @@ describe("inspectConfiguredCollections", () => {
   });
 
   it("still inspects a collection whose configured dimensions conflict", async () => {
-    const config: ClassifierConfigMap = {
+    const config: CollectionLayout = {
       A: { embedDims: 128, versions: { v1: { collectionName: "products" } } },
       B: { embedDims: 256, versions: { v2: { collectionName: "products" } } },
       C: { embedDims: 128, versions: { v1: { collectionName: "other" } } },
@@ -229,7 +229,7 @@ describe("inspectConfiguredCollections", () => {
   });
 
   it("inspects only the requested collections", async () => {
-    const config: ClassifierConfigMap = {
+    const config: CollectionLayout = {
       A: { embedDims: 128, versions: { v1: { collectionName: "products" } } },
       B: { embedDims: 128, versions: { v1: { collectionName: "other" } } },
     };
