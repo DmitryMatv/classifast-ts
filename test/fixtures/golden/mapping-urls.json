@@ -1,0 +1,12 @@
+{
+  "canonicalUrls": [
+    {"slug": null, "url": "https://classifast.com/mapping/"},
+    {"slug": "", "url": "https://classifast.com/mapping/"},
+    {"slug": "cpv-to-unspsc-mapping", "url": "https://classifast.com/mapping/cpv-to-unspsc-mapping/"},
+    {"slug": "unspsc-to-cpv-mapping", "url": "https://classifast.com/mapping/unspsc-to-cpv-mapping/"},
+    {"slug": "a/b", "url": "https://classifast.com/mapping/a%2Fb/"},
+    {"slug": "café au lait", "url": "https://classifast.com/mapping/caf%C3%A9%20au%20lait/"},
+    {"slug": "trailing/", "url": "https://classifast.com/mapping/trailing%2F/"},
+    {"slug": "%41", "url": "https://classifast.com/mapping/%2541/"}
+  ]
+}

@@ -69,9 +69,10 @@ fixture covers raw-key compatibility.
 
 Two properties stay outside the suite because HTTP cannot observe them. The
 queue overflow case checks that at least five lookups in a burst succeed and
-some are refused, but staggered admission hides the exact capacity;
-`ClassificationQueue`'s specs pin it. The signed non-Pro webhook carries no
-user, so it cannot show that a missing product filter would grant Pro.
+that any refusal is the queue-full 503, but staggered admission can hide both
+the capacity and the refusal; `ClassificationQueue`'s specs pin them. The
+signed non-Pro webhook carries no user, so it cannot show that a missing
+product filter would grant Pro.
 
 With `CONTRACT_TARGET=nest`, the `retiredRoutes` table expects 404 instead of
 Python's status. Inside test files Vitest replaces `process.env.BASE_URL`
@@ -95,9 +96,9 @@ test classes and standard-library mocks, but pytest is the official runner.
 Fresh checkouts may lack `.venv`, `node_modules`, and generated frontend assets
 because they are ignored. If `.venv` is absent, run `python -m venv .venv` and
 `.venv/bin/pip install -r requirements-dev.txt` before `pytest`. If
-`node_modules` is absent, run `npm ci` before frontend tests or builds. The
-verification driver (`.agents/skills/verify/`) also requires a frontend build
-(`npm run build`).
+`node_modules` is absent, run `npm ci` before frontend tests or builds.
+`tests/test_asset_urls.py` and the verification driver (`.agents/skills/verify/`)
+require a frontend build (`npm run build`) in a fresh checkout.
 
 pytest.ini scopes pytest collection to `tests/`. The `utilities/test_*.py` files are
 manual live/debug helpers, and the ignored `embedders/tests/` tree contains
@@ -132,6 +133,30 @@ Python normalizes `str()` of any `original_id` payload value.
 `originalIdLookupText` converts only the JSON values whose `String()` matches
 it after normalization, and `apply` fails on the rest, including `0`, because
 `JSON.parse` reads Python's `0.0` as `0`.
+
+Ports of Python text, URL and number logic must use `src/python/` (`str.ts`,
+`urllib.ts`, `numbers.ts`) instead of JavaScript built-ins. JavaScript's `\s`,
+`\w`, `\d`, `trim`, `encodeURIComponent`, `Number()` and `toFixed` all
+disagree with Python on some inputs. Each ported function has a spec that
+reads a fixture written by `python utilities/export_golden_fixtures.py`
+(about 45 seconds, one file per area). The exporter refuses to run if its
+source contains a non-ASCII character, because editors can NFC-normalize
+literals such as `e` plus U+0301; write such inputs as escapes. Parity with
+Python holds only where Node and Python implement the same Unicode version.
+The fixtures record Python's Unicode 16.0, while Node 24.21 (the `node:24`
+line in `Dockerfile.node`, verified locally) and Node 26 ship Unicode 17.0
+(ICU 78). Code-point sweeps (`test/support/golden.ts`) therefore skip the
+code points unassigned in the fixtures' version, plus the assigned ones whose
+general category or case mapping Node's newer data changed (U+0295, U+A7D3
+and U+A7D5 at Unicode 17). They fail if Node's Unicode is older than the
+fixtures' or any other code point differs. Two Python quirks surprised the port. In
+`URLEncodingValidationMiddleware`, `(\d{2,4})\1{15,}` refers back to the
+`(%25)` group and never matches; a verbatim JavaScript copy rejects any URL
+with two adjacent digits. `QueryNormalizationMiddleware` answers 500 when the
+redirect would carry a non-Latin-1 path or the raw query bytes are not UTF-8,
+and its `Location` holds the percent-decoded path. Ignore patterns for
+root-only directories must start with `/`. An unanchored `mapping/` once kept
+`src/mapping/` out of git without a warning.
 
 ## Project Snapshot
 
@@ -192,6 +217,12 @@ markup moves to a new directory, add a `@source` line for it.
   respects `.gitignore`; use `--no-ignore` or explicit paths. If `embedders/`
   is absent, `pytest` fails while collecting `tests/test_emdn_embedder.py`.
   Run `pytest --ignore=tests/test_emdn_embedder.py` for the remaining suite.
+- `groupOriginalIdTokens` accepts a narrower parsed-scalar domain than Python's
+  object helper: strings, null, booleans, safe integers and ordinary fractions
+  with absolute values in [1e-4, 1e16). Other types and numbers throw.
+  Parsed integral numbers mean integer IDs; JSON parsing cannot recover the
+  distinction between `12` and `12.0`, or `0` and `0.0`. Preserve source numeric
+  metadata or Python display text if a future decoder needs that distinction.
 - `app/classifier_page_delivery.py` parses `app/static/sitemap.xml` at import
   time to build `SITEMAP_QUERY_PATHS`, which gates SSR eligibility and homepage
   anchor links. Editing the sitemap only changes app behavior after a restart.

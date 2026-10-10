@@ -208,11 +208,11 @@ const overflow = 3;
 
 describe.runIf(fullMode)(
   "queue overflow",
-  { timeout: classificationTimeout(queueCapacity) },
+  { timeout: classificationTimeout(queueCapacity + overflow) },
   () => {
-    // Pre-queue work can stagger admission, so a burst cannot pin the
-    // capacity from outside. ClassificationQueue's specs pin it exactly.
-    it("a burst returns at least five successes and an overflow response", async () => {
+    // Pre-queue work can stagger admission, so a burst can neither pin the
+    // capacity nor guarantee a refusal. ClassificationQueue's specs pin both.
+    it("a burst answers only 200 or the queue-full 503", async () => {
       const run = randomUUID().slice(0, 8);
       const started = performance.now();
       const outcomes = await Promise.all(
@@ -235,7 +235,6 @@ describe.runIf(fullMode)(
         statuses.filter((status) => status === 200).length,
         timeline,
       ).toBeGreaterThanOrEqual(queueCapacity);
-      expect(statuses, timeline).toContain(503);
       for (const { reply } of outcomes) {
         if (reply.status === 503) {
           expectStatusFragment(
