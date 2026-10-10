@@ -1,4 +1,5 @@
 import { Logger } from "@nestjs/common";
+import { pyFormatFixed } from "../python/numbers.js";
 import { normalizeOriginalIdForLookup } from "../qdrant/id-lookup.js";
 import {
   ClassificationError,
@@ -171,7 +172,7 @@ export function exactOutcome(
 ): Classification | undefined {
   if (prepared.exactResults.length === 0) return undefined;
   logger.log(
-    `ID_SEARCH: exact=${prepared.exactResults.length} partial=0 exact_ms=${prepared.exactMs.toFixed(2)} partial_ms=0.00`,
+    `ID_SEARCH: exact=${prepared.exactResults.length} partial=0 exact_ms=${pyFormatFixed(prepared.exactMs, 2)} partial_ms=0.00`,
   );
   logger.log(
     `ID_SEARCH_SHORTCUT: classifier=${prepared.classifierType} query='${prepared.query}' matches=${prepared.exactResults.length}`,
@@ -265,7 +266,7 @@ export async function rerankCandidates(
     const top = reranked[0];
     if (top) {
       logger.log(
-        `RERANK_COMPLETE: Top result=${logId(top.payload.original_id)} score=${(top.rerankRelevanceScore * 100).toFixed(2)} (reranked ${toRerank.length} docs)`,
+        `RERANK_COMPLETE: Top result=${logId(top.payload.original_id)} score=${pyFormatFixed(top.rerankRelevanceScore * 100, 2)} (reranked ${toRerank.length} docs)`,
       );
     }
   } catch (error) {
@@ -291,7 +292,7 @@ export async function rankSemanticResults(
     const remainingSeconds = (deadline - deps.clock.now()) / 1000;
     if (remainingSeconds < MIN_RERANK_BUDGET_SECONDS) {
       logger.warn(
-        `RERANK_STATUS: Skipped - outbound budget exhausted (${Math.max(0, remainingSeconds).toFixed(2)}s left)`,
+        `RERANK_STATUS: Skipped - outbound budget exhausted (${pyFormatFixed(Math.max(0, remainingSeconds), 2)}s left)`,
       );
       return withRerankScore(semantic.slice(0, topK), 0.0);
     }
@@ -344,7 +345,7 @@ export async function completeClassification(
       prepared.query,
     );
     logger.log(
-      `ID_SEARCH: exact=0 partial=${partialResults.length} exact_ms=${prepared.exactMs.toFixed(2)} partial_ms=${(deps.clock.now() - partialStart).toFixed(2)}`,
+      `ID_SEARCH: exact=0 partial=${partialResults.length} exact_ms=${pyFormatFixed(prepared.exactMs, 2)} partial_ms=${pyFormatFixed(deps.clock.now() - partialStart, 2)}`,
     );
     signal.throwIfAborted();
     const rerankingEnabled =

@@ -100,8 +100,9 @@ export class OpenRouterReranker {
 
   /**
    * Returns a relevance score in [0, 1] for each document, in document order.
-   * `timeoutSeconds` caps each attempt and the time spent retrying; it never
-   * raises the configured timeout.
+   * `timeoutSeconds` caps all attempts together, so each retry gets only the
+   * time left; it never raises the configured timeout. Python gives every
+   * attempt the full timeout, which can outlast the outbound budget.
    */
   async rerank(
     query: string,
@@ -116,6 +117,10 @@ export class OpenRouterReranker {
       this.config.timeoutSeconds,
       timeoutSeconds,
     );
+    const deadline =
+      timeoutSeconds === undefined
+        ? undefined
+        : this.clock.now() + requestTimeout * 1000;
     const body = JSON.stringify({
       model: this.config.model,
       query,
@@ -135,7 +140,9 @@ export class OpenRouterReranker {
             },
             body,
           },
-          requestTimeout * 1000,
+          deadline === undefined
+            ? requestTimeout * 1000
+            : deadline - this.clock.now(),
           signal,
         ),
       isTransientHttpError,

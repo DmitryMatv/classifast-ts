@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import type { QdrantClient } from "@qdrant/js-client-rest";
 import { APP_CONFIG, type AppConfig } from "../config/app-config.js";
+import { pyFormatFixed } from "../python/numbers.js";
 import {
   QDRANT_CLIENT,
   QUANTIZATION_CACHE,
@@ -37,7 +38,7 @@ const logger = new Logger("ClassificationModule");
           return null;
         }
         logger.log(
-          `Hugging Face Inference client initialized with provider=${client.provider} timeout=${client.timeoutSeconds.toFixed(1)}s.`,
+          `Hugging Face Inference client initialized with provider=${client.provider} timeout=${pyFormatFixed(client.timeoutSeconds, 1)}s.`,
         );
         return new HfEmbeddingClient(client);
       },
