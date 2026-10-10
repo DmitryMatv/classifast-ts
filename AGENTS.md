@@ -5,10 +5,10 @@ The role of this file is to describe common mistakes and confusion points that a
 ## Testing
 
 Always use `npm test` or `npm run test:watch` for TypeScript tests. `npm test`
-runs two Vitest projects: `assets` (frontend, jsdom, `app/assets/ts`) and
-`server` (Nest unit specs in `src/`). Select one with
-`npx vitest run --project assets`. Run the Nest e2e tests with
-`npm run test:e2e`. `npm run typecheck` checks both the root `tsconfig.json`
+runs three Vitest projects: `assets` (frontend, jsdom, `app/assets/ts`),
+`server` (Nest unit specs in `src/`), and `redis` (`src/**/*.redis.spec.ts`
+against a real Redis). Select one with `npx vitest run --project assets`.
+Run the Nest e2e tests with `npm run test:e2e`. `npm run typecheck` checks both the root `tsconfig.json`
 (Nest, `src/` and `test/`) and `app/assets/tsconfig.json` (frontend and the
 Vite and Vitest configs).
 
@@ -29,6 +29,47 @@ no `.env` and compose supplies the variables. `src/config/app-config.ts` parses
 every variable the Python app reads; add new variables to that schema instead
 of reading `process.env` elsewhere. `Dockerfile.node` builds the Nest image;
 production still uses `Dockerfile`.
+
+The `redis` project's globalSetup starts Redis 7.4.2 through
+`redis-memory-server`. Because `.npmrc` sets `ignore-scripts=true`, the first
+run in a checkout downloads the source from download.redis.io and compiles it
+with `make`, then caches it in
+`node_modules/.cache/redis-memory-server`. All Redis specs share that one
+server: isolate a spec with unique ids in its keys (`uniqueId` in
+`test/support/redis.ts`), and never flush the database. Quota and rate-limit
+specs must not mock Redis; MULTI, `EXPIRE NX` and `SET EX NX` are the behavior
+under test.
+
+node-redis waits forever by default: `connect()` retries until it succeeds and
+commands queue while the client is disconnected. Its command `timeout` stops
+counting once a command is written, and its `socketTimeout` is an idle
+timeout, so neither fails a command that a hung Redis never answers.
+Reconnecting a node-redis client in place is also unsafe: the replacement
+`connect()` has no deadline, `multi().exec()` queues during it despite
+`disableOfflineQueue`, overlapping reconnects leave two live sockets, and a
+`destroy()` during TCP setup does not stop the socket from being installed.
+Never call `connect()` on a used client. Use `RedisConnection` in
+`src/redis/redis-client.ts`: run every command through `run()`, which applies
+redis-py's five-second `socket_timeout` and drops a client that times out or
+breaks. The next call makes a new client with one bounded connect attempt.
+`close()` destroys an in-flight attempt and bounds shutdown to five seconds.
+
+`TextDecoder` and `Response.text()` strip a leading UTF-8 BOM; Python's
+`.decode()` keeps it. Decode Redis bytes with `ignoreBOM: true` (a cached tier
+of `\ufeffpro` is not Pro in Python). `httpx`'s `response.json()` parses bytes
+and does strip a leading body BOM, so `Response.text()` matches it there.
+
+Python's `check_usage` and `reserve_usage` each call
+`get_or_create_tracking_id`. A request without a valid `cf_track` cookie
+therefore reads one random tracking key and charges another; only the IP
+counter limits it. The TypeScript `Quota` resolves the tracking id once per
+request. The IP counter decides the same outcome either way.
+
+Node joins repeated request headers such as `CF-Connecting-IP` into one
+comma-separated string, while Starlette's `headers.get` returns the first
+value. Pass `req.headersDistinct` to `clientIp` in
+`src/usage/client-identity.ts`, not `req.headers`, to read the first value as
+Python does.
 
 The Qdrant JS client requests `GET /` to check the server version when it is
 constructed, and logs a warning when that fails. Fake Qdrant servers in tests
@@ -204,6 +245,14 @@ markup moves to a new directory, add a `@source` line for it.
 
 ## Gotchas and Non-Obvious Behaviors
 
+- Clerk JWKS refresh behavior depends on the PyJWT version. Versions through
+  2.13.0 refreshed immediately for unknown key IDs. PyJWT 2.14.0 introduced a
+  30-second cooldown after every successful fetch to prevent unauthenticated
+  JWKS request amplification. Locally installed PyJWT 2.15.1 and
+  `src/auth/clerk.ts` both use that cooldown. The deployed PyJWT version remains
+  unverified, and `requirements.txt` does not pin it. The owner has adopted
+  the cooldown as the Nest policy, including brief rejection of newly rotated
+  keys. `src/auth/clerk.spec.ts` covers rotation and cached-key reuse.
 - Polar SDK version range is declared in `requirements.txt`.
   SDK 1.x uses versioned `polar` imports, direct checkout keyword arguments, and
   webhook dataclasses with `event.type` instead of `event.TYPE`.
