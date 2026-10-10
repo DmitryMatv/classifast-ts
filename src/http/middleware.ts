@@ -119,6 +119,11 @@ function serverAuthority(req: Request): string {
   return `${host}:${req.socket.localPort}`;
 }
 
+// Starlette's request.base_url, with the root path "/".
+export function requestBaseUrl(req: Request): string {
+  return `${requestScheme(req)}://${req.headers.host || serverAuthority(req)}/`;
+}
+
 export const redirectToCanonicalQuery: RequestHandler = (req, res, next) => {
   const { rawPath, rawQuery } = splitRequestTarget(req.originalUrl);
   const query = canonicalQuery(parseQueryString(rawQuery));
