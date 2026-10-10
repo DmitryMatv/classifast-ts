@@ -19,6 +19,7 @@ export default defineConfig({
           name: "server",
           globals: true,
           include: ["src/**/*.spec.ts"],
+          setupFiles: ["test/support/quiet-nest-logger.ts"],
           exclude: ["src/**/*.redis.spec.ts"],
         },
       },

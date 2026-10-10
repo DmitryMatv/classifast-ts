@@ -5,7 +5,7 @@ import {
   keywordIndex,
   textIndex,
 } from "../../test/support/fake-qdrant.js";
-import type { ClassifierConfigMap } from "../classifier/classifier-config.js";
+import type { CollectionLayout } from "../classifier/classifier-config.js";
 import {
   backfillNormalizedIdPayloads,
   migrateCollectionPayloadIndexes,
@@ -424,7 +424,7 @@ describe("backfillNormalizedIdPayloads", () => {
 });
 
 describe("migrateConfiguredCollections", () => {
-  const config: ClassifierConfigMap = {
+  const config: CollectionLayout = {
     A: {
       embedDims: 128,
       versions: {
