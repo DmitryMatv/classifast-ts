@@ -1,9 +1,8 @@
 import { Controller, Get, HttpException, Inject } from "@nestjs/common";
 import type { QdrantClient } from "@qdrant/js-client-rest";
+import { EMBEDDING_CLIENT } from "../classifier/classification.module.js";
+import { QDRANT_CLIENT } from "../qdrant/qdrant.module.js";
 import { isHealthy } from "./health.js";
-
-export const QDRANT_CLIENT = Symbol("QDRANT_CLIENT");
-export const EMBEDDING_CLIENT = Symbol("EMBEDDING_CLIENT");
 
 @Controller()
 export class HealthController {

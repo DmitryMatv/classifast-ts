@@ -1,7 +1,7 @@
 import type { Schemas } from "@qdrant/js-client-rest";
 import {
   getAllCollectionNames,
-  type ClassifierConfigMap,
+  type CollectionLayout,
 } from "../classifier/classifier-config.js";
 import {
   normalizeOriginalIdForLookup,
@@ -309,7 +309,7 @@ export async function migrateCollectionPayloadIndexes(
 
 export async function migrateConfiguredCollections(
   client: QdrantIndexClient,
-  config: ClassifierConfigMap,
+  config: CollectionLayout,
   collectionNames?: ReadonlySet<string>,
 ): Promise<{ successCount: number; errorCount: number }> {
   const namesToProcess = collectionNames

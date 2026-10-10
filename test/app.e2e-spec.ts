@@ -1,3 +1,14 @@
+import {
+  buildClassifierConfig,
+  getAllCollectionNames,
+} from "../src/classifier/classifier-config.js";
+import { ClassificationService } from "../src/classifier/classification-service.js";
+import { QdrantSchemaValidationError } from "../src/qdrant/qdrant-schema.js";
+import {
+  startQdrantServer,
+  validCollections,
+  type QdrantServer,
+} from "./support/qdrant-server.js";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { Test } from "@nestjs/testing";
@@ -24,22 +35,10 @@ async function close(server: Server): Promise<void> {
   );
 }
 
-function fakeQdrantServer(): Server {
-  return createServer((req, res) => {
-    if (req.method === "GET" && req.url === "/") {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ title: "qdrant", version: "1.19.0" }));
-      return;
-    }
-    if (req.method === "GET" && req.url === "/collections") {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(
-        JSON.stringify({ result: { collections: [] }, status: "ok", time: 0 }),
-      );
-      return;
-    }
-    res.writeHead(404).end();
-  });
+const COLLECTIONS = getAllCollectionNames(buildClassifierConfig({}));
+
+function fakeQdrant(collections: readonly string[] = COLLECTIONS) {
+  return startQdrantServer(validCollections(collections));
 }
 
 async function unreachableUrl(): Promise<string> {
@@ -52,6 +51,7 @@ async function unreachableUrl(): Promise<string> {
 const BOOT_ENV_NAMES = [
   "HF_TOKEN",
   "HF_EMBEDDING_TIMEOUT_SECONDS",
+  "HF_EMBEDDING_DIMS",
   "QDRANT_URL",
   "QDRANT_HOST",
   "QDRANT_PORT",
@@ -79,19 +79,19 @@ async function bootApp(env: Partial<Record<string, string>>) {
 
 describe("/health (e2e)", () => {
   let app: NestExpressApplication | undefined;
-  let qdrant: Server | undefined;
+  let qdrant: QdrantServer | undefined;
 
   afterEach(async () => {
     await app?.close();
-    if (qdrant) await close(qdrant);
+    await qdrant?.close();
     app = undefined;
     qdrant = undefined;
     vi.unstubAllEnvs();
   });
 
   it("answers 200 when embedding is configured and Qdrant is reachable", async () => {
-    qdrant = fakeQdrantServer();
-    app = await bootApp({ HF_TOKEN: "test", QDRANT_URL: await listen(qdrant) });
+    qdrant = await fakeQdrant();
+    app = await bootApp({ HF_TOKEN: "test", QDRANT_URL: qdrant.url });
 
     const response = await request(app.getHttpServer()).get("/health");
 
@@ -102,11 +102,11 @@ describe("/health (e2e)", () => {
     expect(response.headers["x-powered-by"]).toBeUndefined();
   });
 
-  it("answers 503 when Qdrant is unreachable", async () => {
-    app = await bootApp({
-      HF_TOKEN: "test",
-      QDRANT_URL: await unreachableUrl(),
-    });
+  it("answers 503 when Qdrant goes away after boot", async () => {
+    qdrant = await fakeQdrant();
+    app = await bootApp({ HF_TOKEN: "test", QDRANT_URL: qdrant.url });
+    await qdrant.close();
+    qdrant = undefined;
 
     const response = await request(app.getHttpServer()).get("/health");
 
@@ -116,8 +116,8 @@ describe("/health (e2e)", () => {
   });
 
   it("answers 503 without HF_TOKEN even when Qdrant is reachable", async () => {
-    qdrant = fakeQdrantServer();
-    app = await bootApp({ QDRANT_URL: await listen(qdrant) });
+    qdrant = await fakeQdrant();
+    app = await bootApp({ QDRANT_URL: qdrant.url });
 
     const response = await request(app.getHttpServer()).get("/health");
 
@@ -134,5 +134,47 @@ describe("/health (e2e)", () => {
     await expect(boot).rejects.toThrow(ConfigError);
     await expect(boot).rejects.toThrow(/QDRANT_PORT must be an integer/);
     await expect(boot).rejects.not.toThrow(value);
+  });
+});
+
+describe("boot-time Qdrant schema check (e2e)", () => {
+  let qdrant: QdrantServer | undefined;
+
+  afterEach(async () => {
+    await qdrant?.close();
+    qdrant = undefined;
+    vi.unstubAllEnvs();
+  });
+
+  it("boots with the classification service after reading the schema only", async () => {
+    qdrant = await fakeQdrant();
+    const app = await bootApp({ HF_TOKEN: "test", QDRANT_URL: qdrant.url });
+    try {
+      expect(app.get(ClassificationService)).toBeInstanceOf(
+        ClassificationService,
+      );
+    } finally {
+      await app.close();
+    }
+    expect(qdrant.requests.map((r) => r.method)).toEqual(
+      Array(COLLECTIONS.length + 1).fill("GET"),
+    );
+  });
+
+  it("fails boot when a configured collection is missing", async () => {
+    qdrant = await fakeQdrant(COLLECTIONS.slice(1));
+
+    await expect(
+      bootApp({ HF_TOKEN: "test", QDRANT_URL: qdrant.url }),
+    ).rejects.toThrow(QdrantSchemaValidationError);
+    expect(qdrant.requests.every((r) => r.method === "GET")).toBe(true);
+  });
+
+  it("fails boot when Qdrant is unreachable", async () => {
+    await expect(
+      bootApp({ HF_TOKEN: "test", QDRANT_URL: await unreachableUrl() }),
+    ).rejects.toMatchObject({
+      issues: [{ code: "collection_list_failed" }],
+    });
   });
 });

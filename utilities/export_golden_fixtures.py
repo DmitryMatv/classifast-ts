@@ -9,6 +9,7 @@ regenerated fixtures.
 """
 
 import asyncio
+import http.server
 import json
 import logging
 import math
@@ -17,15 +18,21 @@ import random
 import re
 import sys
 import tempfile
+import threading
 import unicodedata
 import ipaddress
 from collections.abc import Callable, Iterable
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
+from unittest.mock import patch
 from urllib.parse import quote, quote_plus, unquote, unquote_plus, urlencode
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 
 import dotenv
+import httpx
 from jinja2 import Template
 
 
@@ -43,8 +50,18 @@ from app import classifier_page_delivery
 from app.classifier import (
     QueryFormat,
     _default_rerank_document,
+    _exclude_id_match_results,
+    _merge_classification_results,
+    _rank_semantic_results,
+    _semantic_retrieve_limit,
+    _sort_by_score_desc,
     build_query_embedding_text,
     build_rerank_query_text,
+    get_embedding,
+    perform_exact_id_search,
+    perform_partial_id_search,
+    perform_semantic_search,
+    rerank_candidates,
     sanitize_query_text,
 )
 from app.classifier_config import CLASSIFIER_CONFIG
@@ -67,7 +84,8 @@ from app.dependencies import group_original_id_tokens, templates
 from app.id_lookup import normalize_original_id_for_lookup, reverse_normalized_id
 from app.main import QueryNormalizationMiddleware, URLEncodingValidationMiddleware
 from app.mapping_store import list_mapping_products
-from app.query_enhancer import _is_code_like
+from app.query_enhancer import QueryEnhancer, _is_code_like
+from app.reranker import OpenRouterReranker
 from app.web import build_mapping_canonical_url
 
 logging.disable(logging.CRITICAL)
@@ -467,12 +485,21 @@ def build_python_str_fixture() -> dict[str, object]:
                 title if (title := character.title()) != character.upper() else None
             )
         ),
+        "casefoldMappings": code_point_map(
+            lambda character: (
+                folded if (folded := character.casefold()) != character else None
+            )
+        ),
         "title": [
             {"input": value, "title": value.title()}
             for value in [*SHORT_TEXT_INPUTS, *TITLE_INPUTS]
         ],
         "upper": [
             {"input": value, "upper": value.upper()} for value in SHORT_TEXT_INPUTS
+        ],
+        "casefold": [
+            {"input": value, "casefold": value.casefold()}
+            for value in SHORT_TEXT_INPUTS
         ],
         "strip": [
             {
@@ -1596,6 +1623,606 @@ def build_original_id_tokens_fixture() -> dict[str, object]:
     }
 
 
+def result_record(result: dict[str, Any]) -> dict[str, object]:
+    record: dict[str, object] = {"id": result["id"], "score": result["score"]}
+    if "rerank_relevance_score" in result:
+        record["rerankRelevanceScore"] = result["rerank_relevance_score"]
+    return record
+
+
+def candidate(point_id: str, score: float, **payload: object) -> dict[str, Any]:
+    return {"id": point_id, "score": score, "payload": payload}
+
+
+TIED_RESULTS = [
+    candidate("a", 0.5),
+    candidate("b", 0.9),
+    candidate("c", 0.5),
+    candidate("d", 0.9),
+    candidate("e", 0.1),
+    candidate("f", 0.5),
+    candidate("g", 1.0),
+]
+RERANK_CANDIDATES = [
+    candidate("p1", 0.41, original_id="1234", class_name="Pump body"),
+    candidate(
+        "p2", 0.39, original_id="5678", class_name="Pump casing", definition="Shell"
+    ),
+    candidate("p3", 0.38, original_id="9012", definition="Impeller housing"),
+    candidate("p4", 0.37, original_id="3456"),
+    candidate("p5", 0.36, original_id="7890", class_name="Seal"),
+]
+RERANK_SCORE_SETS: list[list[object] | None] = [
+    [0.52, 0.91, 0.1, 0.1, 0.0],
+    [0.12345, 0.12355, 0.99995, 0.00005, 0.5],
+    [0.12341, 0.12339, 0.12344, 0.1234, 1.0],
+    [0.3, 0.3, 0.3],
+    [0.3, 0.3, 0.3, 0.3, 0.3, 0.3],
+    None,
+]
+
+
+class RecordingReranker:
+    def __init__(self, scores: list[object] | None) -> None:
+        self.scores = scores
+        self.calls: list[dict[str, object]] = []
+
+    def rerank(self, query, documents, timeout_seconds=None):
+        self.calls.append({"query": query, "documents": list(documents)})
+        if self.scores is None:
+            raise RuntimeError("reranker down")
+        return self.scores
+
+
+def rerank_cases() -> list[dict[str, object]]:
+    cases = []
+    for scores in RERANK_SCORE_SETS:
+        for top_k, rerank_top_n in [(2, 5), (5, 5), (3, 3), (10, 100)]:
+            for instruction, query_format in [
+                (None, QueryFormat.LEGACY),
+                ("Find matching codes.", QueryFormat.LEGACY),
+                ("Find matching codes.", QueryFormat.INPUT_FIRST),
+            ]:
+                reranker = RecordingReranker(scores)
+                results = rerank_candidates(
+                    reranker,
+                    "industrial pump",
+                    [dict(item) for item in RERANK_CANDIDATES],
+                    top_k=top_k,
+                    rerank_top_n=rerank_top_n,
+                    rerank_instruction=instruction,
+                    query_format=query_format,
+                )
+                cases.append(
+                    {
+                        "scores": scores,
+                        "topK": top_k,
+                        "rerankTopN": rerank_top_n,
+                        "instruction": instruction,
+                        "format": query_format.value,
+                        "calls": reranker.calls,
+                        "results": [result_record(item) for item in results],
+                    }
+                )
+    return cases
+
+
+NOW = 1000.0
+RANKING_SCORES: list[object] = [0.2, 0.8, 0.5, 0.1, 0.9]
+
+
+def ranking_cases() -> list[dict[str, object]]:
+    cases = []
+    for has_reranker in [True, False]:
+        for id_matches in [[], [candidate("p2", 0.9, original_id="5678")]]:
+            for remaining in [None, 1.99, 2.0, 30.0]:
+                for semantic in [[], RERANK_CANDIDATES]:
+                    reranker = RecordingReranker(RANKING_SCORES)
+                    deadline = None if remaining is None else NOW + remaining
+                    filtered = _exclude_id_match_results(
+                        [dict(item) for item in semantic], id_matches
+                    )
+                    with patch("app.classifier.time.monotonic", return_value=NOW):
+                        ranked = _rank_semantic_results(
+                            reranker if has_reranker else None,
+                            "industrial pump",
+                            filtered,
+                            id_matches,
+                            3,
+                            100,
+                            "Find matching codes.",
+                            deadline=deadline,
+                        )
+                    cases.append(
+                        {
+                            "reranker": has_reranker,
+                            "idMatches": [result_record(item) for item in id_matches],
+                            "remainingSeconds": remaining,
+                            "semantic": [result_record(item) for item in semantic],
+                            "rerankCalls": len(reranker.calls),
+                            "ranked": [result_record(item) for item in ranked],
+                            "merged": [
+                                result_record(item)
+                                for item in _merge_classification_results(
+                                    id_matches, ranked, 3
+                                )
+                            ],
+                        }
+                    )
+    return cases
+
+
+PARTIAL_ID_POINTS = [
+    {"id": "p1", "payload": {"original_id": "03111000-2"}},
+    {"id": "p2", "payload": {"original_id": "AA-1002"}},
+    {"id": "p2", "payload": {"original_id": "AA-1002"}},
+    {
+        "id": "p3",
+        "payload": {"original_id": "x", "original_id_normalized": "311abc"},
+    },
+    {"id": "p4", "payload": {"original_id": "BAD-311", "original_id_normalized": 12345}},
+    {"id": "p5", "payload": {"original_id": "ZZ-9311"}},
+    {"id": "p6", "payload": {}},
+    {"id": "p7", "payload": None},
+    {"id": "p8", "payload": {"class_name": "No ID"}},
+    {"id": "p9", "payload": {"original_id": 3110}},
+    {"id": "p10", "payload": {"original_id": True}},
+    {"id": "p11", "payload": {"original_id": None}},
+    {"id": "p12", "payload": {"original_id": "0311-1000", "original_id_normalized": None}},
+    {"id": 13, "payload": {"original_id": "311"}},
+    {"id": "p14", "payload": {"original_id": "x", "original_id_normalized": True}},
+]
+
+
+def partial_id_cases() -> list[dict[str, object]]:
+    cases = []
+    for query in ["311", "1002", "true", "none", "311abc", "9311", "31"]:
+        points = [
+            SimpleNamespace(id=point["id"], payload=point["payload"])
+            for point in PARTIAL_ID_POINTS
+        ]
+        client = SimpleNamespace(scroll=lambda **kwargs: (points, None))
+        results = perform_partial_id_search(client, "products", query)
+        cases.append({"query": query, "ids": [result["id"] for result in results]})
+    return cases
+
+
+def http_error(response: httpx.Response) -> str:
+    return f"HTTP {response.status_code}"
+
+
+class CapturingTransport(httpx.BaseTransport):
+    def __init__(self, respond: Callable[[httpx.Request], httpx.Response]) -> None:
+        self.respond = respond
+        self.requests: list[dict[str, object]] = []
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        body = request.read()
+        self.requests.append(
+            {
+                "method": request.method,
+                "url": str(request.url),
+                "authorization": request.headers.get("authorization"),
+                "contentType": request.headers.get("content-type"),
+                "body": json.loads(body) if body else None,
+            }
+        )
+        return self.respond(request)
+
+
+EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-8B"
+EMBEDDING_ENDPOINT = "https://embed.example.com/v1/feature-extraction"
+EMBEDDING_PROVIDER_MAPPINGS = [
+    {
+        "scaleway": {"status": "live", "providerId": "qwen3-embedding-8b", "task": "feature-extraction"},
+        "deepinfra": {"status": "live", "providerId": "Qwen/Qwen3-Embedding-8B", "task": "feature-extraction"},
+    },
+    {
+        "deepinfra": {"status": "live", "providerId": "Qwen/Qwen3-Embedding-8B", "task": "feature-extraction"},
+        "scaleway": {"status": "live", "providerId": "qwen3-embedding-8b", "task": "feature-extraction"},
+    },
+    {"together": {"status": "staging", "providerId": "qwen/embed", "task": "feature-extraction"}},
+    {"scaleway": {"status": "live", "providerId": "qwen3", "task": "conversational"}},
+    {"cohere": {"status": "live", "providerId": "embed", "task": "feature-extraction"}},
+    {
+        "hf-inference": {"status": "live", "providerId": "qwen-hf", "task": "feature-extraction"},
+        "scaleway": {"status": "live", "providerId": "qwen3-embedding-8b", "task": "feature-extraction"},
+    },
+    [
+        {"provider": "together", "status": "live", "providerId": "qwen/embed", "task": "feature-extraction"},
+        {"provider": "deepinfra", "status": "live", "providerId": "Qwen/Qwen3-Embedding-8B", "task": "feature-extraction"},
+    ],
+    {"unknown-provider": {"status": "live", "providerId": "x", "task": "feature-extraction"}},
+    {},
+]
+EMBEDDING_PROVIDERS = [
+    "auto",
+    "scaleway",
+    "deepinfra",
+    "together",
+    "hf-inference",
+    "cohere",
+    "unknown-provider",
+]
+EMBEDDING_MODEL_INFOS: list[dict[str, object]] = [
+    {"pipeline_tag": "feature-extraction", "tags": ["feature-extraction"]},
+    {"pipeline_tag": "feature-extraction"},
+    {"pipeline_tag": "sentence-similarity", "tags": ["sentence-similarity", "feature-extraction"]},
+    {"pipeline_tag": "sentence-similarity", "tags": ["sentence-similarity"]},
+    {"pipeline_tag": "text-generation", "tags": ["feature-extraction"]},
+    {"tags": ["feature-extraction"]},
+]
+EMBEDDING_RESPONSES: list[object] = [
+    {"data": [{"embedding": [0.1, 0.2, 0.3]}]},
+    {"data": [{"embedding": [1, 2.5, "3.0"]}]},
+    {"data": [{"embedding": [3, 4, 5]}]},
+    {"data": [{"embedding": [0.1, 0.2]}]},
+    {"data": [{"embedding": [0.1, 0.2, 0.3]}, {"embedding": [0.4, 0.5, 0.6]}]},
+    {"data": [{"embedding": []}]},
+    {"data": []},
+    {"data": [{"embedding": [0.1, "x", 0.3]}]},
+    {"data": [{"embedding": [1e30, -1e-50, 0.333333333333]}]},
+    {"embeddings": [[0.1, 0.2, 0.3]]},
+]
+# hf-inference and endpoint URLs answer with the raw feature-extraction array.
+RAW_EMBEDDING_RESPONSES: list[object] = [
+    [0.1, 0.2, 0.3],
+    [[0.1, 0.2, 0.3]],
+    [[[0.1, 0.2, 0.3]]],
+    [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
+    [1, 2.5, "3.0"],
+    [0.1, 0.2],
+    [],
+    {"data": [{"embedding": [0.1, 0.2, 0.3]}]},
+]
+
+
+def embed_through_hub(
+    token: str,
+    provider: str,
+    mapping: object,
+    response: object,
+    model: str = EMBEDDING_MODEL,
+    model_info: dict[str, object] = EMBEDDING_MODEL_INFOS[0],
+) -> dict[str, object]:
+    from huggingface_hub import InferenceClient, set_client_factory
+    from huggingface_hub.inference._providers._common import (
+        _fetch_inference_provider_mapping,
+    )
+    from huggingface_hub.inference._providers.hf_inference import _check_supported_task
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            return httpx.Response(
+                200,
+                json={"id": EMBEDDING_MODEL, "inferenceProviderMapping": mapping, **model_info},
+            )
+        return httpx.Response(200, json=response)
+
+    transport = CapturingTransport(respond)
+    _fetch_inference_provider_mapping.cache_clear()
+    _check_supported_task.cache_clear()
+    set_client_factory(lambda: httpx.Client(transport=transport))
+    os.environ["HF_TOKEN"] = token
+    try:
+        client = InferenceClient(provider=provider, api_key=token, timeout=20)
+        try:
+            vector: object = get_embedding(client, model, "industrial pump", embed_dims=3)
+        except HTTPException:
+            vector = None
+    finally:
+        del os.environ["HF_TOKEN"]
+    return {"requests": transport.requests, "vector": vector}
+
+
+def embedding_case(
+    token: str,
+    provider: str,
+    mapping: object,
+    response: object,
+    model: str = EMBEDDING_MODEL,
+    model_info: dict[str, object] = EMBEDDING_MODEL_INFOS[0],
+) -> dict[str, object]:
+    return {
+        "token": token,
+        "provider": provider,
+        "model": model,
+        "mapping": mapping,
+        "modelInfo": model_info,
+        "response": response,
+        **embed_through_hub(token, provider, mapping, response, model, model_info),
+    }
+
+
+def embedding_cases() -> list[dict[str, object]]:
+    cases = []
+    for token in ["hf_test", "provider-key"]:
+        for provider in EMBEDDING_PROVIDERS:
+            for mapping in EMBEDDING_PROVIDER_MAPPINGS:
+                response = (
+                    RAW_EMBEDDING_RESPONSES[0]
+                    if provider == "hf-inference" or (
+                        provider == "auto"
+                        and isinstance(mapping, dict)
+                        and next(iter(mapping), None) == "hf-inference"
+                    )
+                    else EMBEDDING_RESPONSES[0]
+                )
+                cases.append(embedding_case(token, provider, mapping, response))
+            cases.append(
+                embedding_case(
+                    token,
+                    provider,
+                    EMBEDDING_PROVIDER_MAPPINGS[0],
+                    RAW_EMBEDDING_RESPONSES[0],
+                    model=EMBEDDING_ENDPOINT,
+                )
+            )
+    for response in EMBEDDING_RESPONSES:
+        cases.append(embedding_case("hf_test", "auto", EMBEDDING_PROVIDER_MAPPINGS[0], response))
+    for model in [EMBEDDING_MODEL, EMBEDDING_ENDPOINT]:
+        for response in RAW_EMBEDDING_RESPONSES:
+            cases.append(
+                embedding_case(
+                    "hf_test", "hf-inference", EMBEDDING_PROVIDER_MAPPINGS[0], response, model=model
+                )
+            )
+    for model_info in EMBEDDING_MODEL_INFOS:
+        cases.append(
+            embedding_case(
+                "hf_test",
+                "hf-inference",
+                EMBEDDING_PROVIDER_MAPPINGS[0],
+                RAW_EMBEDDING_RESPONSES[0],
+                model_info=model_info,
+            )
+        )
+    return cases
+
+
+RERANK_RESPONSES: list[object] = [
+    {"results": [{"index": 1, "relevance_score": 0.2}, {"index": 0, "relevance_score": 0.9}]},
+    {"results": [{"index": 0, "relevance_score": 1}, {"index": 1, "relevance_score": 0}]},
+    {"results": [{"index": 0, "relevance_score": 0.9}]},
+    {"results": [{"index": 0, "relevance_score": 0.9}, {"index": 0, "relevance_score": 0.2}]},
+    {"results": [{"index": 0, "relevance_score": 0.9}, {"index": 5, "relevance_score": 0.2}]},
+    {"results": [{"index": 0, "relevance_score": 0.9}, {"index": -1, "relevance_score": 0.2}]},
+    {"results": [{"index": 0, "relevance_score": 1.5}, {"index": 1, "relevance_score": 0.2}]},
+    {"results": [{"index": 0, "relevance_score": -0.1}, {"index": 1, "relevance_score": 0.2}]},
+    {"results": [{"index": True, "relevance_score": 0.5}, {"index": 0, "relevance_score": 0.2}]},
+    {"results": [{"index": 0, "relevance_score": True}, {"index": 1, "relevance_score": 0.2}]},
+    {"results": [{"index": "0", "relevance_score": 0.5}, {"index": 1, "relevance_score": 0.2}]},
+    {"results": [{"index": 0, "relevance_score": "0.5"}, {"index": 1, "relevance_score": 0.2}]},
+    {"results": [[0, 0.5], {"index": 1, "relevance_score": 0.2}]},
+    {"results": "none"},
+    {"data": []},
+    [],
+]
+
+
+def rerank_response_cases() -> list[dict[str, object]]:
+    cases = []
+    for payload in RERANK_RESPONSES:
+        try:
+            scores: object = OpenRouterReranker._parse_scores(payload, n_documents=2)
+        except Exception:
+            scores = None
+        cases.append({"payload": payload, "scores": scores})
+    return cases
+
+
+def openrouter_requests() -> dict[str, object]:
+    rerank_transport = CapturingTransport(
+        lambda request: httpx.Response(
+            200,
+            json={"results": [{"index": 0, "relevance_score": 0.5}, {"index": 1, "relevance_score": 0.25}]},
+        )
+    )
+    reranker = OpenRouterReranker(
+        api_key="or-key",
+        model_name="voyageai/rerank-3",
+        client=httpx.Client(
+            transport=rerank_transport,
+            headers={"Authorization": "Bearer or-key", "Content-Type": "application/json"},
+        ),
+    )
+    reranker.rerank("Find codes.\nQuery: pump", ["Pump body", "Pump casing"], timeout_seconds=12.5)
+
+    async def enhance() -> list[dict[str, object]]:
+        class AsyncCapture(httpx.AsyncBaseTransport):
+            def __init__(self) -> None:
+                self.sync = CapturingTransport(
+                    lambda request: httpx.Response(
+                        200, json={"choices": [{"message": {"content": "A pump"}}]}
+                    )
+                )
+
+            async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+                await request.aread()
+                return self.sync.handle_request(request)
+
+        transport = AsyncCapture()
+        async with httpx.AsyncClient(
+            transport=transport, headers={"Authorization": "Bearer or-key"}
+        ) as client:
+            await QueryEnhancer("or-key", client=client).enhance("industrial  pump", "UNSPSC")
+        return transport.sync.requests
+
+    return {"rerank": rerank_transport.requests, "enhance": asyncio.run(enhance())}
+
+
+ENHANCER_REPLIES: list[tuple[int, object]] = [
+    (200, {"choices": [{"message": {"content": "  Threaded metal fastener  "}}]}),
+    (200, {"choices": [{"message": {"content": "Threaded fastener \u2026"}}]}),
+    (200, {"choices": [{"message": {"content": "x" * 240}}]}),
+    (200, {"choices": [{"message": {"content": "x" * 241}}]}),
+    (200, {"choices": [{"message": {"content": " "}}]}),
+    (200, {"choices": [{"message": {"content": "\u2026"}}]}),
+    (200, {"choices": [{"message": {"content": "BOLT"}}]}),
+    (200, {"choices": [{"message": {"content": "Stra\u00dfe"}}]}),
+    (200, {"choices": [{"message": {"content": "a\x00b"}}]}),
+    (200, {"choices": [{"message": {"content": "a\x1cb"}}]}),
+    (200, {"choices": [{"message": {"content": 42}}]}),
+    (200, {"choices": [{"message": {}}]}),
+    (200, {"choices": []}),
+    (200, {}),
+    (503, {}),
+    (429, {}),
+    (401, {}),
+]
+ENHANCER_QUERIES = ["bolt", "STRASSE", "8471", "SH203-C20", "3D", "<bad>", "x"]
+
+
+def enhancer_cases() -> list[dict[str, object]]:
+    async def run() -> list[dict[str, object]]:
+        cases = []
+        for query in ENHANCER_QUERIES:
+            for status, body in ENHANCER_REPLIES:
+                calls = []
+
+                def respond(request: httpx.Request) -> httpx.Response:
+                    calls.append(request)
+                    return httpx.Response(status, json=body)
+
+                async with httpx.AsyncClient(
+                    transport=httpx.MockTransport(respond)
+                ) as client:
+                    outcome = await QueryEnhancer("k", client=client).enhance(
+                        query, "UNSPSC"
+                    )
+                cases.append(
+                    {
+                        "query": query,
+                        "status": status,
+                        "body": body,
+                        "requested": bool(calls),
+                        "text": outcome.text,
+                        "outcome": outcome.status.value,
+                    }
+                )
+        return cases
+
+    return asyncio.run(run())
+
+
+class QdrantRecorder(http.server.BaseHTTPRequestHandler):
+    requests: list[dict[str, object]] = []
+
+    def do_POST(self) -> None:
+        length = int(self.headers.get("content-length") or 0)
+        body = json.loads(self.rfile.read(length) or b"null")
+        QdrantRecorder.requests.append(
+            {"method": "POST", "path": self.path, "body": drop_none(body)}
+        )
+        result = (
+            {"points": []}
+            if self.path.endswith("/query")
+            else {"points": [], "next_page_offset": None}
+        )
+        payload = json.dumps({"result": result, "status": "ok", "time": 0}).encode()
+        self.send_response(200)
+        self.send_header("content-type", "application/json")
+        self.send_header("content-length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def log_message(self, *args: object) -> None:
+        pass
+
+
+def drop_none(value: object) -> object:
+    if isinstance(value, dict):
+        return {key: drop_none(item) for key, item in value.items() if item is not None}
+    if isinstance(value, list):
+        return [drop_none(item) for item in value]
+    return value
+
+
+def qdrant_requests() -> list[dict[str, object]]:
+    from qdrant_client import QdrantClient
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), QdrantRecorder)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    QdrantRecorder.requests = []
+    calls: list[dict[str, object]] = []
+    try:
+        client = QdrantClient(
+            url=f"http://127.0.0.1:{server.server_address[1]}",
+            check_compatibility=False,
+            timeout=5,
+        )
+        for quantized in [False, True]:
+            for exact in [False, True]:
+                perform_semantic_search(
+                    client, "products", [0.5, -0.25, 1.0], top_k=100,
+                    has_quantization=quantized, search_exact=exact,
+                )
+                calls.append({"call": "semantic", "quantized": quantized, "exact": exact, "limit": 100})
+        for text in ["8471.30", "SH203-C20/", "  a\u00a0b  ", "\u0430\u0431\u0432 <x>"]:
+            perform_exact_id_search(client, "products", text)
+            calls.append({"call": "exact", "text": text})
+        for normalized in ["311", "8471300100", "ec000123"]:
+            perform_partial_id_search(client, "products", normalized)
+            calls.append({"call": "partial", "text": normalized})
+        client.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+    return [
+        {**call, "request": request}
+        for call, request in zip(calls, QdrantRecorder.requests, strict=True)
+    ]
+
+
+def build_classification_fixture() -> dict[str, object]:
+    return {
+        "classifiers": {
+            classifier_type: {
+                "embedModelName": config["embed_model_name"],
+                "embedDims": config["embed_dims"],
+                "queryInstruction": config["query_instruction"],
+                "rerankInstruction": config.get(
+                    "rerank_instruction", config["query_instruction"]
+                ),
+                "versions": {
+                    name: version["collection_name"]
+                    for name, version in config["versions"].items()
+                },
+            }
+            for classifier_type, config in CLASSIFIER_CONFIG.items()
+        },
+        "tiedResults": [result_record(item) for item in TIED_RESULTS],
+        "sorting": [
+            {
+                "topK": top_k,
+                "ids": [r["id"] for r in _sort_by_score_desc(TIED_RESULTS, top_k)],
+            }
+            for top_k in [0, 1, 2, 3, 5, 7, 10]
+        ],
+        "limits": [
+            {
+                "topK": top_k,
+                "reranking": reranking,
+                "limit": _semantic_retrieve_limit(top_k, reranking),
+            }
+            for top_k in [1, 3, 10, 99, 100, 101, 150]
+            for reranking in [False, True]
+        ],
+        "rerankCandidates": RERANK_CANDIDATES,
+        "rankingScores": RANKING_SCORES,
+        "rerank": rerank_cases(),
+        "ranking": ranking_cases(),
+        "partialIdPoints": PARTIAL_ID_POINTS,
+        "partialIds": partial_id_cases(),
+        "rerankResponses": rerank_response_cases(),
+        "enhancer": enhancer_cases(),
+        "embedding": embedding_cases(),
+        "openRouterRequests": openrouter_requests(),
+        "qdrantRequests": qdrant_requests(),
+    }
+
+
 FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "id-lookup.json": build_id_lookup_fixture,
     "python-str.json": build_python_str_fixture,
@@ -1614,6 +2241,7 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "popular-lookups.json": build_popular_lookups_fixture,
     "mapping-urls.json": build_mapping_urls_fixture,
     "request-url.json": build_request_url_fixture,
+    "classification.json": build_classification_fixture,
 }
 
 
@@ -1633,11 +2261,11 @@ def to_json(fixture: dict[str, object]) -> str:
     for key, value in fixture.items():
         if isinstance(value, list) and value and isinstance(value[0], dict):
             cases = ",\n".join(
-                "    " + json.dumps(case, ensure_ascii=False) for case in value
+                "    " + json.dumps(case, ensure_ascii=False, allow_nan=False) for case in value
             )
             text = f"[\n{cases}\n  ]"
         else:
-            text = json.dumps(value, ensure_ascii=False, indent=2)
+            text = json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False)
             text = text.replace("\n", "\n  ")
         fields.append(f"  {json.dumps(key)}: {text}")
     return escape_lone_surrogates("{\n" + ",\n".join(fields) + "\n}\n")
