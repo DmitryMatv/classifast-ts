@@ -4,24 +4,40 @@ import request from "supertest";
 import { vi } from "vitest";
 import { AppModule } from "../src/app.module.js";
 import {
+  buildClassifierConfig,
+  getAllCollectionNames,
+} from "../src/classifier/classifier-config.js";
+import {
   configureHttpApp,
   createHttpAdapter,
   HTTP_APP_OPTIONS,
 } from "../src/http-app.js";
 import { cacheHeaders } from "../src/http/cache-profiles.js";
+import {
+  startQdrantServer,
+  validCollections,
+  type QdrantServer,
+} from "./support/qdrant-server.js";
 
 let app: NestExpressApplication;
+let qdrant: QdrantServer;
 
 beforeAll(async () => {
   for (const name of [
     "HF_TOKEN",
-    "QDRANT_URL",
+    "HF_EMBEDDING_DIMS",
     "QDRANT_HOST",
     "QDRANT_PORT",
+    "QDRANT_API_KEY",
     "POLAR_WEBHOOK_SECRET",
   ]) {
     vi.stubEnv(name, undefined);
   }
+  // Boot runs the Qdrant schema check.
+  qdrant = await startQdrantServer(
+    validCollections(getAllCollectionNames(buildClassifierConfig({}))),
+  );
+  vi.stubEnv("QDRANT_URL", qdrant.url);
   // Nothing listens on port 1, so Redis stays unavailable.
   vi.stubEnv("REDIS_HOST", "127.0.0.1");
   vi.stubEnv("REDIS_PORT", "1");
@@ -37,7 +53,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await app.close();
+  await app?.close();
+  await qdrant?.close();
   vi.unstubAllEnvs();
 });
 
