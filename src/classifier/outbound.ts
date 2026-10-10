@@ -75,7 +75,10 @@ const MAX_ATTEMPTS = 3;
 
 /**
  * Python's tenacity policy: three attempts, waits of 1 s and then 2 s, and,
- * when `maxSeconds` is set, no new attempt once that much time has passed.
+ * when `maxSeconds` is set, no new attempt that would start after that much
+ * time has passed. Python's `stop_after_delay` checks before the wait, so it
+ * can sleep past the budget and start one more attempt; this matches
+ * tenacity's `stop_before_delay` instead.
  */
 export async function withRetry<T>(
   attempt: () => Promise<T>,
@@ -95,8 +98,10 @@ export async function withRetry<T>(
     try {
       return await attempt();
     } catch (error) {
+      const waitMs = Math.min(10, 2 ** (attemptNumber - 1)) * 1000;
       const outOfTime =
-        maxSeconds !== undefined && (clock.now() - start) / 1000 >= maxSeconds;
+        maxSeconds !== undefined &&
+        clock.now() - start + waitMs >= maxSeconds * 1000;
       if (
         signal.aborted ||
         !isTransient(error) ||
@@ -105,7 +110,7 @@ export async function withRetry<T>(
       ) {
         throw error;
       }
-      await clock.sleep(Math.min(10, 2 ** (attemptNumber - 1)) * 1000, signal);
+      await clock.sleep(waitMs, signal);
     }
   }
 }
