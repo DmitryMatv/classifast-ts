@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <title>Classify any description to UNSPSC, HS/CN codes, NAICS, etc.</title>
+    <meta name="description"
+        content="Code finder for UNSPSC, NAICS, HS, CN, and other standard codes. Accurate category search, lookup, mapping, classification of products and services.">
+    <meta name="keywords"
+        content="code lookup, code mapping, code crosswalk, code search, find code, classification, commodity code, UNSPSC categories, NAICS code search, find NAICS code, NAICS industry code lookup, product classification">
+    <meta name="author" content="Dmitry Matv">
+    <meta name="creator" content="Dmitry Matv">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <link rel="canonical" href="https://classifast.com/">
+    <link rel="home" href="https://classifast.com/">
+    <link rel="icon" href="/static/images/favicon-32x32.png" type="image/png" sizes="32x32">
+    <link rel="icon" href="/static/images/favicon-16x16.png" type="image/png" sizes="16x16">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/images/apple-touch-icon.png">
+
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Classify any description to UNSPSC, HS/CN code, NAICS, etc.">
+    <meta property="og:description"
+        content="Simple finder for UNSPSC, NAICS, HS, CN, and other standard codes. Accurate category search, lookup, mapping, classification of products and services.">
+    <meta property="og:url" content="https://classifast.com/">
+    <meta property="og:site_name" content="classifast.com">
+    <meta property="og:image" content="https://classifast.com/static/images/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Classifast - Instant Classification & Lookup">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Classifast | Fast classification according to many industry standards">
+    <meta name="twitter:description"
+        content="Find UNSPSC, NAICS, ISIC, and other classification codes. Semantic search to accurately lookup and classify products and services.">
+    <meta name="twitter:image" content="https://classifast.com/static/images/preview.png">
+    <meta name="twitter:site" content="@DimonBitcoin">
+    <meta name="twitter:creator" content="@DimonBitcoin">
+
+    <meta name="msvalidate.01" content="047F82015E36CB871F2BCF50095278F1" />
+
+    <!-- Body and display fonts from Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://clerk.classifast.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JK3ESE6CJR"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', 'G-JK3ESE6CJR');
+    </script>
+
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Classifast | AI-Powered UNSPSC Code Lookup, ETIM & NAICS Classification Tool",
+        "url": "https://classifast.com/",
+        "description": "AI-powered classification tool providing fast and accurate UNSPSC code lookup, ETIM classification, and NAICS code search. Streamline your product and service categorization with semantic search technology.",
+        "author": {
+            "@type": "Person",
+            "name": "Dmitry Matv"
+        },
+        "keywords": "UNSPSC code, UNSPSC code lookup, UNSPSC codes list, find UNSPSC code, UNSPSC classification, commodity code UNSPSC, UNSPSC categories, NAICS code, NAICS code search, find NAICS code, NAICS industry code lookup, ETIM classification, product classification, service classification, classifier, data management, semantic search",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "offers": {
+            "@type": "Offer",
+            "price": "0.10",
+            "priceCurrency": "USD",
+            "description": "Per classification request"
+        },
+        "provider": {
+            "@type": "Organization",
+            "name": "Classifast",
+            "url": "https://classifast.com/"
+        },
+        "featureList": [
+            "UNSPSC code lookup and classification",
+            "ETIM product classification",
+            "NAICS industry code search",
+            "Semantic search technology",
+            "Bulk classification support",
+            "High accuracy matching"
+        ]
+    }
+    </script>
+
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {
+                "@type": "Question",
+                "name": "What is UNSPSC classification?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "UNSPSC (United Nations Standard Products and Services Code) is a global standard used to organize products and services into hierarchical categories. It helps businesses improve spend analytics, streamline procurement, and enhance data governance."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "How does ETIM classification work?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "ETIM (Technical Information Model) is an open standard for the unambiguous grouping and specification of products in the technical sector. It provides a uniform classification system for electronic exchange of product data, especially for technical and electrical products."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "What are NAICS codes used for?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "NAICS (North American Industry Classification System) codes are used to classify businesses by their primary economic activity. They're essential for government contracting, statistical analysis, and business reporting across North America."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "How accurate is AI-powered classification?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Our AI-powered classification uses state-of-the-art embedding models to deliver high accuracy results. Each classification includes a confidence score, and detailed product descriptions typically yield better matches than generic terms."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "Can I classify products in bulk?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes, Classifast supports bulk classification for large datasets. This feature is perfect for businesses looking to categorize their entire product catalog or service offerings efficiently."
+                }
+            }
+        ]
+    }
+    </script>
+
+
+    <link href="/static/css/styles.css" rel="stylesheet">
+
+    <script type="module" src="/static/js/common.js"></script>
+
+    <style>
+        /* Ensure consistent container behavior across all browsers */
+        .container {
+            width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        :root {
+            --ink: #0f172a;
+            --body: #475569;
+            --muted: #64748b;
+            --accent: #0369a1;
+            --accent-strong: #075985;
+            --rule: #e2e8f0;
+            --paper: #ffffff;
+        }
+
+        /* Hide scrollbar when modal is active (like other Clerk implementations) */
+        body.clerk-modal-open {
+            overflow: hidden;
+        }
+
+        html.clerk-modal-open {
+            scrollbar-width: none;
+        }
+
+        .auth-slot {
+            display: inline-flex;
+            align-items: center;
+            justify-content: flex-end;
+            width: auto;
+            min-width: 0;
+            min-height: 2.25rem;
+            margin-left: 0.75rem;
+            flex: 0 0 auto;
+            line-height: 1;
+        }
+
+        .auth-slot [id$="-auth-container"] {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            width: auto;
+            min-width: 0;
+            min-height: 2.25rem;
+            line-height: 1;
+        }
+
+        .auth-slot[data-auth-slot="mobile"] {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .auth-slot[data-auth-slot="mobile"] {
+                display: inline-flex;
+                min-width: 2.25rem;
+                margin-left: auto;
+                margin-right: 0.75rem;
+            }
+        }
+
+        /* Mobile menu */
+        .mobile-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 0.75rem);
+            right: 1rem;
+            width: min(44rem, calc(100vw - 2rem));
+            background: rgba(255, 255, 255, 0.99);
+            border: 1px solid var(--rule);
+            box-shadow: 0 24px 60px -28px rgba(15, 23, 42, 0.3);
+            border-radius: 0.5rem;
+            z-index: 60;
+            backdrop-filter: blur(16px);
+            overflow: hidden;
+        }
+
+        .mobile-menu.active {
+            display: block;
+        }
+
+        .hamburger {
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            padding: 4px;
+            background: transparent;
+            border: 0;
+            appearance: none;
+            -webkit-appearance: none;
+            position: relative;
+            z-index: 70;
+            touch-action: manipulation;
+        }
+
+        .hamburger span {
+            width: 24px;
+            height: 2px;
+            background-color: var(--ink);
+            margin: 3px 0;
+            transition: 0.3s;
+            border-radius: 1px;
+        }
+
+        .hamburger.active span:nth-child(1) {
+            transform: rotate(-45deg) translate(-5px, 6px);
+        }
+
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger.active span:nth-child(3) {
+            transform: rotate(45deg) translate(-5px, -6px);
+        }
+
+        .menu-panel {
+            display: grid;
+            grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.75fr);
+            gap: 1.25rem;
+            padding: 1.25rem;
+        }
+
+        .menu-section-title {
+            margin: 0 0 0.75rem 0;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--muted);
+        }
+
+        .menu-feature-link {
+            display: block;
+            padding: 0.85rem 1rem;
+            border: 1px solid var(--rule);
+            border-radius: 0.375rem;
+            color: var(--ink);
+            transition: border-color 0.15s ease, background-color 0.15s ease;
+        }
+
+        .menu-feature-link:hover {
+            border-color: var(--accent);
+            background: #f8fafc;
+        }
+
+        .menu-feature-link strong {
+            display: block;
+            font-size: 0.95rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .menu-feature-link span {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--body);
+            line-height: 1.45;
+        }
+
+        .menu-link-list {
+            display: grid;
+            gap: 0.25rem;
+        }
+
+        .menu-link-list a {
+            display: block;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.25rem;
+            color: var(--body);
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .menu-link-list a:hover {
+            background-color: #f8fafc;
+            color: var(--accent);
+        }
+
+        .menu-chip-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 1px;
+            background: var(--rule);
+            border: 1px solid var(--rule);
+            border-radius: 0.375rem;
+            overflow: hidden;
+        }
+
+        .menu-chip {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 2.75rem;
+            padding: 0.6rem;
+            background: #fff;
+            color: var(--ink);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            transition: color 0.15s ease, background-color 0.15s ease;
+        }
+
+        .menu-chip:hover {
+            color: var(--accent);
+            background: #f8fafc;
+        }
+
+        /* Page surface: single light-blue wash fading to white.
+           Deliberately one gradient layer — no grid overlays. */
+        body.home-surface {
+            background: linear-gradient(180deg, #c6ecff 0%, #ebf8ff 38%, #ffffff 78%);
+        }
+
+        .site-masthead {
+            position: relative;
+            z-index: 2;
+            background: var(--paper);
+            border-bottom: none;
+        }
+
+        /* Hero */
+        .hero-section {
+            padding: 4.5rem 0 5.5rem;
+        }
+
+        .hero-grid {
+            display: grid;
+            gap: 3rem;
+            align-items: center;
+        }
+
+        @media (min-width: 992px) {
+            .hero-grid {
+                grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+                gap: 4.5rem;
+            }
+        }
+
+        .hero-title {
+            margin: 0 0 1.25rem;
+            color: var(--ink);
+            font-weight: 800;
+            font-size: clamp(2rem, 3.4vw, 3rem);
+            line-height: 1.08;
+            letter-spacing: -0.03em;
+            max-width: 24ch;
+        }
+
+        @media (max-width: 480px) {
+            .hero-title br {
+                display: none;
+            }
+        }
+
+        .hero-lede {
+            margin: 0 0 2rem;
+            color: var(--body);
+            font-size: clamp(1.05rem, 1.3vw, 1.2rem);
+            line-height: 1.6;
+            max-width: 42ch;
+        }
+
+        .hero-lede a {
+            color: var(--accent);
+            font-weight: 500;
+            text-decoration: underline;
+            text-decoration-thickness: 1px;
+            text-underline-offset: 2px;
+        }
+
+        .hero-lede a:hover,
+        .hero-lede a:focus-visible {
+            color: var(--accent-strong);
+        }
+
+        .hero-cta-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.9rem;
+        }
+
+        .cta-primary {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.7rem 1.1rem;
+            border-radius: 0.375rem;
+            background: var(--accent);
+            color: #fff;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-decoration: none;
+            transition: background-color 0.15s ease;
+        }
+
+        .cta-primary:hover,
+        .cta-primary:focus-visible {
+            background: var(--accent-strong);
+        }
+
+        .cta-secondary {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.7rem 1.1rem;
+            border: 1px solid var(--rule);
+            border-radius: 0.375rem;
+            color: var(--ink);
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-decoration: none;
+            background: #fff;
+            transition: border-color 0.15s ease, color 0.15s ease;
+        }
+
+        .cta-secondary:hover,
+        .cta-secondary:focus-visible {
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .hero-note {
+            margin-top: 1.5rem;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+
+        /* Demo card: shows what a result actually looks like */
+        .demo-card {
+            background: var(--paper);
+            border: 1px solid var(--rule);
+            border-radius: 0.5rem;
+            max-width: 34rem;
+        }
+
+        .demo-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 0.9rem 1.25rem;
+            border-bottom: 1px solid var(--rule);
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .demo-head .demo-kind {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            color: var(--ink);
+        }
+
+        .demo-query {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .demo-query-label {
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-bottom: 0.25rem;
+        }
+
+        .demo-query-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            color: var(--ink);
+            background: #f8fafc;
+            border: 1px solid var(--rule);
+            border-radius: 0.375rem;
+            padding: 0.55rem 0.75rem;
+        }
+
+        .demo-rows {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .demo-row {
+            padding: 0.75rem 1.25rem;
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .demo-row:last-child {
+            border-bottom: none;
+        }
+
+        .demo-row-top {
+            display: flex;
+            align-items: baseline;
+            gap: 0.75rem;
+        }
+
+        .demo-code {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: var(--accent-strong);
+        }
+
+        .demo-score {
+            margin-left: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .demo-name {
+            margin-top: 0.15rem;
+            color: var(--ink);
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .demo-foot {
+            padding: 0.9rem 1.25rem;
+            background: #f8fafc;
+            border-top: 1px solid var(--rule);
+            font-size: 0.85rem;
+        }
+
+        .demo-foot a {
+            color: var(--accent);
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        /* Section scaffold */
+        .page-section {
+            background: var(--paper);
+        }
+
+        .section-title {
+            color: var(--ink);
+            font-weight: 700;
+            font-size: clamp(1.5rem, 2.2vw, 2rem);
+            letter-spacing: -0.02em;
+            margin: 0 0 0.75rem;
+            text-align: left;
+        }
+
+        .section-lede {
+            color: var(--body);
+            max-width: 60ch;
+            margin: 0 0 2rem;
+        }
+
+        /* Standards index */
+        .standards-index {
+            padding: 4.5rem 0 5.5rem;
+        }
+
+        .standards-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            gap: 0;
+            border-top: 1px solid var(--rule);
+        }
+
+        @media (min-width: 640px) {
+            .standards-list {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (min-width: 992px) {
+            .standards-list {
+                grid-template-columns: 1fr 1fr 1fr;
+            }
+        }
+
+        .standards-list a {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            padding: 1rem 0.2rem;
+            border-bottom: 1px solid var(--rule);
+            text-decoration: none;
+        }
+
+        .standards-list abbr {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--ink);
+        }
+
+        .standards-list .full-name {
+            color: var(--muted);
+            font-size: 0.85rem;
+            line-height: 1.35;
+        }
+
+        .standards-list a:hover,
+        .standards-list a:focus-visible {
+            background: #f8fafc;
+        }
+
+        .standards-list a:hover abbr,
+        .standards-list a:focus-visible abbr {
+            color: var(--accent);
+        }
+
+        /* Features */
+        .features-section {
+            padding: 4.5rem 0;
+            border-top: 1px solid var(--rule);
+        }
+
+        .feature-grid {
+            display: grid;
+            gap: 2rem;
+        }
+
+        @media (min-width: 768px) {
+            .feature-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (min-width: 992px) {
+            .feature-grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
+
+        .feature h3 {
+            color: var(--ink);
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin: 0 0 0.4rem;
+            text-align: left;
+        }
+
+        @media (min-width: 992px) {
+            .feature {
+                border-left: 1px solid var(--rule);
+                padding-left: 1.25rem;
+            }
+
+            .feature:first-child {
+                border-left: none;
+                padding-left: 0;
+            }
+        }
+
+        .feature p {
+            color: var(--body);
+            font-size: 0.95rem;
+            line-height: 1.55;
+            margin: 0;
+        }
+
+        .feature p a {
+            color: var(--accent);
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        /* Testimonials */
+        .testimonials-section {
+            padding: 4.5rem 0 5rem;
+            border-top: 1px solid var(--rule);
+        }
+
+        .testimonial-grid {
+            display: grid;
+            gap: 2.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .testimonial-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (min-width: 992px) {
+            .testimonial-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        .testimonial-quote {
+            position: relative;
+            margin: 0;
+            padding-top: 1rem;
+            border-top: 2px solid var(--ink);
+        }
+
+        .testimonial-quote p {
+            color: var(--body);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        /* Popular lookups */
+        .popular-section {
+            padding: 4.5rem 0 5.5rem;
+            border-top: 1px solid var(--rule);
+        }
+
+        .popular-grid {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            gap: 0.9rem;
+            border-top: 1px solid var(--rule);
+            padding-top: 1.25rem;
+        }
+
+        @media (min-width: 640px) {
+            .popular-grid {
+                grid-template-columns: 1fr 1fr;
+                column-gap: 2rem;
+            }
+        }
+
+        @media (min-width: 992px) {
+            .popular-grid {
+                grid-template-columns: repeat(4, 1fr);
+                column-gap: 2rem;
+            }
+        }
+
+        .popular-grid a {
+            color: var(--body);
+            font-size: 0.9rem;
+            text-decoration: none;
+        }
+
+        .popular-grid a:hover,
+        .popular-grid a:focus-visible {
+            color: var(--accent);
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .popular-grid .classifier-mark {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            color: var(--ink);
+        }
+
+        @media (max-width: 768px) {
+            .desktop-nav {
+                display: none;
+            }
+
+            .mobile-menu {
+                width: 95vw;
+                right: 50%;
+                transform: translateX(50%);
+            }
+
+            .menu-panel {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+                padding: 1rem;
+            }
+
+            .menu-chip-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .hero-section {
+                padding: 2.75rem 0 4rem;
+            }
+
+            .standards-index,
+            .features-section,
+            .testimonials-section,
+            .popular-section {
+                padding-top: 3rem;
+                padding-bottom: 3.5rem;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            .cta-primary,
+            .cta-secondary,
+            .standards-list a,
+            .menu-feature-link,
+            .menu-chip,
+            .menu-link-list a,
+            .hero-lede a,
+            .popular-grid a {
+                transition: none;
+            }
+        }
+    </style>
+</head>
+
+<body class="home-surface text-gray-800 flex flex-col min-h-screen"
+    style="font-family: 'Inter', sans-serif; font-feature-settings: 'liga' 1, 'calt' 1;">
+    <header class="site-masthead" role="banner">
+        <div class="container mx-auto flex min-h-14 justify-between items-center max-w-6xl px-4">
+            <div class="flex items-center">
+                <a href="http://testserver/" class="flex items-center">
+                    <p class="text-xl font-bold text-gray-800">Classi<span class="text-sky-600">fast</span></p>
+                </a>
+            </div>
+
+            <!-- Desktop Navigation -->
+            <nav class="desktop-nav ml-auto mr-8" role="navigation" aria-label="Main navigation">
+                <ul class="flex space-x-6 items-center">
+                    <li><a href="http://testserver/mapping/"
+                            class="text-gray-600 hover:text-sky-700 hover:underline underline-offset-2 transition-colors"
+                            role="link" aria-label="Mapping Files">Mapping</a></li>
+                    <li><a href="https://blog.classifast.com" target="_blank" rel="noopener"
+                            class="text-gray-600 hover:text-sky-700 hover:underline underline-offset-2 transition-colors"
+                            role="link" aria-label="Blog">Blog</a></li>
+                    <li class="hidden md:block"><a href="https://rapidapi.com/DmitryMatv/api/classifast-api"
+                            target="_blank" rel="noopener"
+                            class="text-gray-600 hover:text-sky-700 hover:underline underline-offset-2 transition-colors"
+                            role="link" aria-label="API Documentation">API</a></li>
+                    <li class="auth-slot" data-auth-slot="desktop">
+                        <div id="desktop-auth-container"><!-- Clerk authentication will be mounted here --></div>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="auth-slot" data-auth-slot="mobile">
+                <div id="mobile-auth-container"></div>
+            </div>
+
+            <!-- Mobile Hamburger Button -->
+            <button class="hamburger" id="mobile-menu-button" aria-label="Toggle mobile menu" aria-expanded="false"
+                role="button">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+
+        <nav class="mobile-menu" id="mobile-menu" role="navigation" aria-label="Mobile navigation">
+            <div class="menu-panel">
+                <section>
+                    <p class="menu-section-title">Explore</p>
+                    <a href="http://testserver/mapping/" class="menu-feature-link">
+                        <strong>Mapping Files</strong>
+                        <span>Open crosswalk files and jump between classification systems.</span>
+                    </a>
+                    <div class="menu-link-list mt-3">
+                        <a href="https://blog.classifast.com" target="_blank" rel="noopener">Blog</a>
+                        <a href="https://rapidapi.com/DmitryMatv/api/classifast-api" target="_blank"
+                            rel="noopener">API</a>
+                    </div>
+                </section>
+                <section>
+                    <p class="menu-section-title">Classifiers</p>
+                    <div class="menu-chip-grid">
+                        <a href="http://testserver/UNSPSC/"
+                            class="menu-chip">UNSPSC</a>
+                        <a href="http://testserver/GPC/" class="menu-chip">
+                            GS1 GPC</a>
+                        <a href="http://testserver/EMDN/"
+                            class="menu-chip">EMDN</a>
+                        <a href="http://testserver/NAICS/"
+                            class="menu-chip">NAICS</a>
+                        <a href="http://testserver/CN/" class="menu-chip">CN</a>
+                        <a href="http://testserver/ETIM/"
+                            class="menu-chip">ETIM</a>
+                        <a href="http://testserver/ISIC/"
+                            class="menu-chip">ISIC</a>
+                        <a href="http://testserver/HS/" class="menu-chip">HS</a>
+                        <a href="http://testserver/HTS/" class="menu-chip">HTS</a>
+                        <a href="http://testserver/NACE/"
+                            class="menu-chip">NACE</a>
+                        <a href="http://testserver/CPV/" class="menu-chip">CPV</a>
+                        <a href="http://testserver/NSN/" class="menu-chip">NSN</a>
+                    </div>
+                </section>
+            </div>
+        </nav>
+        <!-- Google One Tap -->
+        <div id="google-one-tap" class="absolute top-20 right-4 z-50"></div>
+    </header>
+
+    <main class="grow">
+        <!-- Hero: copy + demo of an actual result -->
+        <section class="hero-section">
+            <div class="container mx-auto px-4 max-w-6xl">
+                <div class="hero-grid">
+                    <div>
+                        <h1 class="hero-title">
+                            From text description<br class="hidden md:inline">
+                            to category code<br class="hidden md:inline">
+                            in 1 second.
+                        </h1>
+                        <p class="hero-lede">
+                            Semantic search across UNSPSC, NAICS, CPV, HS/CN 
+                            and many other industry classification standards powered by
+                            <a href="https://developers.googleblog.com/en/gemini-embedding-text-model-now-available-gemini-api/"
+                                target="_blank" rel="noopener">vector embeddings for text understanding</a>.
+                        </p>
+                        <div class="hero-cta-row">
+                            <a href="http://testserver/UNSPSC/"
+                                class="cta-primary">Find UNSPSC code</a>
+                            <a href="#standards" class="cta-secondary">Browse all classifiers</a>
+                        </div>
+                        <p class="hero-note">10 free searches. 30 more with free account. Unlimited for $50.</p>
+                    </div>
+
+                    <!-- Static sample of a real UNSPSC result, so the visitor sees the product -->
+                    <div class="demo-card" aria-label="Sample classification result">
+                        <div class="demo-head">
+                            <span>Example</span>
+                            <span class="demo-kind">UNSPSC</span>
+                        </div>
+                        <div class="demo-query">
+                            <p class="demo-query-label">Input description</p>
+                            <p class="demo-query-text">MacBook Air (13-inch, M3, 2024)</p>
+                        </div>
+                        <ul class="demo-rows">
+                            <li class="demo-row">
+                                <div class="demo-row-top">
+                                    <span class="demo-code">43 21 15 03</span>
+                                    <span class="demo-score">97.0%</span>
+                                </div>
+                                <p class="demo-name">Notebook computers</p>
+                            </li>
+                            <li class="demo-row">
+                                <div class="demo-row-top">
+                                    <span class="demo-code">43 21 15 08</span>
+                                    <span class="demo-score">93.0%</span>
+                                </div>
+                                <p class="demo-name">Personal computers</p>
+                            </li>
+                            <li class="demo-row">
+                                <div class="demo-row-top">
+                                    <span class="demo-code">43 21 15 07</span>
+                                    <span class="demo-score">91.0%</span>
+                                </div>
+                                <p class="demo-name">Desktop computers</p>
+                            </li>
+                        </ul>
+                        <div class="demo-foot">
+                            <a href="http://testserver/UNSPSC/">
+                                Try it with your own description</a> or
+                            <a href="https://rapidapi.com/DmitryMatv/api/classifast-api" target="_blank"
+                                rel="noopener">via the API</a>.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Standards index -->
+        <section id="standards" class="standards-index page-section">
+            <div class="container mx-auto px-4 max-w-6xl">
+                <h2 class="section-title">12 standards in 1 search box</h2>
+                <ul class="standards-list">
+                    <li><a href="http://testserver/UNSPSC/"><abbr>UNSPSC</abbr>
+                            <span class="full-name">United Nations Standard Products and Services Code</span></a></li>
+                    <li><a href="http://testserver/GPC/"><abbr>GPC</abbr>
+                            <span class="full-name">GS1 Global Product Classification</span></a></li>
+                    <li><a href="http://testserver/EMDN/"><abbr>EMDN</abbr>
+                            <span class="full-name">European Medical Device Nomenclature</span></a></li>
+                    <li><a href="http://testserver/NAICS/"><abbr>NAICS</abbr>
+                            <span class="full-name">North American Industry Classification System</span></a></li>
+                    <li><a href="http://testserver/ISIC/"><abbr>ISIC</abbr>
+                            <span class="full-name">International Standard Industrial Classification</span></a></li>
+                    <li><a href="http://testserver/NACE/"><abbr>NACE</abbr>
+                            <span class="full-name">Statistical Classification of Economic Activities</span></a></li>
+                    <li><a href="http://testserver/ETIM/"><abbr>ETIM</abbr>
+                            <span class="full-name">ETIM Technical Information Model</span></a></li>
+                    <li><a href="http://testserver/HS/"><abbr>HS</abbr>
+                            <span class="full-name">Harmonized System</span></a></li>
+                    <li><a href="http://testserver/HTS/"><abbr>HTS</abbr>
+                            <span class="full-name">Harmonized Tariff Schedule</span></a></li>
+                    <li><a href="http://testserver/CN/"><abbr>CN</abbr>
+                            <span class="full-name">Combined Nomenclature</span></a></li>
+                    <li><a href="http://testserver/CPV/"><abbr>CPV</abbr>
+                            <span class="full-name">Common Procurement Vocabulary</span></a></li>
+                    <li><a href="http://testserver/NSN/"><abbr>NSN</abbr>
+                            <span class="full-name">NATO Stock Number</span></a></li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Features -->
+        <section class="features-section page-section">
+            <div class="container mx-auto px-4 max-w-6xl">
+                <h2 class="section-title">Forget manual classification</h2>
+                <div class="feature-grid mt-8" role="list">
+                    <article class="feature" role="listitem">
+                        <h3>Cost-effective</h3>
+                        <p>Try free, then go unlimited for a flat $50. No per-match fees.</p>
+                    </article>
+                    <article class="feature" role="listitem">
+                        <h3>Almost instant</h3>
+                        <p>Results in about a second, without manual research.</p>
+                    </article>
+                    <article class="feature" role="listitem">
+                        <h3>Simple</h3>
+                        <p>A basic lookup UI, with semantic search technology in the backend.</p>
+                    </article>
+                    <article class="feature" role="listitem">
+                        <h3>Accurate</h3>
+                        <p><a href="https://developers.googleblog.com/gemini-embedding-available-gemini-api/"
+                                target="_blank" rel="noopener">Vector embeddings</a> deliver SOTA performance without
+                            human bias.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <!-- Testimonials -->
+        <section class="testimonials-section page-section">
+            <div class="container mx-auto px-4 max-w-6xl">
+                <h2 class="section-title">Real feedback from PMs and business owners</h2>
+                <div class="testimonial-grid" role="list">
+                    <figure class="testimonial-quote" role="listitem">
+                        <p>I came to my company a couple years ago and I was shocked they haven't implemented it
+                            company-wide, let alone for e-commerce. One product manager asked me how the heck do I
+                            look these things up? This is much better than looking on the .org site's spreadsheet!</p>
+                    </figure>
+                    <figure class="testimonial-quote" role="listitem">
+                        <p>I'm on annual leave until Friday, but will try some mappings on these categories and let
+                            you know how it goes! You sir are a hero. I'd definitely list this for sale elsewhere as
+                            well, as I'm sure many organisations will be able to use it.</p>
+                    </figure>
+                    <figure class="testimonial-quote" role="listitem">
+                        <p>I have been trying to figure out what NAICS to use for my macrame/anything i can DIY shop
+                            ALL MORNING and i stumbled upon your website and YOURE A GENIUS THANK YOU!!!!!! just saved
+                            me an entire afternoon of rage!!!! sending nothing but positive vibes to you and yours</p>
+                    </figure>
+                    <figure class="testimonial-quote" role="listitem">
+                        <p>Surprised you stumbled across this. I can't even remember the problem I was trying to solve
+                            back then, but I'll certainly give this a look. Cheers!</p>
+                    </figure>
+                    <figure class="testimonial-quote" role="listitem">
+                        <p>Wow, denne var genial. Tusen takk!!!</p>
+                    </figure>
+                </div>
+            </div>
+        </section>
+
+        
+        <section class="popular-section page-section" aria-labelledby="popular-lookups-heading">
+            <div class="container mx-auto px-4 max-w-6xl">
+                <h2 id="popular-lookups-heading" class="section-title">Popular code lookups</h2>
+                <p class="section-lede">Jump straight to frequently searched classification examples.</p>
+                <ul class="popular-grid" role="list">
+                    
+                    <li>
+                        <a href="/UNSPSC/laptop_computer/">
+                            <span class="classifier-mark">UNSPSC</span>
+                            codes for Laptop computers
+                        </a>
+                    </li>
+                    
+                    <li>
+                        <a href="/UNSPSC/office_chair/">
+                            <span class="classifier-mark">UNSPSC</span>
+                            codes for Office chairs
+                        </a>
+                    </li>
+                    
+                    <li>
+                        <a href="/UNSPSC/industrial_pump/">
+                            <span class="classifier-mark">UNSPSC</span>
+                            codes for Industrial pumps
+                        </a>
+                    </li>
+                    
+                    <li>
+                        <a href="/UNSPSC/safety_gloves/">
+                            <span class="classifier-mark">UNSPSC</span>
+                            codes for Safety gloves
+                        </a>
+                    </li>
+                    
+                    <li>
+                        <a href="/UNSPSC/printer/">
+                            <span class="classifier-mark">UNSPSC</span>
+                            codes for Printers
+                        </a>
+                    </li>
+                    
+                    <li>
+                        <a href="/UNSPSC/network_switch/">
+                            <span class="classifier-mark">UNSPSC</span>
+                            codes for Network switches
+                        </a>
+                    </li>
+                    
+                    <li>
+                        <a href="/HS/smartphone/">
+                            <span class="classifier-mark">HS</span>
+                            codes for Smartphones
+                        </a>
+                    </li>
+                    
+                    <li>
+                        <a href="/NAICS/property_management/">
+                            <span class="classifier-mark">NAICS</span>
+                            codes for Property management
+                        </a>
+                    </li>
+                    
+                </ul>
+            </div>
+        </section>
+        
+    </main>
+
+    <footer class="bg-gray-800 text-white" role="contentinfo" aria-label="Site footer">
+        <div class="container mx-auto max-w-6xl px-4 py-12">
+                <div class="grid md:grid-cols-4 gap-8">
+                        <div class="md:col-span-2">
+                                <p class="text-md font-semibold mb-4"><a href="http://testserver/"
+                                                class="hover:text-sky-600 transition-colors" role="link"
+                                                aria-label="Classifast Homepage">Instant category code search
+                                                and classifier for UNSPSC, NAICS, NACE, HS/CN codes,
+                                                and other classification standards.</a></p>
+                        </div>
+
+                        <div>
+                                <h2 class="text-lg font-semibold mb-4">Classification Standards</h2>
+                                <ul class="space-y-2">
+                                        <li><a href="http://testserver/ETIM/"
+                                                        class="text-gray-400 hover:text-white transition-colors">ETIM
+                                                        Technical Information
+                                                        Model</a></li>
+                                        <li><a href="http://testserver/UNSPSC/"
+                                                        class="text-gray-400 hover:text-white transition-colors">United
+                                                        Nations Standard
+                                                        Products and Services Code (UNSPSC)</a></li>
+                                        <li><a href="http://testserver/GPC/"
+                                                        class="text-gray-400 hover:text-white transition-colors">GS1
+                                                        Global Product Classification
+                                                        (GPC)</a></li>
+                                        <li><a href="http://testserver/NAICS/"
+                                                        class="text-gray-400 hover:text-white transition-colors">North
+                                                        American Industry
+                                                        Classification System (NAICS)</a></li>
+                                        <li><a href="http://testserver/ISIC/"
+                                                        class="text-gray-400 hover:text-white transition-colors">International
+                                                        Standard
+                                                        Industrial Classification of All Economic Activities
+                                                        (ISIC)</a>
+                                        </li>
+                                        <li><a href="http://testserver/HS/"
+                                                        class="text-gray-400 hover:text-white transition-colors">Harmonized
+                                                        System (HS)</a></li>
+                                        <li><a href="http://testserver/HTS/"
+                                                        class="text-gray-400 hover:text-white transition-colors">Harmonized
+                                                        Tariff Schedule
+                                                        (HTS)</a>
+                                        </li>
+                                        <li><a href="http://testserver/CN/"
+                                                        class="text-gray-400 hover:text-white transition-colors">Combined
+                                                        Nomenclature (CN)</a>
+                                        </li>
+                                        <li><a href="http://testserver/NACE/"
+                                                        class="text-gray-400 hover:text-white transition-colors">Statistical
+                                                        Classification of
+                                                        Economic Activities in the European Community (NACE)</a>
+                                        </li>
+                                        <li><a href="http://testserver/CPV/"
+                                                        class="text-gray-400 hover:text-white transition-colors">Common
+                                                        Procurement Vocabulary
+                                                        (CPV)</a></li>
+                                        <li><a href="http://testserver/NSN/"
+                                                        class="text-gray-400 hover:text-white transition-colors">NATO
+                                                        Stock Number or National
+                                                        Stock Number (NSN)</a></li>
+                                </ul>
+                        </div>
+
+                        <div>
+                                <h2 class="text-lg font-semibold mb-4">Resources</h2>
+                                <ul class="space-y-2">
+                                        <li><a href="http://testserver/mapping/"
+                                                        class="text-gray-400 hover:text-white transition-colors">
+                                                        Mapping CSVs</a></li>
+                                        <li><a href="https://blog.classifast.com" target="_blank" rel="noopener"
+                                                        class="text-gray-400 hover:text-white transition-colors">
+                                                        Classifast Blog</a></li>
+                                        <li><a href="https://github.com/DmitryMatv/classifast" target="_blank"
+                                                        rel="noopener"
+                                                        class="text-gray-400 hover:text-white transition-colors">
+                                                        Code on GitHub</a></li>
+                                        <li><a href="https://rapidapi.com/DmitryMatv/api/classifast-api" target="_blank"
+                                                        rel="noopener"
+                                                        class="text-gray-400 hover:text-white transition-colors">
+                                                        API on RapidAPI Hub</a></li>
+                                        <li><a href="https://converter.classifast.com" target="_blank" rel="noopener"
+                                                        class="text-gray-400 hover:text-white transition-colors">
+                                                        BMEcat to ETIM xChange</a></li>
+                                </ul>
+                        </div>
+                </div>
+
+                <div class="border-t border-gray-700 mt-8 pt-8 text-center">
+                        <p class="text-gray-400">
+                                <a href="https://github.com/DmitryMatv" class="hover:text-white">Dmitry Matv</a><br>
+                                2026
+                        </p>
+                </div>
+        </div>
+</footer>
+
+    <!-- Initialize Clerk with your Clerk Publishable Key and Frontend API URL -->
+    <script defer crossorigin="anonymous" src="https://clerk.classifast.com/npm/@clerk/ui@1/dist/ui.browser.js"
+        type="text/javascript">
+        </script>
+
+    <script defer crossorigin="anonymous" data-clerk-publishable-key="pk_live_Y2xlcmsuY2xhc3NpZmFzdC5jb20k"
+        src="https://clerk.classifast.com/npm/@clerk/clerk-js@6/dist/clerk.browser.js" type="text/javascript">
+        </script>
+</body>
+
+</html>

@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>CPV to UNSPSC Mapping File | Classifast</title>
+    <meta name="description" content="Convert CPV codes into UNSPSC-aligned categories for supplier master data, spend analysis, ERP harmonization, and catalog normalization.">
+    <meta name="keywords" content="cpv to unspsc mapping, cpv unspsc crosswalk, cpv code conversion, unspsc supplier mapping">
+    <meta name="author" content="Dmitry Matv">
+    <meta name="creator" content="Dmitry Matv">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <link rel="canonical" href="https://classifast.com/mapping/cpv-to-unspsc-mapping/">
+    <link rel="home" href="http://testserver/">
+    <link rel="icon" href="/static/images/favicon-32x32.png" type="image/png" sizes="32x32">
+    <link rel="icon" href="/static/images/favicon-16x16.png" type="image/png" sizes="16x16">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/images/apple-touch-icon.png">
+
+    <meta property="og:type" content="product">
+    <meta property="og:title" content="CPV to UNSPSC Mapping File | Classifast">
+    <meta property="og:description" content="Convert CPV codes into UNSPSC-aligned categories for supplier master data, spend analysis, ERP harmonization, and catalog normalization.">
+    <meta property="og:url" content="https://classifast.com/mapping/cpv-to-unspsc-mapping/">
+    <meta property="og:site_name" content="classifast.com">
+    <meta property="og:image" content="https://classifast.com/static/images/preview.png">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="CPV to UNSPSC Mapping File | Classifast">
+    <meta name="twitter:description" content="Convert CPV codes into UNSPSC-aligned categories for supplier master data, spend analysis, ERP harmonization, and catalog normalization.">
+    <meta name="twitter:image" content="https://classifast.com/static/images/preview.png">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": "CPV to UNSPSC Mapping",
+        "description": "Convert CPV codes into UNSPSC-aligned categories for supplier master data, spend analysis, ERP harmonization, and catalog normalization.",
+        "image": "https://classifast.com/static/images/preview.png",
+        "url": "https://classifast.com/mapping/cpv-to-unspsc-mapping/",
+        "category": "CPV to UNSPSC mapping",
+        "offers": {
+            "@type": "Offer",
+            "price": "385",
+            "priceCurrency": "USD",
+            "availability": "https://schema.org/InStock",
+            "url": "https://classifast.com/mapping/cpv-to-unspsc-mapping/"
+        }
+    }
+    </script>
+
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://classifast.com/"
+            },
+            {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Mappings",
+                "item": "https://classifast.com/mapping/"
+            },
+            {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "CPV to UNSPSC Mapping",
+                "item": "https://classifast.com/mapping/cpv-to-unspsc-mapping/"
+            }
+        ]
+    }
+    </script>
+
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            
+            {
+                "@type": "Question",
+                "name": "Why would I map CPV into UNSPSC?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "UNSPSC is commonly the internal classification used in ERP, supplier master, P2P, and spend analytics environments, while CPV is the coding system attached to EU procurement notices."
+                }
+            },
+            
+            {
+                "@type": "Question",
+                "name": "Is the mapping one-to-one?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Not always. Some CPV concepts are broader or narrower than the closest UNSPSC category, so review rules are still recommended for sensitive classification and reporting workflows."
+                }
+            }
+            
+        ]
+    }
+    </script>
+
+    <link href="/static/css/styles.css" rel="stylesheet">
+    <script type="module" src="/static/js/common.js"></script>
+    <script type="module" src="/static/js/storefront.js"></script>
+
+    <style>
+        .container {
+            width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .mobile-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 0.75rem);
+            right: 1rem;
+            width: min(44rem, calc(100vw - 2rem));
+            background: rgba(255, 255, 255, 0.98);
+            border: 1px solid #d6dee8;
+            box-shadow: 0 18px 40px -28px rgba(15, 23, 42, 0.34);
+            border-radius: 0.85rem;
+            z-index: 60;
+            overflow: hidden;
+        }
+
+        .mobile-menu.active {
+            display: block;
+        }
+
+        .hamburger {
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            padding: 4px;
+            background: transparent;
+            border: 0;
+            appearance: none;
+            -webkit-appearance: none;
+            position: relative;
+            z-index: 70;
+            touch-action: manipulation;
+        }
+
+        .menu-panel {
+            display: grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.85fr);
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .menu-section-title {
+            margin: 0 0 0.7rem 0;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+
+        .menu-feature-link {
+            display: block;
+            padding: 0.9rem 1rem;
+            border-radius: 0.7rem;
+            background: #f8fbfd;
+            border: 1px solid #d8e3ee;
+            color: #0f172a;
+            transition: background-color 0.18s ease, border-color 0.18s ease;
+        }
+
+        .menu-feature-link:hover {
+            background: #f2f7fb;
+            border-color: #bcd0e2;
+        }
+
+        .menu-feature-link strong {
+            display: block;
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .menu-feature-link span {
+            display: block;
+            font-size: 1rem;
+            color: #475569;
+            line-height: 1.45;
+        }
+
+        .menu-link-list {
+            display: grid;
+            gap: 0.4rem;
+        }
+
+        .menu-link-list a {
+            display: block;
+            padding: 0.65rem 0.8rem;
+            border-radius: 0.65rem;
+            color: #334155;
+            transition: background-color 0.18s ease, color 0.18s ease;
+        }
+
+        .menu-link-list a:hover {
+            background-color: #f8fafc;
+            color: #0f5f94;
+        }
+
+        .menu-chip-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.55rem;
+        }
+
+        .menu-chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 2.5rem;
+            padding: 0.55rem 0.7rem;
+            border-radius: 0.65rem;
+            border: 1px solid #d8e3ee;
+            background: #fbfdff;
+            color: #1e293b;
+            font-size: 0.88rem;
+            font-weight: 600;
+            transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+        }
+
+        .menu-chip:hover {
+            border-color: #bcd0e2;
+            background: #f2f7fb;
+            color: #0f5f94;
+        }
+
+        .hamburger span {
+            width: 24px;
+            height: 2px;
+            background-color: #374151;
+            margin: 3px 0;
+            transition: 0.3s;
+            border-radius: 1px;
+        }
+
+        .hamburger.active span:nth-child(1) {
+            transform: rotate(-45deg) translate(-5px, 6px);
+        }
+
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger.active span:nth-child(3) {
+            transform: rotate(45deg) translate(-5px, -6px);
+        }
+
+        .mapping-surface {
+            background-color: #c6ecff;
+            background-image: linear-gradient(180deg, #c6ecff 0%, #ebf8ff 30%, #ffffff 100%);
+        }
+
+        .section-label {
+            font-size: 0.76rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #46647d;
+        }
+
+        .content-panel {
+            border: 1px solid #d7e1ea;
+            border-radius: 0.85rem;
+            background: #ffffff;
+            box-shadow: 0 12px 28px -28px rgba(15, 23, 42, 0.38);
+        }
+
+        .info-strip {
+            display: grid;
+            grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+            gap: 0.9rem;
+        }
+
+        .info-strip-item {
+            border: 1px solid #dce5ed;
+            border-radius: 0.75rem;
+            background: #f8fbfd;
+            padding: 0.9rem 1rem;
+        }
+
+        .info-strip-item-wide {
+            grid-column: 1 / -1;
+        }
+
+        .aside-box {
+            border: 1px solid #d7e1ea;
+            border-radius: 0.85rem;
+            background: #fdfefe;
+            padding: 1.25rem;
+            box-shadow: 0 12px 28px -28px rgba(15, 23, 42, 0.38);
+        }
+
+        .purchase-box {
+            background: linear-gradient(180deg, #fcfeff 0%, #f6fafc 100%);
+        }
+
+        .primary-action,
+        .secondary-action {
+            display: inline-flex;
+            width: 100%;
+            align-items: center;
+            justify-content: center;
+            min-height: 2.9rem;
+            border-radius: 0.7rem;
+            font-weight: 600;
+            transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+        }
+
+        .primary-action {
+            border: 1px solid #1d5d8c;
+            background: #215f8e;
+            color: #ffffff;
+            cursor: pointer;
+        }
+
+        .primary-action:hover {
+            background: #194e76;
+            border-color: #194e76;
+        }
+
+        .secondary-action {
+            border: 1px solid #c7d7e6;
+            background: #ffffff;
+            color: #174b74;
+        }
+
+        .secondary-action:hover {
+            background: #f4f9fd;
+            border-color: #a9c2d9;
+        }
+
+        .sample-callout {
+            display: flex;
+            align-items: center;
+            gap: 0.9rem;
+            border: 1px solid #dce5ed;
+            border-radius: 0.75rem;
+            background: #ffffff;
+            padding: 0.95rem 1rem;
+        }
+
+        .sample-callout img {
+            width: 3.5rem;
+            height: 3.5rem;
+            flex-shrink: 0;
+            object-fit: contain;
+        }
+
+        .faq-item {
+            border: 1px solid #dde6ee;
+            border-radius: 0.75rem;
+            background: #ffffff;
+            padding: 1rem 1.05rem;
+        }
+
+        .compliance-note {
+            border-left: 4px solid #7ea0ba;
+            background: #f7fafc;
+        }
+
+        .related-link {
+            display: block;
+            border: 1px solid #dce5ed;
+            border-radius: 0.75rem;
+            padding: 0.95rem 1rem;
+            transition: background-color 0.18s ease, border-color 0.18s ease;
+        }
+
+        .related-link:hover {
+            background: #f6fafc;
+            border-color: #bfd1e2;
+        }
+
+        @media (max-width: 1024px) {
+            .info-strip {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .desktop-nav {
+                display: none;
+            }
+
+            .mobile-menu {
+                width: 95vw;
+                right: 50%;
+                transform: translateX(50%);
+                border-radius: 0.85rem;
+            }
+
+            .menu-panel {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+                padding: 1rem;
+            }
+
+            .menu-chip-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .info-strip {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body class="mapping-surface text-gray-800 min-h-screen" data-auth-ui="disabled"
+    style="font-family: 'Inter', sans-serif; font-feature-settings: 'liga' 1, 'calt' 1;">
+    <header class="bg-white border-b border-slate-200 relative">
+        <div class="container mx-auto flex min-h-14 justify-between items-center max-w-6xl px-4">
+            <a href="http://testserver/" class="flex items-center">
+                <p class="text-xl font-bold text-gray-800 mr-6">Classi<span class="text-sky-600">fast</span></p>
+                <span class="text-sm md:text-xl font-medium text-slate-600">CPV -> UNSPSC</span>
+            </a>
+
+            <nav class="desktop-nav ml-auto mr-8" role="navigation" aria-label="Main navigation">
+                <ul class="flex space-x-6 items-center">
+                    <li><a href="http://testserver/CPV/"
+                            class="text-gray-600 hover:text-sky-700 hover:underline underline-offset-2 transition-colors">
+                            CPV</a>
+                    </li>
+                    <li><a href="http://testserver/UNSPSC/"
+                            class="text-gray-600 hover:text-sky-700 hover:underline underline-offset-2 transition-colors">
+                            UNSPSC</a>
+                    </li>
+                </ul>
+            </nav>
+
+            <button class="hamburger" id="mobile-menu-button" aria-label="Toggle mobile menu" aria-expanded="false">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+
+        <nav class="mobile-menu" id="mobile-menu" aria-label="Mobile navigation">
+            <div class="menu-panel">
+                <section>
+                    <p class="menu-section-title">Current page</p>
+                    <a href="http://testserver/mapping/" class="menu-feature-link">
+                        <strong>CPV to UNSPSC</strong>
+                        <span>Stay on this mapping file or jump directly into a classifier from here.</span>
+                    </a>
+                    <div class="menu-link-list mt-3">
+                        <a href="http://testserver/">Home</a>
+                        <a href="http://testserver/mapping/">Mappings</a>
+                    </div>
+                </section>
+                <section>
+                    <p class="menu-section-title">Classifiers</p>
+                    <div class="menu-chip-grid">
+                        <a href="http://testserver/UNSPSC/"
+                            class="menu-chip">UNSPSC</a>
+                        <a href="http://testserver/GPC/" class="menu-chip">GPC</a>
+                        <a href="http://testserver/NAICS/"
+                            class="menu-chip">NAICS</a>
+                        <a href="http://testserver/CN/" class="menu-chip">CN</a>
+                        <a href="http://testserver/ETIM/"
+                            class="menu-chip">ETIM</a>
+                        <a href="http://testserver/ISIC/"
+                            class="menu-chip">ISIC</a>
+                        <a href="http://testserver/HS/" class="menu-chip">HS</a>
+                        <a href="http://testserver/HTS/" class="menu-chip">HTS</a>
+                        <a href="http://testserver/NACE/"
+                            class="menu-chip">NACE</a>
+                        <a href="http://testserver/CPV/" class="menu-chip">CPV</a>
+                        <a href="http://testserver/NSN/" class="menu-chip">NSN</a>
+                    </div>
+                </section>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto max-w-7xl px-4 py-8 md:py-10">
+        <nav class="mb-6 text-sm text-slate-500" aria-label="Breadcrumb">
+            <ol class="flex items-center gap-2 flex-wrap">
+                <li><a href="http://testserver/" class="hover:text-sky-700 transition-colors">Home</a></li>
+                <li>/</li>
+                <li><a href="http://testserver/mapping/"
+                        class="hover:text-sky-700 transition-colors">Mappings</a></li>
+                <li>/</li>
+                <li class="text-slate-700">CPV to UNSPSC Mapping</li>
+            </ol>
+        </nav>
+
+        <div id="storefront-success-message" data-storefront-success
+            class="hidden mb-6 rounded-[0.8rem] border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800">
+            Checkout started successfully. Polar will handle payment and secure file delivery after purchase.
+        </div>
+
+        <section class="grid gap-8 lg:grid-cols-[minmax(0,1.45fr)_22rem]">
+            <article class="content-panel p-6 md:p-7">
+                <header class="mb-8 border-b border-slate-200 pb-6">
+                    <h1 class="text-[2rem] md:text-[2.3rem] font-bold tracking-tight text-slate-900 mb-4">
+                        CPV to UNSPSC Mapping
+                    </h1>
+                    <p class="text-[1rem] md:text-[1.04rem] text-slate-600 leading-7 mb-6">Crosswalk CPV-coded tender, contract, and supplier data into UNSPSC so procurement, finance, ERP, and master-data systems can report against one internal taxonomy.</p>
+                    <div class="info-strip">
+                        <div class="info-strip-item">
+                            <p class="section-label mb-2">Version</p>
+                            <p class="font-semibold text-slate-900">CPV 2008 -&gt; UNSPSC UNv260801.1</p>
+                        </div>
+                        <div class="info-strip-item">
+                            <p class="section-label mb-2">Last Updated</p>
+                            <p class="text-slate-700">March 16, 2026</p>
+                        </div>
+                        <div class="info-strip-item info-strip-item-wide">
+                            <p class="section-label mb-2">Coverage</p>
+                            <p class="text-slate-700">Each CPV 2008 code is mapped into the most relevant UNSPSC category for downstream normalization workflows. CPV code coverage is 100%.</p>
+                        </div>
+                    </div>
+                </header>
+
+                <section class="mb-9">
+                    <h2 class="text-[1.35rem] md:text-[1.5rem] font-bold text-slate-900 mb-4">Typical use cases</h2>
+                    <ul class="space-y-3 text-slate-700 leading-7">
+                        
+                        <li class="border-l-2 border-slate-300 pl-4">Normalize TED or tender exports into UNSPSC for spend cube and category reporting.</li>
+                        
+                        <li class="border-l-2 border-slate-300 pl-4">Align CPV coded supplier and contract data with UNSPSC-led ERP and P2P systems.</li>
+                        
+                        <li class="border-l-2 border-slate-300 pl-4">Support taxonomy harmonization across procurement, finance and master data teams.</li>
+                        
+                    </ul>
+                </section>
+
+                <section class="mb-9">
+                    <h2 class="text-[1.35rem] md:text-[1.5rem] font-bold text-slate-900 mb-4">FAQ</h2>
+                    <div class="space-y-3">
+                        
+                        <div class="faq-item">
+                            <h3 class="font-semibold text-slate-900 mb-2">Why would I map CPV into UNSPSC?</h3>
+                            <p class="text-slate-600 leading-7">UNSPSC is commonly the internal classification used in ERP, supplier master, P2P, and spend analytics environments, while CPV is the coding system attached to EU procurement notices.</p>
+                        </div>
+                        
+                        <div class="faq-item">
+                            <h3 class="font-semibold text-slate-900 mb-2">Is the mapping one-to-one?</h3>
+                            <p class="text-slate-600 leading-7">Not always. Some CPV concepts are broader or narrower than the closest UNSPSC category, so review rules are still recommended for sensitive classification and reporting workflows.</p>
+                        </div>
+                        
+                    </div>
+                </section>
+
+                <section class="compliance-note rounded-[0.8rem] border border-slate-200 px-5 py-4">
+                    <h2 class="text-[1.05rem] font-semibold text-slate-900 mb-2">Operational note</h2>
+                    <p class="text-slate-700 leading-7">Use as a mapping accelerator, not as a substitute for domain review in regulated procurement, financial reporting, or compliance workflows.</p>
+                </section>
+            </article>
+
+            <aside class="space-y-4">
+                <section class="aside-box purchase-box">
+                    <p class="section-label mb-2">Full crosswalk table</p>
+                    <p class="text-[2rem] font-bold text-slate-900 mb-3">$385</p>
+                    <p class="text-slate-700 leading-7 mb-4">Full CSV mapping file for CPV and UNSPSC reference and conversion workflows.
+                    </p>
+                    <div class="rounded-xl border border-slate-200 bg-white px-4 py-4 mb-4">
+                        <p class="section-label mb-2">Table columns</p>
+                        <p class="text-sm leading-6 text-slate-600">
+                            CPV code, 
+                            UNSPSC code, 
+                            CPV title, 
+                            UNSPSC title, 
+                            CPV level (1-5), 
+                            UNSPSC level
+                            
+                        </p>
+                    </div>
+                    <div class="space-y-2">
+                        <button type="button" data-mapping-buy-button data-mapping-slug="cpv-to-unspsc-mapping"
+                            data-return-url="https://classifast.com/mapping/cpv-to-unspsc-mapping/" class="primary-action">
+                            Buy full mapping file
+                        </button>
+                        <a href="http://testserver/mapping/cpv-to-unspsc-mapping/sample" class="secondary-action">
+                            Download sample CSV
+                        </a>
+                    </div>
+                    <div class="sample-callout mt-4">
+                        <img src="https://cdn-icons-png.flaticon.com/512/8242/8242984.png" alt="CSV icon">
+                        <div>
+                            <p class="font-semibold text-slate-900 mb-1">Check before you buy</p>
+                            <p class="text-sm leading-6 text-slate-600">Review the free CSV sample structure and data
+                                quality before purchasing.</p>
+                        </div>
+                    </div>
+                </section>
+
+                
+                <section class="aside-box">
+                    <h2 class="text-[1.15rem] font-bold text-slate-900 mb-4">Related</h2>
+                    <div class="space-y-3">
+                        
+                        <a href="http://testserver/mapping/unspsc-to-cpv-mapping/"
+                            class="related-link">
+                            <p class="section-label mb-2">CROSSWALK TABLE</p>
+                            <p class="font-semibold text-slate-900">UNSPSC to CPV Mapping</p>
+                        </a>
+                        
+                    </div>
+                </section>
+                
+            </aside>
+        </section>
+    </main>
+
+    <footer class="bg-gray-800 text-white" role="contentinfo" aria-label="Site footer">
+        <div class="container mx-auto max-w-6xl px-4 py-12">
+                <div class="grid md:grid-cols-4 gap-8">
+                        <div class="md:col-span-2">
+                                <p class="text-md font-semibold mb-4"><a href="http://testserver/"
+                                                class="hover:text-sky-600 transition-colors" role="link"
+                                                aria-label="Classifast Homepage">Instant category code search
+                                                and classifier for UNSPSC, NAICS, NACE, HS/CN codes,
+                                                and other classification standards.</a></p>
+                        </div>
+
+                        <div>
+                                <h2 class="text-lg font-semibold mb-4">Classification Standards</h2>
+                                <ul class="space-y-2">
+                                        <li><a href="http://testserver/ETIM/"
+                                                        class="text-gray-400 hover:text-white transition-colors">ETIM
+                                                        Technical Information
+                                                        Model</a></li>
+                                        <li><a href="http://testserver/UNSPSC/"
+                                                        class="text-gray-400 hover:text-white transition-colors">United
+                                                        Nations Standard
+                                                        Products and Services Code (UNSPSC)</a></li>
+                                        <li><a href="http://testserver/GPC/"
+                                                        class="text-gray-400 hover:text-white transition-colors">GS1
+                                                        Global Product Classification
+                                                        (GPC)</a></li>
+                                        <li><a href="http://testserver/NAICS/"
+                                                        class="text-gray-400 hover:text-white transition-colors">North
+                                                        American Industry
+                                                        Classification System (NAICS)</a></li>
+                                        <li><a href="http://testserver/ISIC/"
+                                                        class="text-gray-400 hover:text-white transition-colors">International
+                                                        Standard
+                                                        Industrial Classification of All Economic Activities
+                                                        (ISIC)</a>
+                                        </li>
+                                        <li><a href="http://testserver/HS/"
+                                                        class="text-gray-400 hover:text-white transition-colors">Harmonized
+                                                        System (HS)</a></li>
+                                        <li><a href="http://testserver/HTS/"
+                                                        class="text-gray-400 hover:text-white transition-colors">Harmonized
+                                                        Tariff Schedule
+                                                        (HTS)</a>
+                                        </li>
+                                        <li><a href="http://testserver/CN/"
+                                                        class="text-gray-400 hover:text-white transition-colors">Combined
+                                                        Nomenclature (CN)</a>
+                                        </li>
+                                        <li><a href="http://testserver/NACE/"
+                                                        class="text-gray-400 hover:text-white transition-colors">Statistical
+                                                        Classification of
+                                                        Economic Activities in the European Community (NACE)</a>
+                                        </li>
+                                        <li><a href="http://testserver/CPV/"
+                                                        class="text-gray-400 hover:text-white transition-colors">Common
+                                                        Procurement Vocabulary
+                                                        (CPV)</a></li>
+                                        <li><a href="http://testserver/NSN/"
+                                                        class="text-gray-400 hover:text-white transition-colors">NATO
+                                                        Stock Number or National
+                                                        Stock Number (NSN)</a></li>
+                                </ul>
+                        </div>
+
+                        <div>
+                                <h2 class="text-lg font-semibold mb-4">Resources</h2>
+                                <ul class="space-y-2">
+                                        <li><a href="http://testserver/mapping/"
+                                                        class="text-gray-400 hover:text-white transition-colors">
+                                                        Mapping CSVs</a></li>
+                                        <li><a href="https://blog.classifast.com" target="_blank" rel="noopener"
+                                                        class="text-gray-400 hover:text-white transition-colors">
+                                                        Classifast Blog</a></li>
+                                        <li><a href="https://github.com/DmitryMatv/classifast" target="_blank"
+                                                        rel="noopener"
+                                                        class="text-gray-400 hover:text-white transition-colors">
+                                                        Code on GitHub</a></li>
+                                        <li><a href="https://rapidapi.com/DmitryMatv/api/classifast-api" target="_blank"
+                                                        rel="noopener"
+                                                        class="text-gray-400 hover:text-white transition-colors">
+                                                        API on RapidAPI Hub</a></li>
+                                        <li><a href="https://converter.classifast.com" target="_blank" rel="noopener"
+                                                        class="text-gray-400 hover:text-white transition-colors">
+                                                        BMEcat to ETIM xChange</a></li>
+                                </ul>
+                        </div>
+                </div>
+
+                <div class="border-t border-gray-700 mt-8 pt-8 text-center">
+                        <p class="text-gray-400">
+                                <a href="https://github.com/DmitryMatv" class="hover:text-white">Dmitry Matv</a><br>
+                                2026
+                        </p>
+                </div>
+        </div>
+</footer>
+</body>
+
+</html>
