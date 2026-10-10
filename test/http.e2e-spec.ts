@@ -11,6 +11,10 @@ import request from "supertest";
 import { vi } from "vitest";
 import { AppModule } from "../src/app.module.js";
 import {
+  buildClassifierConfig,
+  getAllCollectionNames,
+} from "../src/classifier/classifier-config.js";
+import {
   configureHttpApp,
   createHttpAdapter,
   HTTP_APP_OPTIONS,
@@ -23,6 +27,11 @@ import {
   SECURITY_HEADERS,
   splitRequestTarget,
 } from "../src/http/middleware.js";
+import {
+  startQdrantServer,
+  validCollections,
+  type QdrantServer,
+} from "./support/qdrant-server.js";
 
 @Controller()
 class EchoController {
@@ -35,10 +44,27 @@ class EchoController {
   }
 }
 
+let qdrant: Promise<QdrantServer> | undefined;
+
+afterAll(async () => {
+  await (await qdrant)?.close();
+});
+
 async function bootApp(staticRoot?: string): Promise<NestExpressApplication> {
-  for (const name of ["HF_TOKEN", "QDRANT_URL", "QDRANT_HOST", "QDRANT_PORT"]) {
+  for (const name of [
+    "HF_TOKEN",
+    "HF_EMBEDDING_DIMS",
+    "QDRANT_URL",
+    "QDRANT_HOST",
+    "QDRANT_PORT",
+    "QDRANT_API_KEY",
+  ]) {
     vi.stubEnv(name, undefined);
   }
+  qdrant ??= startQdrantServer(
+    validCollections(getAllCollectionNames(buildClassifierConfig({}))),
+  );
+  vi.stubEnv("QDRANT_URL", (await qdrant).url);
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
     controllers: [EchoController],

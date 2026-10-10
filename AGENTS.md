@@ -129,6 +129,14 @@ collect the full suite. Report that limitation when excluding this test.
 Activate the Python environment with `source .venv/bin/activate` before backend
 tests or the verification driver.
 
+HTTP e2e tests that import `AppModule` need a fake Qdrant server with valid
+schemas for every configured collection, because startup validates them.
+Use `test/support/qdrant-server.ts` and clear inherited Qdrant and
+embedding-dimension configuration.
+
+Git rerere may automatically stage an old conflict resolution. Inspect every
+conflicted file even when no conflict markers remain.
+
 jsdom prints an exception thrown inside an event listener, but the test still
 passes and `npm test` exits 0. Read the test output as well as the exit status.
 To prove a listener does not throw, capture `window` `error` events in the test,

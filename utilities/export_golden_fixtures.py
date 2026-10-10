@@ -9,7 +9,6 @@ regenerated fixtures.
 """
 
 import asyncio
-import ipaddress
 import json
 import logging
 import math
@@ -19,6 +18,7 @@ import re
 import sys
 import tempfile
 import unicodedata
+import ipaddress
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from urllib.parse import quote, quote_plus, unquote, unquote_plus, urlencode
@@ -1369,79 +1369,6 @@ def build_classifier_options_fixture() -> dict[str, object]:
     }
 
 
-ORIGINAL_ID_TOKEN_INPUTS = [
-    *ID_INPUTS,
-    "1",
-    "12",
-    "123",
-    "1234",
-    "12345",
-    "123456",
-    "A1",
-    "AB12345",
-    "A01B234",
-    "x\u00b2\u00b3\u2074",
-    "\u2460\u2461\u2462\u2463",
-    "\u0660\u0661\u0662\u0663\u0664",
-    "\u216b12",
-    "\u216b\u216b",
-    "Ab\U0001f60012",
-    "\U0001f60012345",
-    "12\U0001f60034",
-    "a\u030112",
-    "\U0001d400123",
-    "_12",
-    "4300",
-    "12.0",
-    None,
-    True,
-    False,
-    0,
-    12,
-    4300,
-    -4300,
-    9007199254740991,
-    -9007199254740991,
-    12.5,
-    -12.5,
-    0.125,
-    -0.125,
-    0.0001,
-    -0.0001,
-    4300.25,
-]
-
-
-def original_id_token_output(value: object) -> dict[str, object]:
-    tokens = group_original_id_tokens(value)
-    return {
-        "chars": [token["char"] for token in tokens],
-        "gapsAfter": [
-            index for index, token in enumerate(tokens) if token["gap_after"]
-        ],
-    }
-
-
-def build_original_id_tokens_fixture() -> dict[str, object]:
-    return {
-        "tokens": [
-            {
-                "input": value,
-                **original_id_token_output(value),
-            }
-            for value in ORIGINAL_ID_TOKEN_INPUTS
-        ],
-        "sourceLoss": [
-            {
-                "inputJson": input_json,
-                "source": original_id_token_output(json.loads(input_json)),
-                "parsedInteger": original_id_token_output(int(json.loads(input_json))),
-            }
-            for input_json in ["12", "12.0", "0", "0.0"]
-        ],
-    }
-
-
 def repr_inputs() -> list[float]:
     rng = random.Random(20261009)
     values = [0.0, -0.0, 1.0, -1.5, 0.1, 1e-4, 1e-5, 1.5e-5, 9.99e-5, 123.0]
@@ -1596,12 +1523,87 @@ def build_static_files_fixture() -> dict[str, object]:
     return {"validators": validators}
 
 
+ORIGINAL_ID_TOKEN_INPUTS = [
+    *ID_INPUTS,
+    "1",
+    "12",
+    "123",
+    "1234",
+    "12345",
+    "123456",
+    "A1",
+    "AB12345",
+    "A01B234",
+    "x\u00b2\u00b3\u2074",
+    "\u2460\u2461\u2462\u2463",
+    "\u0660\u0661\u0662\u0663\u0664",
+    "\u216b12",
+    "\u216b\u216b",
+    "Ab\U0001f60012",
+    "\U0001f60012345",
+    "12\U0001f60034",
+    "a\u030112",
+    "\U0001d400123",
+    "_12",
+    "4300",
+    "12.0",
+    None,
+    True,
+    False,
+    0,
+    12,
+    4300,
+    -4300,
+    9007199254740991,
+    -9007199254740991,
+    12.5,
+    -12.5,
+    0.125,
+    -0.125,
+    0.0001,
+    -0.0001,
+    4300.25,
+]
+
+
+def original_id_token_output(value: object) -> dict[str, object]:
+    tokens = group_original_id_tokens(value)
+    return {
+        "chars": [token["char"] for token in tokens],
+        "gapsAfter": [
+            index for index, token in enumerate(tokens) if token["gap_after"]
+        ],
+    }
+
+
+def build_original_id_tokens_fixture() -> dict[str, object]:
+    return {
+        "tokens": [
+            {
+                "input": value,
+                **original_id_token_output(value),
+            }
+            for value in ORIGINAL_ID_TOKEN_INPUTS
+        ],
+        "sourceLoss": [
+            {
+                "inputJson": input_json,
+                "source": original_id_token_output(json.loads(input_json)),
+                "parsedInteger": original_id_token_output(int(json.loads(input_json))),
+            }
+            for input_json in ["12", "12.0", "0", "0.0"]
+        ],
+    }
+
+
 FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "id-lookup.json": build_id_lookup_fixture,
     "python-str.json": build_python_str_fixture,
     "python-urllib.json": build_python_urllib_fixture,
     "python-numbers.json": build_python_numbers_fixture,
     "python-float-repr.json": build_python_float_repr_fixture,
+    "static-files.json": build_static_files_fixture,
+    "ip-network.json": build_ip_network_fixture,
     "query-text.json": build_query_text_fixture,
     "classifier-urls.json": build_classifier_urls_fixture,
     "classifier-options.json": build_classifier_options_fixture,
@@ -1612,8 +1614,6 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "popular-lookups.json": build_popular_lookups_fixture,
     "mapping-urls.json": build_mapping_urls_fixture,
     "request-url.json": build_request_url_fixture,
-    "static-files.json": build_static_files_fixture,
-    "ip-network.json": build_ip_network_fixture,
 }
 
 
