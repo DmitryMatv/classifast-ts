@@ -1,3 +1,4 @@
+import { setTimeout as delay } from "node:timers/promises";
 import { classificationGolden as golden } from "../../test/support/classification-golden.js";
 import {
   FakeClock,
@@ -40,6 +41,32 @@ function embed(embedder: HfEmbeddingClient, maxSeconds?: number) {
 }
 
 const vector = json({ data: [{ embedding: [0.1, 0.2, 0.3] }] });
+
+async function delayedResponse(
+  response: Response,
+  ms: number,
+  signal: AbortSignal | null | undefined,
+): Promise<Response> {
+  try {
+    await delay(ms, undefined, { signal: signal ?? undefined });
+  } catch (error) {
+    signal?.throwIfAborted();
+    throw error;
+  }
+  return response;
+}
+
+function delayedFetch(
+  fetchFn: typeof fetch,
+  method: "GET" | "POST",
+): typeof fetch {
+  return async (input, init) => {
+    const response = await fetchFn(input, init);
+    return (init?.method ?? "GET") === method
+      ? delayedResponse(response, 150, init?.signal)
+      : response;
+  };
+}
 
 describe("HfEmbeddingClient matches huggingface_hub", () => {
   it.each(golden.embedding)(
@@ -151,6 +178,144 @@ describe("HfEmbeddingClient hf-inference task check", () => {
       name: "TimeoutError",
     });
     expect(fake.requests).toHaveLength(0);
+  });
+});
+
+describe("HfEmbeddingClient outbound budget", () => {
+  it.each(["auto", "scaleway"])(
+    "sends no request for uncached %s mapping when the budget is spent",
+    async (provider) => {
+      const fake = fakeFetch(mappingReply(), vector);
+      const embedder = new HfEmbeddingClient(
+        { token: "hf_test", provider, timeoutSeconds: 20 },
+        fake.fetch,
+        new FakeClock(),
+      );
+
+      await expect(embed(embedder, 0)).rejects.toMatchObject({
+        name: "TimeoutError",
+      });
+      expect(fake.requests).toHaveLength(0);
+    },
+  );
+
+  it("sends no POST with cached mapping when the budget is spent", async () => {
+    const { embedder, requests } = client(undefined, mappingReply(), vector);
+    await embed(embedder);
+
+    await expect(embed(embedder, 0)).rejects.toMatchObject({
+      name: "TimeoutError",
+    });
+    expect(requests.map((request) => request.method)).toEqual(["GET", "POST"]);
+  });
+
+  it.each([0.0004, 0, -0.0004])(
+    "sends no direct endpoint POST with a %s second budget",
+    async (maxSeconds) => {
+      const fake = fakeFetch(json([0.1, 0.2, 0.3]));
+      const embedder = new HfEmbeddingClient(
+        { token: "hf_test", provider: "auto", timeoutSeconds: 20 },
+        fake.fetch,
+        new FakeClock(),
+      );
+
+      await expect(
+        embedder.embed(
+          {
+            model: "https://endpoint.test/embeddings",
+            text: "industrial pump",
+            dims: 3,
+            maxSeconds,
+          },
+          signal,
+        ),
+      ).rejects.toMatchObject({ name: "TimeoutError" });
+      expect(fake.requests).toHaveLength(0);
+    },
+  );
+
+  it.each(["auto", "hf-inference"])(
+    "sends no POST after %s discovery spends the remaining budget",
+    async (provider) => {
+      const clock = new FakeClock();
+      const fake = fakeFetch(
+        () => {
+          clock.advance(100);
+          return json({
+            id: MODEL,
+            inferenceProviderMapping: MAPPING,
+            pipeline_tag: "feature-extraction",
+          });
+        },
+        provider === "hf-inference" ? json([0.1, 0.2, 0.3]) : vector,
+      );
+      const embedder = new HfEmbeddingClient(
+        { token: "hf_test", provider, timeoutSeconds: 20 },
+        fake.fetch,
+        clock,
+      );
+
+      await expect(embed(embedder, 0.1)).rejects.toMatchObject({
+        name: "TimeoutError",
+      });
+      expect(fake.requests.map((request) => request.method)).toEqual(["GET"]);
+    },
+  );
+
+  it.each(["GET", "POST"] as const)(
+    "aborts an active %s before it can outlast the budget",
+    async (method) => {
+      const clock = new FakeClock();
+      const fake = fakeFetch(mappingReply(), vector);
+      const embedder = new HfEmbeddingClient(
+        { token: "hf_test", provider: "auto", timeoutSeconds: 20 },
+        delayedFetch(fake.fetch, method),
+        clock,
+      );
+
+      await expect(embed(embedder, 0.03)).rejects.toMatchObject({
+        name: "TimeoutError",
+      });
+      expect(fake.requests.map((request) => request.method)).toEqual(
+        method === "GET" ? ["GET"] : ["GET", "POST"],
+      );
+      expect(fake.requests.at(-1)?.signal?.aborted).toBe(true);
+      expect(clock.sleeps).toEqual([]);
+    },
+  );
+
+  it("gives a retry only the time left after the first attempt and wait", async () => {
+    const clock = new FakeClock();
+    const fake = fakeFetch(
+      mappingReply(),
+      () => {
+        clock.advance(100);
+        return json({}, 503);
+      },
+      vector,
+    );
+    const fetchFn: typeof fetch = async (input, init) => {
+      const response = await fake.fetch(input, init);
+      return fake.requests.length === 3
+        ? delayedResponse(response, 150, init?.signal)
+        : response;
+    };
+    const embedder = new HfEmbeddingClient(
+      { token: "hf_test", provider: "auto", timeoutSeconds: 20 },
+      fetchFn,
+      clock,
+    );
+
+    await expect(embed(embedder, 1.13)).rejects.toMatchObject({
+      name: "TimeoutError",
+    });
+    expect(fake.requests.map((request) => request.method)).toEqual([
+      "GET",
+      "POST",
+      "POST",
+    ]);
+    expect(fake.requests.at(-1)?.signal?.aborted).toBe(true);
+    expect(clock.sleeps).toEqual([1000]);
   });
 });
 
