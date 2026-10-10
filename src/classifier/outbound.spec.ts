@@ -35,6 +35,17 @@ describe("fetchJson with an exhausted budget", () => {
 });
 
 describe("withRetry with a budget", () => {
+  class DelayedClock extends FakeClock {
+    constructor(private readonly delayMs: number) {
+      super();
+    }
+
+    override async sleep(ms: number, signal: AbortSignal): Promise<void> {
+      await super.sleep(ms, signal);
+      this.advance(this.delayMs);
+    }
+  }
+
   function retryFailing503(maxSeconds: number) {
     const clock = new FakeClock();
     const attempt = vi.fn(async () => {
@@ -64,4 +75,24 @@ describe("withRetry with a budget", () => {
     expect(attempt).toHaveBeenCalledTimes(2);
     expect(clock.sleeps).toEqual([1000]);
   });
+
+  it.each([100, 101])(
+    "does not retry when sleep wakes %s ms late at or past the deadline",
+    async (delayMs) => {
+      const clock = new DelayedClock(delayMs);
+      const error = new HttpStatusError(503, "https://example.test");
+      const attempt = vi.fn<() => Promise<string>>()
+        .mockRejectedValueOnce(error)
+        .mockResolvedValue("retry");
+      const result = withRetry(attempt, isTransientHttpError, {
+        clock,
+        signal: new AbortController().signal,
+        maxSeconds: 1.1,
+      });
+
+      await expect(result).rejects.toBe(error);
+      expect(attempt).toHaveBeenCalledTimes(1);
+      expect(clock.sleeps).toEqual([1000]);
+    },
+  );
 });
