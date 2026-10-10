@@ -224,6 +224,11 @@ describe("normalizeHtml", () => {
     ["a space before text", "<b>a</b> b", "<b>a</b>b"],
     ["a data- attribute", "<button data-x>a</button>", "<button>a</button>"],
     ["an inline script", "<script>a()</script>", "<script>b()</script>"],
+    [
+      "whitespace in <pre>",
+      "<pre><b>a</b>\n  b</pre>",
+      "<pre><b>a</b> b</pre>",
+    ],
   ])("detects a changed %s", (_, left, right) => {
     expect(normalizeHtml(page("", left))).not.toBe(
       normalizeHtml(page("", right)),

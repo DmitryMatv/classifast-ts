@@ -186,6 +186,32 @@ schemas for every configured collection, because startup validates them.
 Use `test/support/qdrant-server.ts` and clear inherited Qdrant and
 embedding-dimension configuration.
 
+The Nest pages in `src/web/` are React components that port the Jinja
+templates. `test/pages.e2e-spec.ts` compares each page, redirect and error
+with responses recorded from the FastAPI app in
+`test/fixtures/golden/pages.json` and `pages/*.html`. After changing a ported
+template, rerun `python utilities/export_golden_fixtures.py`; the exporter
+uses `TestClient` without its lifespan and a fixed date. Compare HTML with
+`test/support/html-normalizer.ts`, which accounts for these React 19
+behaviors:
+
+- React moves `<title>`, `<meta>`, non-stylesheet `<link>` and async
+  `<script src>` to the start of `<head>`, so the normalizer compares those
+  as a set.
+- React adds `<link rel="preload" as="image">` for each `<img>`.
+- JSX drops a line break between an inline element and its neighbour. Write
+  `{" "}` where the template had whitespace between inline elements; the
+  normalizer reports the missing space.
+
+Nest removes a trailing slash from every route path, so `@Get("mapping/")`
+matches `/mapping`. Routes that tell `/x` from `/x/` take an optional slash
+(`@Get("mapping{/}")`) and check `req.path` in the handler.
+
+Tailwind does not scan `src/`. The class names in `src/web/*.tsx` are copies
+of the ones in `app/templates`, so they are generated only while those
+templates exist. Add a `@source` line for `src/web` before deleting a
+template.
+
 Git rerere may automatically stage an old conflict resolution. Inspect every
 conflicted file even when no conflict markers remain.
 

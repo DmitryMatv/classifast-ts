@@ -26,7 +26,7 @@ const INLINE = new Set([
   "textarea",
   "time",
 ]);
-const VERBATIM = new Set(["pre", "textarea", "style", "script"]);
+const VERBATIM = new Set(["textarea", "style", "script"]);
 
 function isElement(node: ChildNode): node is Element {
   return "tagName" in node;
@@ -58,10 +58,11 @@ function styleDeclarations(style: string): string {
     .join(";");
 }
 
-// Asset hashes have their own spec (asset-url.spec.ts).
+// The ?v= asset hash exists only after a frontend build, which a fixture and
+// a test run may not share; asset-url.spec.ts covers the hashes.
 function attributeValue(name: string, value: string): string {
   if (name === "style") return styleDeclarations(value);
-  return value.replace(/\?v=[^"&#\s]*/g, "?v=<hash>");
+  return value.replace(/\?v=[^"&#\s]*/g, "");
 }
 
 function openTag(element: Element): string {
@@ -93,11 +94,14 @@ function rawText(element: Element): string | undefined {
 
 type Item = { node: Element } | { text: string };
 
-// Comments go; adjacent text merges; runs of HTML whitespace collapse to one
-// space. A whitespace-only run survives as " " only between an inline
-// element and its sibling, and the first and last text in an element is
-// trimmed.
-function normalizedChildren(nodes: readonly ChildNode[]): Item[] {
+// Comments go and adjacent text merges. Outside <pre>, runs of HTML
+// whitespace collapse to one space, a whitespace-only run survives as " "
+// only between an inline element and its sibling, and the first and last
+// text in an element is trimmed.
+function normalizedChildren(
+  nodes: readonly ChildNode[],
+  preformatted: boolean,
+): Item[] {
   const merged: Item[] = [];
   for (const node of nodes) {
     if (isElement(node)) {
@@ -108,6 +112,7 @@ function normalizedChildren(nodes: readonly ChildNode[]): Item[] {
       else merged.push({ text: node.value });
     }
   }
+  if (preformatted) return merged;
   const items: Item[] = [];
   merged.forEach((item, index) => {
     if ("node" in item) {
@@ -178,7 +183,7 @@ class Printer {
 
   constructor(private readonly imageSources: Set<string>) {}
 
-  element(element: Element, depth: number): void {
+  element(element: Element, depth: number, preformatted = false): void {
     const indent = "  ".repeat(depth);
     this.lines.push(`${indent}${openTag(element)}`);
     if (VERBATIM.has(element.tagName)) {
@@ -186,7 +191,8 @@ class Printer {
       if (text !== undefined) this.lines.push(`${indent}  ${text}`);
       return;
     }
-    let items = normalizedChildren(element.childNodes).filter(
+    const inPre = preformatted || element.tagName === "pre";
+    let items = normalizedChildren(element.childNodes, inPre).filter(
       (item) =>
         !("node" in item) || !isReactImagePreload(item.node, this.imageSources),
     );
@@ -198,18 +204,18 @@ class Printer {
       const sortedHoisted = hoisted
         .map((item) => {
           const printer = new Printer(this.imageSources);
-          printer.item(item, depth + 1);
+          printer.item(item, depth + 1, inPre);
           return printer.lines.join("\n");
         })
         .sort();
       this.lines.push(...sortedHoisted);
       items = rest;
     }
-    for (const item of items) this.item(item, depth + 1);
+    for (const item of items) this.item(item, depth + 1, inPre);
   }
 
-  item(item: Item, depth: number): void {
-    if ("node" in item) this.element(item.node, depth);
+  item(item: Item, depth: number, preformatted: boolean): void {
+    if ("node" in item) this.element(item.node, depth, preformatted);
     else this.lines.push(`${"  ".repeat(depth)}${JSON.stringify(item.text)}`);
   }
 }
