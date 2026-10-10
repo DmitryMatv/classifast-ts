@@ -2,9 +2,18 @@ import { z } from "zod";
 
 export interface ClassifierVersion {
   readonly collectionName: string;
+  readonly baseUrl?: string;
+  /** Python's default is true: the code is appended to `baseUrl`. */
+  readonly appendCodeToUrl?: boolean;
+  readonly codeUrlSuffix?: string;
+  readonly tooltip?: string;
 }
 
 export interface ClassifierConfig {
+  readonly title: string;
+  readonly heading: string;
+  readonly description: string;
+  readonly example: string;
   readonly embedModelName: string;
   readonly embedDims: number;
   readonly queryInstruction: string;
@@ -24,58 +33,185 @@ const DEFAULT_QUERY_INSTRUCTION =
 const DEFAULT_RERANK_INSTRUCTION =
   "Prioritize the taxonomy entry that most directly and specifically classifies the text description. Favor exact functional, industry, material, and use-case matches over broad parent categories. Penalize candidates that require unsupported inferences.";
 
-interface ClassifierDefinition {
+type ClassifierDefinition = Omit<
+  ClassifierConfig,
+  "embedModelName" | "embedDims" | "queryInstruction" | "rerankInstruction"
+> & {
   readonly queryInstruction?: string;
   readonly rerankInstruction?: string;
-  readonly collections: Readonly<Record<string, string>>;
-}
+};
 
 const CLASSIFIERS: Readonly<Record<string, ClassifierDefinition>> = {
   ETIM: {
-    collections: { "ETIM version 10.0 (2024-12-10)": "ETIM_10_1_Qwen3-8B_v1" },
+    title: "ETIM International Classifier",
+    heading: "Find relevant EC classes from the ETIM standard.",
+    description:
+      "ETIM (ETIM Technical Information Model) is a format to share and exchange product data based on taxonomic identification. This widely used classification standard for technical products was developed to structure the information flow between B2B professionals.",
+    example: "SH203-C20 Miniature Circuit Breaker 6kA 20A 3P",
+    versions: {
+      "ETIM version 10.0 (2024-12-10)": {
+        collectionName: "ETIM_10_1_Qwen3-8B_v1",
+        baseUrl: "https://viewer.etim-international.com/class/",
+      },
+    },
   },
   UNSPSC: {
+    title: "UNSPSC Code Finder",
+    heading: "Get the right UNSPSC codes for your products and services.",
+    description:
+      "The United Nations Standard Products and Services Code (UNSPSC) is a comprehensive, global classification system developed by the United Nations Development Programme (UNDP). This open, multi-sector standard enables organizations worldwide to classify products and services with precision and consistency. UNSPSC is essential for e-procurement platforms, supply chain optimization, spend analysis, vendor management, and facilitating B2B commerce across industries and borders.",
+    example: "Apple MacBook Air (13-inch, M3, 2024)",
     queryInstruction:
       "Retrieve the most relevant UNSPSC entry that directly and specifically classifies the given product or service description. Prefer commodity-level matches when available; avoid broad segment or family matches. Do not infer unsupported details.",
     rerankInstruction:
       "Prioritize the UNSPSC entry that most directly and specifically classifies the product or service description. Favor commodity-level matches over broad segment or family matches. Penalize candidates that require unsupported inferences.",
-    collections: {
-      "UNSPSC UNv260801.1 (18 March 2025)":
-        "UNSPSC_UNv260801-1__OR_Qwen3-8B__v2",
+    versions: {
+      "UNSPSC UNv260801.1 (18 March 2025)": {
+        collectionName: "UNSPSC_UNv260801-1__OR_Qwen3-8B__v2",
+        baseUrl: "https://usa.databasesets.com/unspsc/search?keywords=",
+      },
     },
   },
   GPC: {
-    collections: { "GPC as of May 2026 (v20260520)": "GPC_20260520_v1" },
+    title: "GS1 GPC Classifier",
+    heading:
+      "Classify products by essential characteristics. Find the right GPC brick code.",
+    description:
+      "GS1 Global Product Classification (GPC) is a product taxonomy used to group trade items by their essential characteristics. It organizes products from broad segments down to detailed bricks, helping retailers, suppliers, marketplaces, and data teams standardize product classification across catalog, procurement, analytics, and data synchronization workflows.",
+    example: "Oil spill absorbent pads",
+    versions: {
+      "GPC as of May 2026 (v20260520)": {
+        collectionName: "GPC_20260520_v1",
+        baseUrl: "https://gpc-browser.gs1.org/",
+        appendCodeToUrl: false,
+      },
+    },
   },
   EMDN: {
+    title: "EMDN Code Finder",
+    heading: "Find the right EMDN code for a medical device.",
+    description:
+      "The European Medical Device Nomenclature (EMDN) is used by manufacturers when registering medical devices in EUDAMED. This classifier uses the official English EMDN v2026 release and searches its 6 773 terminal terms that are the most granular assignable entries in the seven-level hierarchy.",
+    example:
+      "Sterile single-use hypodermic syringe needle with an integrated safety mechanism",
     queryInstruction:
       "Retrieve the most relevant terminal EMDN term that directly and specifically describes the given medical device. Match its intended purpose, device type, design, materials, and clinical application, using hierarchy context to distinguish similar terms. Do not infer unsupported characteristics.",
     rerankInstruction:
       "Prioritize the terminal EMDN term that most directly and specifically describes the medical device, using its title and ancestor hierarchy. Favor exact intended-purpose, device-type, design, material, and clinical-application matches. Penalize candidates that require unsupported inferences.",
-    collections: { "EMDN v2026 (English)": "EMDN_2026_EN_Qwen3-8B_v1" },
-  },
-  NAICS: { collections: { "2022 NAICS": "NAICS_2022_eng_qwen3_8b_2048_v1" } },
-  ISIC: {
-    collections: {
-      "ISIC Rev. 4": "ISIC_Rev4_Qwen3-8B_v1",
-      "ISIC Rev. 5": "ISIC_Rev5_Qwen3-8B_v1",
+    versions: {
+      "EMDN v2026 (English)": {
+        collectionName: "EMDN_2026_EN_Qwen3-8B_v1",
+        baseUrl: "https://webgate.ec.europa.eu/dyna2/emdn/",
+        codeUrlSuffix: "#title",
+      },
     },
   },
-  HS: { collections: { "HS6 2022": "HS6_2022_Qwen3-8B_v1" } },
-  CN: { collections: { "CN 2026": "CN2026_Qwen3-8B_v4" } },
-  NACE: { collections: { "NACE Rev. 2.1": "NACE_Rev2_1_Qwen3-8B_v2" } },
+  NAICS: {
+    title: "NAICS Code Finder",
+    heading: "Get the right NAICS codes for your business.",
+    description:
+      "The North American Industry Classification System (NAICS) is the official industry classification system used by the United States, Canada, and Mexico to collect, analyze, and publish statistical data about their business economies. Developed jointly by these three countries, NAICS provides a standardized framework for measuring economic activity and is essential for business registration, tax reporting, government contracting, market research, and economic analysis across North America.",
+    example: "Dog grooming",
+    versions: {
+      "2022 NAICS": {
+        collectionName: "NAICS_2022_eng_qwen3_8b_2048_v1",
+        baseUrl: "https://www.naics.com/code-search/?trms=",
+      },
+    },
+  },
+  ISIC: {
+    title: "ISIC Classifier",
+    heading: "Instantly categorize economic activities using the UN's ISIC.",
+    description:
+      "The International Standard Industrial Classification of All Economic Activities (ISIC) is the global reference classification for economic activities developed by the United Nations Statistics Division. Used by national statistical offices worldwide, ISIC provides a comprehensive framework for organizing economic data by type of productive activity. It serves as the foundation for compiling national accounts, analyzing industrial statistics, and facilitating international comparisons of economic structure and performance across countries.",
+    example: "Gas station operation",
+    versions: {
+      "ISIC Rev. 4": {
+        collectionName: "ISIC_Rev4_Qwen3-8B_v1",
+        baseUrl:
+          "https://unstats.un.org/unsd/classifications/Econ/Structure/Detail/EN/27/",
+      },
+      "ISIC Rev. 5": {
+        collectionName: "ISIC_Rev5_Qwen3-8B_v1",
+        baseUrl:
+          "https://unstats.un.org/unsd/classifications/Econ/Structure/Detail/EN/2029/",
+      },
+    },
+  },
+  HS: {
+    title: "HS Code Finder",
+    heading: "Find the right HS (Harmonized System) codes for your goods.",
+    description:
+      "The Harmonized Commodity Description and Coding System (HS) is a globally standardized nomenclature developed by the World Customs Organization (WCO) for classifying traded products. Used by over 200 countries and territories, the HS serves as the foundation for international trade statistics, customs tariffs, and trade negotiations. This six-digit classification system is essential for importers, exporters, customs brokers, and logistics professionals to determine applicable duties, taxes, trade restrictions, and regulatory requirements for goods crossing international borders.",
+    example: "Frozen mangoes",
+    versions: {
+      "HS6 2022": {
+        collectionName: "HS6_2022_Qwen3-8B_v1",
+        baseUrl: "https://www.tariffnumber.com/2026/",
+      },
+    },
+  },
+  CN: {
+    title: "CN Code Finder",
+    heading: "Get CN (Combined Nomenclature) codes for EU customs and trade.",
+    description:
+      "The Combined Nomenclature (CN) is the European Union's integrated tariff and statistical classification system, extending the international Harmonized System (HS) with EU-specific provisions. This 8-digit code structure is mandatory for all customs declarations, import/export documentation, and intra-EU trade statistics, serving as the legal basis for the EU's Common Customs Tariff and providing detailed classification for goods traded within the single market.",
+    example: "Frozen mangoes from Brazil",
+    versions: {
+      "CN 2026": {
+        collectionName: "CN2026_Qwen3-8B_v4",
+        baseUrl: "https://www.tariffnumber.com/2026/",
+      },
+    },
+  },
+  NACE: {
+    title: "NACE Business Activity Classifier",
+    heading: "Classify economic activities with EU's NACE standard.",
+    description:
+      "NACE (Nomenclature statistique des activités économiques) is the European Union's statistical classification of economic activities, developed by Eurostat to ensure harmonized economic analysis across all EU member states. This comprehensive framework enables consistent business registration, national accounts compilation, employment statistics, and cross-country economic comparisons, serving as the foundation for EU policy-making, regional development planning, and structural business statistics.",
+    example: "Used car dealership",
+    versions: {
+      "NACE Rev. 2.1": {
+        collectionName: "NACE_Rev2_1_Qwen3-8B_v2",
+        baseUrl:
+          "https://showvoc.op.europa.eu/#/datasets/ESTAT_Statistical_Classification_of_Economic_Activities_in_the_European_Community_Rev._2.1._%28NACE_2.1%29/data?resId=http:%2F%2Fdata.europa.eu%2Fux2%2Fnace2.1%2F",
+      },
+    },
+  },
   CPV: {
-    collections: {
-      "CPV 2008 (ver. 2013)": "cpv_2008_qwen3_8b_v1",
-      "CPV 2008 Supplementary codes": "cpv_2008_supplementary_qwen3_8b_v1",
+    title: "CPV Code Finder",
+    heading: "Find CPV codes for EU public procurement.",
+    description:
+      "The Common Procurement Vocabulary (CPV) is the European Union's standardized classification system for public procurement, established to ensure transparency and equal access to public contracts across the single market. This 9-digit hierarchical code structure is mandatory for all EU public procurement procedures, enabling consistent tender documentation, contract award notices in the TED system, and comprehensive market analysis while facilitating cross-border bidding and ensuring compliance with EU procurement directives.",
+    example: "Indie gamedev studio",
+    versions: {
+      "CPV 2008 (ver. 2013)": { collectionName: "cpv_2008_qwen3_8b_v1" },
+      "CPV 2008 Supplementary codes": {
+        collectionName: "cpv_2008_supplementary_qwen3_8b_v1",
+      },
     },
   },
   NSN: {
-    collections: { "NSN extract (February 22, 2023)": "NSN_Qwen3-8B_v1" },
+    title: "NATO Stock Number (NSN) Classifier",
+    heading: "Find NSN (NATO Stock Number) codes for military procurement.",
+    description:
+      "The NATO Stock Number (13 digits) consists of material group, material class, country code, and NIIN (National Item Identification Number). The NSN is a unique identifier for items of supply recognized by all NATO countries. The NSN is used to identify and manage supplies, ensuring that all member nations can effectively procure and utilize military equipment and materials. This classification system facilitates logistics, inventory management, and standardization across NATO forces.",
+    example: "1000W 120V AC power supply",
+    versions: {
+      "NSN extract (February 22, 2023)": { collectionName: "NSN_Qwen3-8B_v1" },
+    },
   },
   HTS: {
-    collections: {
-      "2026 HTS Revision 11 (July 1, 2026)": "HTS_2026_Qwen3-8B_v1",
+    title: "HTS Code Finder",
+    heading: "Get Harmonized Tariff Schedule codes for US imports.",
+    description:
+      "Harmonized Tariff Schedule (HTS) is the United States comprehensive customs classification system for imported goods, extending the international Harmonized System (HS) with country-specific provisions. This 10-digit hierarchical code structure is mandatory for all US customs declarations and serves as the legal basis for determining applicable duties, taxes, trade restrictions, and regulatory requirements. The HTS is essential for importers, customs brokers, freight forwarders, and compliance professionals to ensure accurate classification and smooth customs clearance for goods entering the United States.",
+    example: "Smartphone",
+    versions: {
+      "2026 HTS Revision 11 (July 1, 2026)": {
+        collectionName: "HTS_2026_Qwen3-8B_v1",
+        baseUrl: "https://hts.usitc.gov/search?query=",
+      },
     },
   },
 };
@@ -110,17 +246,13 @@ export function classifierConfigFor({
     Object.entries(CLASSIFIERS).map(([classifierType, definition]) => [
       classifierType,
       {
+        ...definition,
         embedModelName: model,
         embedDims: dims,
         queryInstruction:
           definition.queryInstruction ?? DEFAULT_QUERY_INSTRUCTION,
         rerankInstruction:
           definition.rerankInstruction ?? DEFAULT_RERANK_INSTRUCTION,
-        versions: Object.fromEntries(
-          Object.entries(definition.collections).map(
-            ([version, collectionName]) => [version, { collectionName }],
-          ),
-        ),
       },
     ]),
   );

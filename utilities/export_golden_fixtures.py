@@ -1364,6 +1364,42 @@ def resolve_type(value: str) -> dict[str, object]:
     return {"status": 200, "upperType": upper_type}
 
 
+CLASSIFIER_CONFIG_KEYS = {
+    "title": "title",
+    "heading": "heading",
+    "description": "description",
+    "example": "example",
+    "query_instruction": "queryInstruction",
+    "rerank_instruction": "rerankInstruction",
+}
+VERSION_CONFIG_KEYS = {
+    "collection_name": "collectionName",
+    "base_url": "baseUrl",
+    "append_code_to_url": "appendCodeToUrl",
+    "code_url_suffix": "codeUrlSuffix",
+    "tooltip": "tooltip",
+}
+
+
+def build_classifier_config_fixture() -> dict[str, object]:
+    return {
+        classifier_type: {
+            **{
+                key: config[python_key]
+                for python_key, key in CLASSIFIER_CONFIG_KEYS.items()
+            },
+            "versions": {
+                version_name: {
+                    VERSION_CONFIG_KEYS[key]: value
+                    for key, value in version_config.items()
+                }
+                for version_name, version_config in config["versions"].items()
+            },
+        }
+        for classifier_type, config in CLASSIFIER_CONFIG.items()
+    }
+
+
 def build_classifier_options_fixture() -> dict[str, object]:
     return {
         "versions": {
@@ -2221,6 +2257,103 @@ def build_classification_fixture() -> dict[str, object]:
         "openRouterRequests": openrouter_requests(),
         "qdrantRequests": qdrant_requests(),
     }
+RAPIDAPI_TOP_K_INPUTS = [
+    "1", "3", "100", "0", "101", "-1", "-0", "+0", "+3", "00003", "00",
+    "3.0", "3.00", "+3.0", "-0.0", "100.0", "3.", ".5", "3.5", "3.0000000001",
+    "1_0", "1_0.0", "3_0.0", "3.0_0", "1__0", "_1", "1_", "1e1", "1e0",
+    "0x10", "0b1", "0o7", "1,0", "1.0.0", "1 0", "-", "+", ".", "", "abc",
+    " 3 ", "\t3\n", "\x0b3", "\x0c3", "\x1c3", "\x853", "\xa03", "3\u2003",
+    "\u20283", "\u30003", "\u200b3", "\ufeff3", "\u0663", "\uff13",
+    "99999999999999999999999", "-99999999999999999999999",
+    "1" * 4300, "1" * 4301, " " + "1" * 4300, "0" * 4299 + "5",
+    # pydantic-core strips leading zeros and underscores before a sign.
+    "0__3", "00__1", "0__10", "0-3", "0_-3", "+0-3", "0-03", "-03", "0-3.0",
+    "0_.0", "-0-3", "0+3", "03x", "-" + "1" * 4300, "1" * 4301 + "x",
+    "1" * 4301 + ".0", " " + "1" * 4301, "0" + "1" * 4301, "0" * 5000 + "3",
+]
+RAPIDAPI_QUERY_STRINGS = [
+    "",
+    "query=a",
+    "standard=x",
+    "top_k=0",
+    "query=a&standard=x",
+    "query=&standard=",
+    "query=+&standard=x",
+    "query=a&standard=%20%09",
+    "query=%20%20a%20b%0A&standard=+unspsc+",
+    "query=a&query=b&standard=x&standard=y",
+    "query=a&standard=x&top_k=0&top_k=5",
+    "query=a&standard=x&top_k=5&top_k=0",
+    "query=a&standard=x&version=",
+    "query=a&standard=x&version=+v1+",
+    "query=a&standard=x&version=1&version=2",
+    "query&standard=x",
+    "query=a&standard=\xdf",
+    "query=a&standard=%C3%9F",
+    "query=a&standard=%FF",
+    "query=%E2%80%83a%E2%80%83&standard=x",
+    "query=%1Ca%1C&standard=x",
+    "query=a+b&standard=x&top_k=abc&version=v",
+    "standard=x&top_k=101",
+    "Query=a&standard=x",
+]
+
+
+def build_rapidapi_query_fixture() -> dict[str, object]:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app import api
+
+    calls: list[dict[str, object]] = []
+
+    class RecordingService:
+        async def classify(self, **kwargs: object) -> SimpleNamespace:
+            calls.append(kwargs)
+            return SimpleNamespace(results=[], version_config={}, version_name="v")
+
+    rapid_app = FastAPI()
+    rapid_app.include_router(api.router, prefix="/api/v1/rapid")
+    rapid_app.state.classification_service = RecordingService()
+    client = TestClient(rapid_app)
+
+    def outcome(raw_query: str) -> dict[str, object]:
+        calls.clear()
+        response = client.get(
+            f"/api/v1/rapid/classify?{raw_query}",
+            headers={"X-RapidAPI-Proxy-Secret": "fixture-secret"},
+        )
+        record: dict[str, object] = {"status": response.status_code}
+        if response.status_code == 200:
+            (call,) = calls
+            record["classify"] = call
+            record["body"] = {
+                key: value
+                for key, value in response.json().items()
+                if key != "processing_time"
+            }
+        else:
+            record["body"] = response.json()
+        return record
+
+    with patch.object(api, "RAPIDAPI_SECRET", "fixture-secret"):
+        return {
+            "queries": [
+                {"rawQuery": raw_query, **outcome(raw_query)}
+                for raw_query in RAPIDAPI_QUERY_STRINGS
+            ],
+            "topK": [
+                {
+                    "input": value,
+                    **outcome(
+                        "query=a&standard=x&top_k=" + quote(value.encode(), safe="")
+                    ),
+                }
+                for value in RAPIDAPI_TOP_K_INPUTS
+            ],
+        }
+
+
 
 
 FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
@@ -2234,6 +2367,7 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "query-text.json": build_query_text_fixture,
     "classifier-urls.json": build_classifier_urls_fixture,
     "classifier-options.json": build_classifier_options_fixture,
+    "classifier-config.json": build_classifier_config_fixture,
     "original-id-tokens.json": build_original_id_tokens_fixture,
     "result-score.json": build_result_score_fixture,
     "model-text.json": build_model_text_fixture,
@@ -2242,6 +2376,7 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "mapping-urls.json": build_mapping_urls_fixture,
     "request-url.json": build_request_url_fixture,
     "classification.json": build_classification_fixture,
+    "rapidapi-query.json": build_rapidapi_query_fixture,
 }
 
 
