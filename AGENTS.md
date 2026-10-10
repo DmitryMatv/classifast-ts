@@ -259,6 +259,10 @@ markup moves to a new directory, add a `@source` line for it.
 
 ## Gotchas and Non-Obvious Behaviors
 
+- `HfEmbeddingClient` deliberately gives a budgeted hf-inference task-discovery
+  GET the entire remaining outbound budget, even when the configured embedding
+  timeout is shorter. Provider-mapping GETs and embedding POSTs use the smaller
+  limit. Keep the task-discovery timeout exception and its regression test.
 - Clerk JWKS refresh behavior depends on the PyJWT version. Versions through
   2.13.0 refreshed immediately for unknown key IDs. PyJWT 2.14.0 introduced a
   30-second cooldown after every successful fetch to prevent unauthenticated

@@ -317,6 +317,65 @@ describe("HfEmbeddingClient outbound budget", () => {
     expect(fake.requests.at(-1)?.signal?.aborted).toBe(true);
     expect(clock.sleeps).toEqual([1000]);
   });
+
+  it.each<{
+    method: "GET" | "POST";
+    maxSeconds: number | undefined;
+  }>([
+    { method: "GET", maxSeconds: 5 },
+    { method: "POST", maxSeconds: 5 },
+    { method: "POST", maxSeconds: undefined },
+  ])(
+    "keeps the configured $method timeout with maxSeconds=$maxSeconds",
+    async ({ method, maxSeconds }) => {
+      const clock = new FakeClock();
+      const fake = fakeFetch((request) =>
+        request.method === "GET" ? mappingReply() : vector.clone(),
+      );
+      const embedder = new HfEmbeddingClient(
+        { token: "hf_test", provider: "auto", timeoutSeconds: 0.03 },
+        delayedFetch(fake.fetch, method),
+        clock,
+      );
+
+      await expect(embed(embedder, maxSeconds)).rejects.toMatchObject({
+        name: "TimeoutError",
+      });
+      expect(fake.requests.map((request) => request.method)).toEqual(
+        method === "GET"
+          ? ["GET", "GET", "GET"]
+          : ["GET", "POST", "POST", "POST"],
+      );
+      expect(clock.sleeps).toEqual([1000, 2000]);
+    },
+  );
+
+  it("preserves caller cancellation during a budgeted POST without retrying", async () => {
+    const controller = new AbortController();
+    const reason = new DOMException("The operation was aborted.", "AbortError");
+    const clock = new FakeClock();
+    const fake = fakeFetch(mappingReply(), () => {
+      setTimeout(() => controller.abort(reason), 5);
+      return vector.clone();
+    });
+    const embedder = new HfEmbeddingClient(
+      { token: "hf_test", provider: "auto", timeoutSeconds: 20 },
+      delayedFetch(fake.fetch, "POST"),
+      clock,
+    );
+
+    await expect(
+      embedder.embed(
+        { model: MODEL, text: "industrial pump", dims: 3, maxSeconds: 5 },
+        controller.signal,
+      ),
+    ).rejects.toBe(reason);
+    expect(fake.requests.map((request) => request.method)).toEqual([
+      "GET",
+      "POST",
+    ]);
+    expect(clock.sleeps).toEqual([]);
+  });
 });
 
 describe("HfEmbeddingClient retries like tenacity", () => {
