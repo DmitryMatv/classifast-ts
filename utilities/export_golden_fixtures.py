@@ -28,6 +28,7 @@ from unittest.mock import patch
 from urllib.parse import quote, quote_plus, unquote, unquote_plus, urlencode
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 
 import dotenv
 import httpx
@@ -1418,22 +1419,51 @@ ORIGINAL_ID_TOKEN_INPUTS = [
     "_12",
     "4300",
     "12.0",
+    None,
+    True,
+    False,
+    0,
+    12,
+    4300,
+    -4300,
+    9007199254740991,
+    -9007199254740991,
+    12.5,
+    -12.5,
+    0.125,
+    -0.125,
+    0.0001,
+    -0.0001,
+    4300.25,
 ]
 
 
+def original_id_token_output(value: object) -> dict[str, object]:
+    tokens = group_original_id_tokens(value)
+    return {
+        "chars": [token["char"] for token in tokens],
+        "gapsAfter": [
+            index for index, token in enumerate(tokens) if token["gap_after"]
+        ],
+    }
+
+
 def build_original_id_tokens_fixture() -> dict[str, object]:
-    assert group_original_id_tokens(None) == []
     return {
         "tokens": [
             {
                 "input": value,
-                "chars": [token["char"] for token in tokens],
-                "gapsAfter": [
-                    index for index, token in enumerate(tokens) if token["gap_after"]
-                ],
+                **original_id_token_output(value),
             }
             for value in ORIGINAL_ID_TOKEN_INPUTS
-            if (tokens := group_original_id_tokens(value)) is not None
+        ],
+        "sourceLoss": [
+            {
+                "inputJson": input_json,
+                "source": original_id_token_output(json.loads(input_json)),
+                "parsedInteger": original_id_token_output(int(json.loads(input_json))),
+            }
+            for input_json in ["12", "12.0", "0", "0.0"]
         ],
     }
 
