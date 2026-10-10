@@ -81,7 +81,8 @@ describe("withRetry with a budget", () => {
     async (delayMs) => {
       const clock = new DelayedClock(delayMs);
       const error = new HttpStatusError(503, "https://example.test");
-      const attempt = vi.fn<() => Promise<string>>()
+      const attempt = vi
+        .fn<() => Promise<string>>()
         .mockRejectedValueOnce(error)
         .mockResolvedValue("retry");
       const result = withRetry(attempt, isTransientHttpError, {
@@ -95,4 +96,59 @@ describe("withRetry with a budget", () => {
       expect(clock.sleeps).toEqual([1000]);
     },
   );
+
+  it("retries when a delayed sleep wakes one millisecond before the deadline", async () => {
+    const clock = new DelayedClock(99);
+    const attempt = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(new HttpStatusError(503, "https://example.test"))
+      .mockResolvedValue("retry");
+    const result = withRetry(attempt, isTransientHttpError, {
+      clock,
+      signal: new AbortController().signal,
+      maxSeconds: 1.1,
+    });
+
+    await expect(result).resolves.toBe("retry");
+    expect(attempt).toHaveBeenCalledTimes(2);
+    expect(clock.sleeps).toEqual([1000]);
+  });
+
+  it("retries after a delayed sleep when no budget is set", async () => {
+    const clock = new DelayedClock(10_000);
+    const attempt = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(new HttpStatusError(503, "https://example.test"))
+      .mockResolvedValue("retry");
+    const result = withRetry(attempt, isTransientHttpError, {
+      clock,
+      signal: new AbortController().signal,
+    });
+
+    await expect(result).resolves.toBe("retry");
+    expect(attempt).toHaveBeenCalledTimes(2);
+    expect(clock.sleeps).toEqual([1000]);
+  });
+
+  it("preserves cancellation from sleep without starting another attempt", async () => {
+    const clock = new FakeClock();
+    const controller = new AbortController();
+    const error = new DOMException("The operation was aborted.", "AbortError");
+    vi.spyOn(clock, "sleep").mockImplementation(async (_ms, signal) => {
+      controller.abort(error);
+      signal.throwIfAborted();
+    });
+    const attempt = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(new HttpStatusError(503, "https://example.test"))
+      .mockResolvedValue("retry");
+    const result = withRetry(attempt, isTransientHttpError, {
+      clock,
+      signal: controller.signal,
+      maxSeconds: 1.1,
+    });
+
+    await expect(result).rejects.toBe(error);
+    expect(attempt).toHaveBeenCalledTimes(1);
+  });
 });
