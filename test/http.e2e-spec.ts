@@ -11,6 +11,10 @@ import request from "supertest";
 import { vi } from "vitest";
 import { AppModule } from "../src/app.module.js";
 import {
+  buildClassifierConfig,
+  getAllCollectionNames,
+} from "../src/classifier/classifier-config.js";
+import {
   configureHttpApp,
   createHttpAdapter,
   HTTP_APP_OPTIONS,
@@ -23,10 +27,6 @@ import {
   SECURITY_HEADERS,
   splitRequestTarget,
 } from "../src/http/middleware.js";
-import {
-  buildClassifierConfig,
-  getAllCollectionNames,
-} from "../src/classifier/classifier-config.js";
 import {
   startQdrantServer,
   validCollections,
@@ -44,7 +44,6 @@ class EchoController {
   }
 }
 
-// Boot runs the Qdrant schema check, so every app gets a valid fake Qdrant.
 let qdrant: Promise<QdrantServer> | undefined;
 
 afterAll(async () => {
@@ -52,7 +51,14 @@ afterAll(async () => {
 });
 
 async function bootApp(staticRoot?: string): Promise<NestExpressApplication> {
-  for (const name of ["HF_TOKEN", "QDRANT_HOST", "QDRANT_PORT"]) {
+  for (const name of [
+    "HF_TOKEN",
+    "HF_EMBEDDING_DIMS",
+    "QDRANT_URL",
+    "QDRANT_HOST",
+    "QDRANT_PORT",
+    "QDRANT_API_KEY",
+  ]) {
     vi.stubEnv(name, undefined);
   }
   qdrant ??= startQdrantServer(

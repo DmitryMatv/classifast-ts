@@ -10,7 +10,6 @@ regenerated fixtures.
 
 import asyncio
 import http.server
-import ipaddress
 import json
 import logging
 import math
@@ -21,6 +20,7 @@ import sys
 import tempfile
 import threading
 import unicodedata
+import ipaddress
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from types import SimpleNamespace
@@ -29,6 +29,7 @@ from unittest.mock import patch
 from urllib.parse import quote, quote_plus, unquote, unquote_plus, urlencode
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 
 import dotenv
 import httpx
@@ -1431,6 +1432,160 @@ def build_classifier_options_fixture() -> dict[str, object]:
     }
 
 
+def repr_inputs() -> list[float]:
+    rng = random.Random(20261009)
+    values = [0.0, -0.0, 1.0, -1.5, 0.1, 1e-4, 1e-5, 1.5e-5, 9.99e-5, 123.0]
+    values += [1e15, 1e16, 1.5e16, 9999999999999998.0, 1e22, 1e100, 5e-324]
+    values += [1.7976931348623157e308, 0.30000000000000004, 1759912345.25]
+    values += [rng.uniform(1.6e9, 1.9e9) for _ in range(200)]
+    values += [10 ** rng.uniform(-8, 20) for _ in range(300)]
+    values += [rng.random() / 1000 for _ in range(100)]
+    return values
+
+
+def build_python_float_repr_fixture() -> dict[str, object]:
+    return {
+        "finite": [{"value": value, "repr": repr(value)} for value in repr_inputs()],
+        "nonFinite": [repr(value) for value in [math.inf, -math.inf, math.nan]],
+    }
+
+
+IP_ADDRESS_INPUTS = [
+    "66.249.64.1",
+    "66.249.64.31",
+    "66.249.64.32",
+    "66.249.63.255",
+    "0.0.0.0",
+    "255.255.255.255",
+    "203.0.113.10",
+    "066.249.64.1",
+    "66.249.64",
+    "66.249.64.1.",
+    "66.249.64.256",
+    " 66.249.64.1",
+    "66.249.64.1 ",
+    "",
+    "not-an-ip",
+    "unknown",
+    "16843009",
+    "2001:4860:4801:10::1",
+    "2001:4860:4801:10::",
+    "2001:4860:4801:11::1",
+    "2001:4860:4801:0010:0000:0000:0000:0001",
+    "2001:4860:4801:10:0:0:0:1",
+    "2001:4860:4801:10::1%eth0",
+    "::ffff:66.249.64.1",
+    "::ffff:4231:4001",
+    "::",
+    "::1",
+    "1::",
+    "2001:db8::1:2:3:4:5",
+    "2001:db8:::1",
+    "2001:db8::1::2",
+    "2001:DB8::ABCD",
+    "12345::1",
+    "[2001:db8::1]",
+    "fe80::1%",
+]
+IP_NETWORK_INPUTS = [
+    "66.249.64.0/27",
+    "66.249.64.0/24",
+    "66.249.64.1/27",
+    "66.249.64.0",
+    "66.249.64.0/32",
+    "66.249.64.0/33",
+    "66.249.64.0/0",
+    "0.0.0.0/0",
+    "66.249.64.0/027",
+    "66.249.64.0/+27",
+    "66.249.64.0/ 27",
+    "66.249.64.0/27/1",
+    "66.249.64.0/",
+    "66.249.64.0/255.255.255.224",
+    "66.249.64.0/0.0.0.31",
+    "2001:4860:4801:10::/64",
+    "2001:4860:4801:10::1/64",
+    "2001:4860:4801:10::/128",
+    "2001:4860:4801:10::/129",
+    "::/0",
+    "::ffff:66.249.64.0/120",
+    "2001:4860:4801:10::/064",
+    "not-a-cidr",
+    "",
+]
+
+
+def parsed_ip(parse: Callable[[str], object], text: str) -> str | None:
+    try:
+        return str(parse(text))
+    except ValueError:
+        return None
+
+
+def build_ip_network_fixture() -> dict[str, object]:
+    addresses = [a for a in IP_ADDRESS_INPUTS if parsed_ip(ipaddress.ip_address, a)]
+    networks = [n for n in IP_NETWORK_INPUTS if parsed_ip(ipaddress.ip_network, n)]
+    return {
+        "addresses": [
+            {"input": a, "valid": parsed_ip(ipaddress.ip_address, a) is not None}
+            for a in IP_ADDRESS_INPUTS
+        ],
+        "networks": [
+            {"input": n, "valid": parsed_ip(ipaddress.ip_network, n) is not None}
+            for n in IP_NETWORK_INPUTS
+        ],
+        "membership": [
+            {
+                "address": a,
+                "network": n,
+                "contains": ipaddress.ip_address(a) in ipaddress.ip_network(n),
+            }
+            for a in addresses
+            for n in networks
+        ],
+    }
+
+
+STATIC_FILE_STATS = [
+    (1759952481_123456789, 5639),
+    (1759952481_000000000, 0),
+    (1700000000_999999999, 123456),
+    (1759952481_100000000, 7),
+    (86400_000000001, 1),
+]
+
+
+def static_file_stats() -> list[tuple[int, int]]:
+    rng = random.Random(20261010)
+    return STATIC_FILE_STATS + [
+        (
+            rng.randrange(1_600_000_000, 1_900_000_000) * 10**9
+            + rng.randrange(10**9),
+            rng.randrange(10**6),
+        )
+        for _ in range(40)
+    ]
+
+
+def build_static_files_fixture() -> dict[str, object]:
+    validators = []
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / "asset"
+        for mtime_ns, size in static_file_stats():
+            path.write_bytes(b"x" * size)
+            os.utime(path, ns=(mtime_ns, mtime_ns))
+            headers = FileResponse(path, stat_result=path.stat()).headers
+            validators.append(
+                {
+                    "mtimeNs": str(mtime_ns),
+                    "size": size,
+                    "etag": headers["etag"],
+                    "lastModified": headers["last-modified"],
+                }
+            )
+    return {"validators": validators}
+
+
 ORIGINAL_ID_TOKEN_INPUTS = [
     *ID_INPUTS,
     "1",
@@ -1455,22 +1610,51 @@ ORIGINAL_ID_TOKEN_INPUTS = [
     "_12",
     "4300",
     "12.0",
+    None,
+    True,
+    False,
+    0,
+    12,
+    4300,
+    -4300,
+    9007199254740991,
+    -9007199254740991,
+    12.5,
+    -12.5,
+    0.125,
+    -0.125,
+    0.0001,
+    -0.0001,
+    4300.25,
 ]
 
 
+def original_id_token_output(value: object) -> dict[str, object]:
+    tokens = group_original_id_tokens(value)
+    return {
+        "chars": [token["char"] for token in tokens],
+        "gapsAfter": [
+            index for index, token in enumerate(tokens) if token["gap_after"]
+        ],
+    }
+
+
 def build_original_id_tokens_fixture() -> dict[str, object]:
-    assert group_original_id_tokens(None) == []
     return {
         "tokens": [
             {
                 "input": value,
-                "chars": [token["char"] for token in tokens],
-                "gapsAfter": [
-                    index for index, token in enumerate(tokens) if token["gap_after"]
-                ],
+                **original_id_token_output(value),
             }
             for value in ORIGINAL_ID_TOKEN_INPUTS
-            if (tokens := group_original_id_tokens(value)) is not None
+        ],
+        "sourceLoss": [
+            {
+                "inputJson": input_json,
+                "source": original_id_token_output(json.loads(input_json)),
+                "parsedInteger": original_id_token_output(int(json.loads(input_json))),
+            }
+            for input_json in ["12", "12.0", "0", "0.0"]
         ],
     }
 
@@ -2073,96 +2257,6 @@ def build_classification_fixture() -> dict[str, object]:
         "openRouterRequests": openrouter_requests(),
         "qdrantRequests": qdrant_requests(),
     }
-def repr_inputs() -> list[float]:
-    rng = random.Random(20261009)
-    values = [0.0, -0.0, 1.0, -1.5, 0.1, 1e-4, 1e-5, 1.5e-5, 9.99e-5, 123.0]
-    values += [1e15, 1e16, 1.5e16, 9999999999999998.0, 1e22, 1e100, 5e-324]
-    values += [1.7976931348623157e308, 0.30000000000000004, 1759912345.25]
-    values += [rng.uniform(1.6e9, 1.9e9) for _ in range(200)]
-    values += [10 ** rng.uniform(-8, 20) for _ in range(300)]
-    values += [rng.random() / 1000 for _ in range(100)]
-    return values
-
-
-def build_python_float_repr_fixture() -> dict[str, object]:
-    return {
-        "finite": [{"value": value, "repr": repr(value)} for value in repr_inputs()],
-        "nonFinite": [repr(value) for value in [math.inf, -math.inf, math.nan]],
-    }
-
-
-IP_ADDRESS_INPUTS = [
-    "66.249.64.1",
-    "66.249.64.31",
-    "66.249.64.32",
-    "66.249.63.255",
-    "0.0.0.0",
-    "255.255.255.255",
-    "203.0.113.10",
-    "066.249.64.1",
-    "66.249.64",
-    "66.249.64.1.",
-    "66.249.64.256",
-    " 66.249.64.1",
-    "66.249.64.1 ",
-    "",
-    "not-an-ip",
-    "unknown",
-    "16843009",
-    "2001:4860:4801:10::1",
-    "2001:4860:4801:10::",
-    "2001:4860:4801:11::1",
-    "2001:4860:4801:0010:0000:0000:0000:0001",
-    "2001:4860:4801:10:0:0:0:1",
-    "2001:4860:4801:10::1%eth0",
-    "::ffff:66.249.64.1",
-    "::ffff:4231:4001",
-    "::",
-    "::1",
-    "1::",
-    "2001:db8::1:2:3:4:5",
-    "2001:db8:::1",
-    "2001:db8::1::2",
-    "2001:DB8::ABCD",
-    "12345::1",
-    "[2001:db8::1]",
-    "fe80::1%",
-]
-IP_NETWORK_INPUTS = [
-    "66.249.64.0/27",
-    "66.249.64.0/24",
-    "66.249.64.1/27",
-    "66.249.64.0",
-    "66.249.64.0/32",
-    "66.249.64.0/33",
-    "66.249.64.0/0",
-    "0.0.0.0/0",
-    "66.249.64.0/027",
-    "66.249.64.0/+27",
-    "66.249.64.0/ 27",
-    "66.249.64.0/27/1",
-    "66.249.64.0/",
-    "66.249.64.0/255.255.255.224",
-    "66.249.64.0/0.0.0.31",
-    "2001:4860:4801:10::/64",
-    "2001:4860:4801:10::1/64",
-    "2001:4860:4801:10::/128",
-    "2001:4860:4801:10::/129",
-    "::/0",
-    "::ffff:66.249.64.0/120",
-    "2001:4860:4801:10::/064",
-    "not-a-cidr",
-    "",
-]
-
-
-def parsed_ip(parse: Callable[[str], object], text: str) -> str | None:
-    try:
-        return str(parse(text))
-    except ValueError:
-        return None
-
-
 RAPIDAPI_TOP_K_INPUTS = [
     "1", "3", "100", "0", "101", "-1", "-0", "+0", "+3", "00003", "00",
     "3.0", "3.00", "+3.0", "-0.0", "100.0", "3.", ".5", "3.5", "3.0000000001",
@@ -2260,68 +2354,6 @@ def build_rapidapi_query_fixture() -> dict[str, object]:
         }
 
 
-def build_ip_network_fixture() -> dict[str, object]:
-    addresses = [a for a in IP_ADDRESS_INPUTS if parsed_ip(ipaddress.ip_address, a)]
-    networks = [n for n in IP_NETWORK_INPUTS if parsed_ip(ipaddress.ip_network, n)]
-    return {
-        "addresses": [
-            {"input": a, "valid": parsed_ip(ipaddress.ip_address, a) is not None}
-            for a in IP_ADDRESS_INPUTS
-        ],
-        "networks": [
-            {"input": n, "valid": parsed_ip(ipaddress.ip_network, n) is not None}
-            for n in IP_NETWORK_INPUTS
-        ],
-        "membership": [
-            {
-                "address": a,
-                "network": n,
-                "contains": ipaddress.ip_address(a) in ipaddress.ip_network(n),
-            }
-            for a in addresses
-            for n in networks
-        ],
-    }
-
-
-STATIC_FILE_STATS = [
-    (1759952481_123456789, 5639),
-    (1759952481_000000000, 0),
-    (1700000000_999999999, 123456),
-    (1759952481_100000000, 7),
-    (86400_000000001, 1),
-]
-
-
-def static_file_stats() -> list[tuple[int, int]]:
-    rng = random.Random(20261010)
-    return STATIC_FILE_STATS + [
-        (
-            rng.randrange(1_600_000_000, 1_900_000_000) * 10**9
-            + rng.randrange(10**9),
-            rng.randrange(10**6),
-        )
-        for _ in range(40)
-    ]
-
-
-def build_static_files_fixture() -> dict[str, object]:
-    validators = []
-    with tempfile.TemporaryDirectory() as directory:
-        path = Path(directory) / "asset"
-        for mtime_ns, size in static_file_stats():
-            path.write_bytes(b"x" * size)
-            os.utime(path, ns=(mtime_ns, mtime_ns))
-            headers = FileResponse(path, stat_result=path.stat()).headers
-            validators.append(
-                {
-                    "mtimeNs": str(mtime_ns),
-                    "size": size,
-                    "etag": headers["etag"],
-                    "lastModified": headers["last-modified"],
-                }
-            )
-    return {"validators": validators}
 
 
 FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
@@ -2330,6 +2362,8 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "python-urllib.json": build_python_urllib_fixture,
     "python-numbers.json": build_python_numbers_fixture,
     "python-float-repr.json": build_python_float_repr_fixture,
+    "static-files.json": build_static_files_fixture,
+    "ip-network.json": build_ip_network_fixture,
     "query-text.json": build_query_text_fixture,
     "classifier-urls.json": build_classifier_urls_fixture,
     "classifier-options.json": build_classifier_options_fixture,
@@ -2342,8 +2376,6 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "mapping-urls.json": build_mapping_urls_fixture,
     "request-url.json": build_request_url_fixture,
     "classification.json": build_classification_fixture,
-    "static-files.json": build_static_files_fixture,
-    "ip-network.json": build_ip_network_fixture,
     "rapidapi-query.json": build_rapidapi_query_fixture,
 }
 

@@ -169,9 +169,9 @@ test classes and standard-library mocks, but pytest is the official runner.
 Fresh checkouts may lack `.venv`, `node_modules`, and generated frontend assets
 because they are ignored. If `.venv` is absent, run `python -m venv .venv` and
 `.venv/bin/pip install -r requirements-dev.txt` before `pytest`. If
-`node_modules` is absent, run `npm ci` before frontend tests or builds. The
-verification driver (`.agents/skills/verify/`) also requires a frontend build
-(`npm run build`).
+`node_modules` is absent, run `npm ci` before frontend tests or builds.
+`tests/test_asset_urls.py` and the verification driver (`.agents/skills/verify/`)
+require a frontend build (`npm run build`) in a fresh checkout.
 
 pytest.ini scopes pytest collection to `tests/`. The `utilities/test_*.py` files are
 manual live/debug helpers, and the ignored `embedders/tests/` tree contains
@@ -182,6 +182,14 @@ collect the full suite. Report that limitation when excluding this test.
 
 Activate the Python environment with `source .venv/bin/activate` before backend
 tests or the verification driver.
+
+HTTP e2e tests that import `AppModule` need a fake Qdrant server with valid
+schemas for every configured collection, because startup validates them.
+Use `test/support/qdrant-server.ts` and clear inherited Qdrant and
+embedding-dimension configuration.
+
+Git rerere may automatically stage an old conflict resolution. Inspect every
+conflicted file even when no conflict markers remain.
 
 jsdom prints an exception thrown inside an event listener, but the test still
 passes and `npm test` exits 0. Read the test output as well as the exit status.
@@ -212,9 +220,12 @@ Ports of Python text, URL and number logic must use `src/python/` (`str.ts`,
 `\w`, `\d`, `trim`, `encodeURIComponent`, `Number()` and `toFixed` all
 disagree with Python on some inputs. Each ported function has a spec that
 reads a fixture written by `python utilities/export_golden_fixtures.py`
-(about 45 seconds, one file per area). The exporter refuses to run if its
-source contains a non-ASCII character, because editors can NFC-normalize
-literals such as `e` plus U+0301; write such inputs as escapes. Parity with
+(about 45 seconds, one file per area). The exporter disables Hugging Face
+telemetry before imports; recent SDKs otherwise add a harness-detection
+`GET /api/agent-harnesses` request to the first embedding fixture. The exporter
+refuses to run if its source contains a non-ASCII character, because editors
+can NFC-normalize literals such as `e` plus U+0301; write such inputs as escapes.
+Parity with
 Python holds only where Node and Python implement the same Unicode version.
 The fixtures record Python's Unicode 16.0, while Node 24.21 (the `node:24`
 line in `Dockerfile.node`, verified locally) and Node 26 ship Unicode 17.0
@@ -292,6 +303,18 @@ as `unavailable`.
 
 ## Gotchas and Non-Obvious Behaviors
 
+- `HfEmbeddingClient` deliberately gives a budgeted hf-inference task-discovery
+  GET the entire remaining outbound budget, even when the configured embedding
+  timeout is shorter. Provider-mapping GETs and embedding POSTs use the smaller
+  limit. Keep the task-discovery timeout exception and its regression test.
+- Clerk JWKS refresh behavior depends on the PyJWT version. Versions through
+  2.13.0 refreshed immediately for unknown key IDs. PyJWT 2.14.0 introduced a
+  30-second cooldown after every successful fetch to prevent unauthenticated
+  JWKS request amplification. Locally installed PyJWT 2.15.1 and
+  `src/auth/clerk.ts` both use that cooldown. The deployed PyJWT version remains
+  unverified, and `requirements.txt` does not pin it. The owner has adopted
+  the cooldown as the Nest policy, including brief rejection of newly rotated
+  keys. `src/auth/clerk.spec.ts` covers rotation and cached-key reuse.
 - Polar SDK version range is declared in `requirements.txt`.
   SDK 1.x uses versioned `polar` imports, direct checkout keyword arguments, and
   webhook dataclasses with `event.type` instead of `event.TYPE`.
@@ -305,6 +328,12 @@ as `unavailable`.
   respects `.gitignore`; use `--no-ignore` or explicit paths. If `embedders/`
   is absent, `pytest` fails while collecting `tests/test_emdn_embedder.py`.
   Run `pytest --ignore=tests/test_emdn_embedder.py` for the remaining suite.
+- `groupOriginalIdTokens` accepts a narrower parsed-scalar domain than Python's
+  object helper: strings, null, booleans, safe integers and ordinary fractions
+  with absolute values in [1e-4, 1e16). Other types and numbers throw.
+  Parsed integral numbers mean integer IDs; JSON parsing cannot recover the
+  distinction between `12` and `12.0`, or `0` and `0.0`. Preserve source numeric
+  metadata or Python display text if a future decoder needs that distinction.
 - `app/classifier_page_delivery.py` parses `app/static/sitemap.xml` at import
   time to build `SITEMAP_QUERY_PATHS`, which gates SSR eligibility and homepage
   anchor links. Editing the sitemap only changes app behavior after a restart.

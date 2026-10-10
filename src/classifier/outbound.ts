@@ -74,8 +74,10 @@ export async function fetchJson(
 const MAX_ATTEMPTS = 3;
 
 /**
- * Python's tenacity policy: three attempts, waits of 1 s and then 2 s, and,
- * when `maxSeconds` is set, no new attempt once that much time has passed.
+ * Up to three attempts, with waits of 1 s and then 2 s. When `maxSeconds`
+ * is set, retries are admitted only before the deadline. Planned waits must
+ * fit inside the budget, and elapsed time is checked again after sleep in
+ * case the timer wakes late.
  */
 export async function withRetry<T>(
   attempt: () => Promise<T>,
@@ -95,8 +97,10 @@ export async function withRetry<T>(
     try {
       return await attempt();
     } catch (error) {
+      const waitMs = Math.min(10, 2 ** (attemptNumber - 1)) * 1000;
       const outOfTime =
-        maxSeconds !== undefined && (clock.now() - start) / 1000 >= maxSeconds;
+        maxSeconds !== undefined &&
+        clock.now() - start + waitMs >= maxSeconds * 1000;
       if (
         signal.aborted ||
         !isTransient(error) ||
@@ -105,7 +109,13 @@ export async function withRetry<T>(
       ) {
         throw error;
       }
-      await clock.sleep(Math.min(10, 2 ** (attemptNumber - 1)) * 1000, signal);
+      await clock.sleep(waitMs, signal);
+      if (
+        maxSeconds !== undefined &&
+        clock.now() - start >= maxSeconds * 1000
+      ) {
+        throw error;
+      }
     }
   }
 }

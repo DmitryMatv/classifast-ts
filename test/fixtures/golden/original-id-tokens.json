@@ -105,6 +105,28 @@
     {"input": "𝐀123", "chars": ["𝐀", "1", "2", "3"], "gapsAfter": [0, 1]},
     {"input": "_12", "chars": ["_", "1", "2"], "gapsAfter": []},
     {"input": "4300", "chars": ["4", "3", "0", "0"], "gapsAfter": [1]},
-    {"input": "12.0", "chars": ["1", "2", ".", "0"], "gapsAfter": []}
+    {"input": "12.0", "chars": ["1", "2", ".", "0"], "gapsAfter": []},
+    {"input": null, "chars": [], "gapsAfter": []},
+    {"input": true, "chars": ["T", "r", "u", "e"], "gapsAfter": []},
+    {"input": false, "chars": ["F", "a", "l", "s", "e"], "gapsAfter": []},
+    {"input": 0, "chars": ["0"], "gapsAfter": []},
+    {"input": 12, "chars": ["1", "2"], "gapsAfter": []},
+    {"input": 4300, "chars": ["4", "3", "0", "0"], "gapsAfter": [1]},
+    {"input": -4300, "chars": ["-", "4", "3", "0", "0"], "gapsAfter": [2]},
+    {"input": 9007199254740991, "chars": ["9", "0", "0", "7", "1", "9", "9", "2", "5", "4", "7", "4", "0", "9", "9", "1"], "gapsAfter": [1, 3, 5, 7, 9, 11, 13]},
+    {"input": -9007199254740991, "chars": ["-", "9", "0", "0", "7", "1", "9", "9", "2", "5", "4", "7", "4", "0", "9", "9", "1"], "gapsAfter": [2, 4, 6, 8, 10, 12, 14]},
+    {"input": 12.5, "chars": ["1", "2", ".", "5"], "gapsAfter": []},
+    {"input": -12.5, "chars": ["-", "1", "2", ".", "5"], "gapsAfter": []},
+    {"input": 0.125, "chars": ["0", ".", "1", "2", "5"], "gapsAfter": [2]},
+    {"input": -0.125, "chars": ["-", "0", ".", "1", "2", "5"], "gapsAfter": [3]},
+    {"input": 0.0001, "chars": ["0", ".", "0", "0", "0", "1"], "gapsAfter": [3]},
+    {"input": -0.0001, "chars": ["-", "0", ".", "0", "0", "0", "1"], "gapsAfter": [4]},
+    {"input": 4300.25, "chars": ["4", "3", "0", "0", ".", "2", "5"], "gapsAfter": [1]}
+  ],
+  "sourceLoss": [
+    {"inputJson": "12", "source": {"chars": ["1", "2"], "gapsAfter": []}, "parsedInteger": {"chars": ["1", "2"], "gapsAfter": []}},
+    {"inputJson": "12.0", "source": {"chars": ["1", "2", ".", "0"], "gapsAfter": []}, "parsedInteger": {"chars": ["1", "2"], "gapsAfter": []}},
+    {"inputJson": "0", "source": {"chars": ["0"], "gapsAfter": []}, "parsedInteger": {"chars": ["0"], "gapsAfter": []}},
+    {"inputJson": "0.0", "source": {"chars": ["0", ".", "0"], "gapsAfter": []}, "parsedInteger": {"chars": ["0"], "gapsAfter": []}}
   ]
 }

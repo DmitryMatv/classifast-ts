@@ -1,3 +1,4 @@
+import { Logger } from "@nestjs/common";
 import {
   pipelineFixture,
   type FakePoint,
@@ -37,6 +38,7 @@ async function setUp(options: PipelineOptions = {}) {
 }
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await fixture?.qdrant.close();
   fixture = undefined;
 });
@@ -367,6 +369,26 @@ describe("performClassification outbound budget", () => {
         rerankRelevanceScore: 0,
       }),
     ]);
+  });
+
+  it("logs the budget left rounded like Python's %.2f", async () => {
+    const warn = vi.spyOn(Logger.prototype, "warn");
+    const f = await setUp({
+      semantic: [pumpBody],
+      rerank: [0.5],
+      outboundBudgetSeconds: 10,
+      embed: async () => {
+        f.clock.advance(8_875);
+        return [0.1];
+      },
+    });
+
+    await classify(f);
+
+    // 1.125 s is an exact tie: Python rounds it to even, toFixed away from zero.
+    expect(warn).toHaveBeenCalledWith(
+      "RERANK_STATUS: Skipped - outbound budget exhausted (1.12s left)",
+    );
   });
 
   it("gives the reranker the budget left after embedding", async () => {

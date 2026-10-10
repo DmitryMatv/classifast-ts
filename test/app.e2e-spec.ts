@@ -1,11 +1,3 @@
-import { createServer, type Server } from "node:http";
-import type { AddressInfo } from "node:net";
-import { Test } from "@nestjs/testing";
-import type { NestExpressApplication } from "@nestjs/platform-express";
-import request from "supertest";
-import { vi } from "vitest";
-import { AppModule } from "../src/app.module.js";
-import { ConfigError } from "../src/config/app-config.js";
 import {
   buildClassifierConfig,
   getAllCollectionNames,
@@ -17,6 +9,14 @@ import {
   validCollections,
   type QdrantServer,
 } from "./support/qdrant-server.js";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
+import { Test } from "@nestjs/testing";
+import type { NestExpressApplication } from "@nestjs/platform-express";
+import request from "supertest";
+import { vi } from "vitest";
+import { AppModule } from "../src/app.module.js";
+import { ConfigError } from "../src/config/app-config.js";
 import {
   configureHttpApp,
   createHttpAdapter,
@@ -51,6 +51,7 @@ async function unreachableUrl(): Promise<string> {
 const BOOT_ENV_NAMES = [
   "HF_TOKEN",
   "HF_EMBEDDING_TIMEOUT_SECONDS",
+  "HF_EMBEDDING_DIMS",
   "QDRANT_URL",
   "QDRANT_HOST",
   "QDRANT_PORT",

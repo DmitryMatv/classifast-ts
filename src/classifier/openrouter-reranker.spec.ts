@@ -178,4 +178,30 @@ describe("OpenRouterReranker matches app/reranker.py", () => {
     ).rejects.toMatchObject({ name: "TimeoutError" });
     expect(attempts).toBe(3);
   });
+
+  it("gives a retry only the budget left after the backoff", async () => {
+    // FakeClock makes the 1 s backoff instant; the request timeout is real.
+    let attempts = 0;
+    const slowAfter503: Fetch = async (_input, init) => {
+      attempts += 1;
+      if (attempts === 1) return json({}, 503);
+      return new Promise<Response>((resolve, reject) => {
+        const timer = setTimeout(() => resolve(oneScore.clone()), 500);
+        init?.signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          reject(init.signal?.reason);
+        });
+      });
+    };
+    const client = new OpenRouterReranker(
+      { apiKey: "or-key", model: "m", timeoutSeconds: 30 },
+      slowAfter503,
+      new FakeClock(),
+    );
+
+    await expect(
+      client.rerank("query", ["document"], { timeoutSeconds: 1.05, signal }),
+    ).rejects.toMatchObject({ name: "TimeoutError" });
+    expect(attempts).toBe(2);
+  });
 });

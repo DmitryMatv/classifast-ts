@@ -20,7 +20,7 @@ export interface EmbeddingRequest {
   readonly model: string;
   readonly text: string;
   readonly dims: number;
-  /** Budget across retries; an attempt in progress is not cut short. */
+  /** Budget across discovery, embedding requests and retry waits. */
   readonly maxSeconds?: number;
 }
 
@@ -136,7 +136,7 @@ export class HfEmbeddingClient {
         },
         body: JSON.stringify(request.body),
       },
-      this.config.timeoutSeconds * 1000,
+      this.#requestTimeoutMs(deadline),
       signal,
     );
     return request.raw
@@ -158,7 +158,7 @@ export class HfEmbeddingClient {
     }
     const provider =
       this.config.provider === "auto"
-        ? (await this.#providerMappings(model, signal))[0]?.provider
+        ? (await this.#providerMappings(model, signal, deadline))[0]?.provider
         : this.config.provider;
     if (provider === undefined) {
       throw new Error(`No provider mapping found for model ${model}`);
@@ -177,9 +177,9 @@ export class HfEmbeddingClient {
         `Task 'feature-extraction' not supported for provider '${provider}'`,
       );
     }
-    const mapping = (await this.#providerMappings(model, signal)).find(
-      (entry) => entry.provider === provider,
-    );
+    const mapping = (
+      await this.#providerMappings(model, signal, deadline)
+    ).find((entry) => entry.provider === provider);
     if (mapping === undefined) {
       throw new Error(
         `Model ${model} is not supported by provider ${provider}`,
@@ -237,6 +237,7 @@ export class HfEmbeddingClient {
   async #providerMappings(
     model: string,
     signal: AbortSignal,
+    deadline: number | undefined,
   ): Promise<readonly ProviderMapping[]> {
     const cached = this.#mappings.get(model);
     if (cached) return cached;
@@ -244,7 +245,7 @@ export class HfEmbeddingClient {
       this.fetchFn,
       `${HUB_URL}/api/models/${model}?expand=inferenceProviderMapping`,
       { headers: { authorization: `Bearer ${this.config.token}` } },
-      this.config.timeoutSeconds * 1000,
+      this.#requestTimeoutMs(deadline),
       signal,
     );
     const mapping = modelInfoSchema.parse(body).inferenceProviderMapping;
@@ -259,5 +260,12 @@ export class HfEmbeddingClient {
         }));
     this.#mappings.set(model, mappings);
     return mappings;
+  }
+
+  #requestTimeoutMs(deadline: number | undefined): number {
+    const configuredMs = this.config.timeoutSeconds * 1000;
+    return deadline === undefined
+      ? configuredMs
+      : Math.min(configuredMs, deadline - this.clock.now());
   }
 }
