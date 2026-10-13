@@ -9,6 +9,9 @@ regenerated fixtures.
 """
 
 import asyncio
+import base64
+import dataclasses
+import hashlib
 import http.server
 import json
 import logging
@@ -22,6 +25,7 @@ import threading
 import unicodedata
 import ipaddress
 from collections.abc import Callable, Iterable
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -45,8 +49,9 @@ ignore_developer_dotenv()
 from fastapi import HTTPException
 from starlette.requests import Request
 from starlette.responses import FileResponse, Response
+from starlette.testclient import TestClient
 
-from app import classifier_page_delivery
+from app import classifier_page_delivery, dependencies, web
 from app.classifier import (
     QueryFormat,
     _default_rerank_document,
@@ -80,10 +85,14 @@ from app.classifier_page_delivery import (
     should_ssr,
     slugify,
 )
-from app.dependencies import group_original_id_tokens, templates
+from app.dependencies import asset_url, group_original_id_tokens, templates
 from app.id_lookup import normalize_original_id_for_lookup, reverse_normalized_id
-from app.main import QueryNormalizationMiddleware, URLEncodingValidationMiddleware
-from app.mapping_store import list_mapping_products
+from app.main import (
+    QueryNormalizationMiddleware,
+    URLEncodingValidationMiddleware,
+)
+from app.main import app as fastapi_app
+from app.mapping_store import get_mapping_product, list_mapping_products
 from app.query_enhancer import QueryEnhancer, _is_code_like
 from app.reranker import OpenRouterReranker
 from app.web import build_mapping_canonical_url
@@ -2223,6 +2232,198 @@ def build_classification_fixture() -> dict[str, object]:
     }
 
 
+MAPPING_LOOKUP_SLUGS = [
+    "unspsc-to-cpv-mapping",
+    "cpv-to-unspsc-mapping",
+    "UNSPSC-to-CPV-mapping",
+    "unspsc-to-cpv-mapping/",
+    "",
+    "nope",
+    "constructor",
+    "__proto__",
+    "toString",
+]
+
+
+def build_mapping_store_fixture() -> dict[str, object]:
+    return {
+        "products": [dataclasses.asdict(p) for p in list_mapping_products()],
+        "lookups": [
+            {"slug": slug, "found": get_mapping_product(slug) is not None}
+            for slug in MAPPING_LOOKUP_SLUGS
+        ],
+        "related": [
+            {
+                "slug": product.slug,
+                "related": [
+                    related.slug
+                    for related in web.get_related_mapping_products(product)
+                ],
+            }
+            for product in list_mapping_products()
+        ],
+    }
+
+
+ASSET_FILES = {
+    "/css/styles.css": b"body { color: red; }\n",
+    "/js/common.js": bytes(range(256)),
+    "/js/empty.js": b"",
+    "/js/nested/deep.js": "export const x = '\u00e9';\n".encode(),
+}
+
+
+def build_asset_url_fixture() -> dict[str, object]:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        for path, content in ASSET_FILES.items():
+            file_path = root / path.lstrip("/")
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.write_bytes(content)
+        (root / "js" / "folder.js").mkdir()
+        late = root / "js" / "late.js"
+        steps: list[dict[str, object]] = []
+
+        def call(path: str) -> None:
+            steps.append({"call": path, "url": asset_url(path)})
+
+        def write(content: bytes) -> None:
+            late.write_bytes(content)
+            steps.append({"write": "/js/late.js", "base64": base64.b64encode(content).decode()})
+
+        with (
+            patch.object(dependencies, "_STATIC_DIR", root),
+            patch.object(dependencies, "_asset_version_cache", {}),
+        ):
+            for path in [*ASSET_FILES, "/js/missing.js", "/js/folder.js", "css/styles.css"]:
+                call(path)
+            call("/js/late.js")
+            write(b"first")
+            call("/js/late.js")
+            write(b"second")
+            call("/js/late.js")
+    return {
+        "files": {
+            path: base64.b64encode(content).decode()
+            for path, content in ASSET_FILES.items()
+        },
+        "directories": ["/js/folder.js"],
+        "steps": steps,
+    }
+
+
+PAGE_FIXTURE_NOW = datetime(2026, 1, 15, 12, 0, 0)
+PAGE_FIXTURE_DIR = FIXTURE_DIR / "pages"
+PAGE_HEADERS = (
+    "allow",
+    "cache-control",
+    "cloudflare-cdn-cache-control",
+    "content-disposition",
+    "content-type",
+    "link",
+    "location",
+    "vary",
+    "x-robots-tag",
+)
+HTML_PAGES = {
+    "/": "home",
+    "/mapping/": "mapping-index",
+    "/mapping/unspsc-to-cpv-mapping/": "mapping-unspsc-to-cpv",
+    "/mapping/cpv-to-unspsc-mapping/": "mapping-cpv-to-unspsc",
+}
+GET_AND_HEAD = ("GET", "HEAD")
+PAGE_REQUESTS: list[tuple[tuple[str, ...], str]] = [
+    *((GET_AND_HEAD, path) for path in HTML_PAGES),
+    (GET_AND_HEAD, "/mapping"),
+    (GET_AND_HEAD, "/mapping?x=1"),
+    (GET_AND_HEAD, "/mappings"),
+    (GET_AND_HEAD, "/mappings?x=1&y=2"),
+    (GET_AND_HEAD, "/mappings/"),
+    (GET_AND_HEAD, "/mappings/?x=1"),
+    (GET_AND_HEAD, "/mapping/unspsc-to-cpv-mapping"),
+    (GET_AND_HEAD, "/mapping/cpv-to-unspsc-mapping?x=1&y=2"),
+    (GET_AND_HEAD, "/mappings/unspsc-to-cpv-mapping"),
+    (GET_AND_HEAD, "/mappings/unspsc-to-cpv-mapping/"),
+    (GET_AND_HEAD, "/mappings/cpv-to-unspsc-mapping/?x=1"),
+    (("GET",), "/mapping/unspsc-to-cpv-mapping/sample"),
+    (("GET",), "/mapping/cpv-to-unspsc-mapping/sample"),
+    (("GET",), "/mappings/unspsc-to-cpv-mapping/sample"),
+    (("GET",), "/mappings/cpv-to-unspsc-mapping/sample?x=1"),
+    (GET_AND_HEAD, "/mapping/nope"),
+    (GET_AND_HEAD, "/mapping/nope/"),
+    (GET_AND_HEAD, "/mappings/nope"),
+    (GET_AND_HEAD, "/mappings/nope/"),
+    (("GET",), "/mapping/nope/sample"),
+    (("GET",), "/mappings/nope/sample"),
+    (GET_AND_HEAD, "/mapping/UNSPSC-to-CPV-mapping/"),
+    (GET_AND_HEAD, "/mapping/constructor/"),
+    (("POST",), "/"),
+    (("POST",), "/mapping/"),
+    (("POST",), "/mapping/unspsc-to-cpv-mapping/"),
+]
+
+
+class FixedDatetime(datetime):
+    @classmethod
+    def now(cls, tz: Any = None) -> datetime:
+        return PAGE_FIXTURE_NOW
+
+
+def page_body(path: str, response: httpx.Response) -> dict[str, object]:
+    content_type = response.headers.get("content-type", "")
+    if not response.content:
+        return {"kind": "empty"}
+    if content_type.startswith("text/html"):
+        name = HTML_PAGES[path]
+        (PAGE_FIXTURE_DIR / f"{name}.html").write_bytes(response.content)
+        return {"kind": "html", "file": f"pages/{name}.html"}
+    if content_type.startswith("application/json"):
+        return {"kind": "json", "value": response.json()}
+    return {"kind": "sha256", "value": hashlib.sha256(response.content).hexdigest()}
+
+
+def build_pages_fixture() -> dict[str, object]:
+    PAGE_FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
+    cases = []
+    # Without a with block TestClient skips the lifespan, so no Qdrant,
+    # Redis or Hugging Face client starts.
+    client = TestClient(fastapi_app, base_url="http://testserver")
+    # A fixed asset version keeps ?v= in the pages whether or not the
+    # frontend was built; asset-url.json covers the real hashes.
+    with (
+        patch.object(web, "datetime", FixedDatetime),
+        patch.object(dependencies, "_asset_content_version", lambda path: "fixture"),
+        patch.object(dependencies, "_asset_version_cache", {}),
+    ):
+        for methods, path in PAGE_REQUESTS:
+            for method in methods:
+                response = client.request(
+                    method,
+                    path,
+                    headers={"accept-encoding": "identity"},
+                    follow_redirects=False,
+                )
+                assert "set-cookie" not in response.headers, path
+                cases.append(
+                    {
+                        "method": method,
+                        "path": path,
+                        "status": response.status_code,
+                        "headers": {
+                            name: response.headers[name]
+                            for name in PAGE_HEADERS
+                            if name in response.headers
+                        },
+                        "body": page_body(path, response),
+                    }
+                )
+    return {
+        "now": PAGE_FIXTURE_NOW.isoformat(),
+        "origin": "http://testserver",
+        "cases": cases,
+    }
+
+
 FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "id-lookup.json": build_id_lookup_fixture,
     "python-str.json": build_python_str_fixture,
@@ -2242,6 +2443,9 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "mapping-urls.json": build_mapping_urls_fixture,
     "request-url.json": build_request_url_fixture,
     "classification.json": build_classification_fixture,
+    "mapping-store.json": build_mapping_store_fixture,
+    "asset-url.json": build_asset_url_fixture,
+    "pages.json": build_pages_fixture,
 }
 
 

@@ -91,6 +91,10 @@ const classifierEnvSchema = z.object({
     .default(2048),
 });
 
+export const CLASSIFIER_TYPES: ReadonlySet<string> = new Set(
+  Object.keys(CLASSIFIERS),
+);
+
 export function buildClassifierConfig(
   env: NodeJS.ProcessEnv,
 ): ClassifierConfigMap {

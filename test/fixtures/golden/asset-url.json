@@ -1,0 +1,25 @@
+{
+  "files": {
+    "/css/styles.css": "Ym9keSB7IGNvbG9yOiByZWQ7IH0K",
+    "/js/common.js": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/w==",
+    "/js/empty.js": "",
+    "/js/nested/deep.js": "ZXhwb3J0IGNvbnN0IHggPSAnw6knOwo="
+  },
+  "directories": [
+    "/js/folder.js"
+  ],
+  "steps": [
+    {"call": "/css/styles.css", "url": "/static/css/styles.css?v=9767e91e9d"},
+    {"call": "/js/common.js", "url": "/static/js/common.js?v=40aff2e9d2"},
+    {"call": "/js/empty.js", "url": "/static/js/empty.js?v=e3b0c44298"},
+    {"call": "/js/nested/deep.js", "url": "/static/js/nested/deep.js?v=201416e221"},
+    {"call": "/js/missing.js", "url": "/static/js/missing.js"},
+    {"call": "/js/folder.js", "url": "/static/js/folder.js"},
+    {"call": "css/styles.css", "url": "/staticcss/styles.css?v=9767e91e9d"},
+    {"call": "/js/late.js", "url": "/static/js/late.js"},
+    {"write": "/js/late.js", "base64": "Zmlyc3Q="},
+    {"call": "/js/late.js", "url": "/static/js/late.js?v=a7937b64b8"},
+    {"write": "/js/late.js", "base64": "c2Vjb25k"},
+    {"call": "/js/late.js", "url": "/static/js/late.js?v=a7937b64b8"}
+  ]
+}
