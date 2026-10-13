@@ -1,0 +1,285 @@
+export function UnspscGuide() {
+  return (
+    <section
+      id="unspsc-seo-guide"
+      className="bg-white p-6 rounded-lg shadow max-w-5xl mx-auto mt-4"
+    >
+      <h2 className="text-xl font-bold text-gray-800 mb-4 border-b border-gray-200 pb-3">
+        <span className="text-sky-600">UNSPSC</span> Classification Guide
+      </h2>
+      <p className="text-gray-600 mb-6 leading-relaxed">
+        Whether you are a vendor submitting a proposal to a government agency or
+        a procurement manager analyzing corporate spend, understanding the
+        United Nations Standard Products and Services Code (UNSPSC) is
+        essential. Navigating global supply chains requires a universal
+        language, and UNSPSC serves as the standard vocabulary for products and
+        services across all industry sectors.
+      </p>
+      <h3 className="text-lg font-semibold text-gray-800 mb-3 mt-8 flex items-center">
+        <span className="w-1.5 h-1.5 bg-sky-600 rounded-full mr-2"></span> What
+        is the UNSPSC system?
+      </h3>
+      <p className="text-gray-600 mb-3 leading-relaxed">
+        {
+          "The UNSPSC is a globally recognized, open, and multi-sector taxonomy used to classify both products and services. Originally developed jointly by the United Nations Development Programme (UNDP) and Dun & Bradstreet in 1998, it is now managed by GS1 US."
+        }
+      </p>
+      <p className="text-gray-600 mb-4 leading-relaxed">
+        Unlike other coding systems that might only focus on specific industries
+        or regions, UNSPSC is designed to cover everything from raw materials
+        and heavy machinery to software subscriptions and janitorial services.
+        Because it is a unified global standard, it removes the friction of
+        language barriers and regional dialects in B2B (business-to-business)
+        commerce.
+      </p>
+      <h3 className="text-lg font-semibold text-gray-800 mb-3 mt-8 flex items-center">
+        <span className="w-1.5 h-1.5 bg-sky-600 rounded-full mr-2"></span> Why
+        do businesses and governments use UNSPSC?
+      </h3>
+      <div className="grid md:grid-cols-2 gap-4 mb-6">
+        <div className="bg-gray-50 p-4 rounded-lg border border-gray-100 hover:border-sky-200 transition-colors">
+          <h4 className="font-semibold text-gray-800 mb-2 flex items-center">
+            <svg
+              className="w-4 h-4 text-sky-600 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              ></path>
+            </svg>{" "}
+            Advanced Spend Analysis
+          </h4>
+          <p className="text-sm text-gray-600">
+            Procurement departments use these codes to categorize purchases,
+            identify spending patterns, negotiate better bulk rates, and
+            eliminate redundant purchases.
+          </p>
+        </div>
+        <div className="bg-gray-50 p-4 rounded-lg border border-gray-100 hover:border-sky-200 transition-colors">
+          <h4 className="font-semibold text-gray-800 mb-2 flex items-center">
+            <svg
+              className="w-4 h-4 text-sky-600 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+              ></path>
+            </svg>{" "}
+            Streamlined E-Procurement
+          </h4>
+          <p className="text-sm text-gray-600">
+            In B2B marketplaces, standardizing product catalogs with UNSPSC
+            codes allows buyers to search for specific items across multiple
+            suppliers instantly.
+          </p>
+        </div>
+        <div className="bg-gray-50 p-4 rounded-lg border border-gray-100 hover:border-sky-200 transition-colors">
+          <h4 className="font-semibold text-gray-800 mb-2 flex items-center">
+            <svg
+              className="w-4 h-4 text-sky-600 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+              ></path>
+            </svg>{" "}
+            Government Contracting
+          </h4>
+          <p className="text-sm text-gray-600">
+            Many federal, state, and local government agencies require vendors
+            to list UNSPSC codes, automating the bidding process and matching
+            contracts to suppliers.
+          </p>
+        </div>
+        <div className="bg-gray-50 p-4 rounded-lg border border-gray-100 hover:border-sky-200 transition-colors">
+          <h4 className="font-semibold text-gray-800 mb-2 flex items-center">
+            <svg
+              className="w-4 h-4 text-sky-600 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              ></path>
+            </svg>{" "}
+            Improved Product Discovery
+          </h4>
+          <p className="text-sm text-gray-600">
+            For suppliers, tagging their catalog with accurate codes ensures
+            products appear in correct categories when buyers use global
+            procurement networks.
+          </p>
+        </div>
+      </div>
+      <h3 className="text-lg font-semibold text-gray-800 mb-3 mt-8 flex items-center">
+        <span className="w-1.5 h-1.5 bg-sky-600 rounded-full mr-2"></span> The
+        8-digit code structure
+      </h3>
+      <p className="text-gray-600 mb-4 leading-relaxed">
+        The true power of the UNSPSC taxonomy lies in its logical, four-level
+        hierarchical structure. Each code consists of eight digits, broken into
+        two-digit pairs.
+      </p>
+      <div className="overflow-x-auto mb-4">
+        <table className="min-w-full text-base text-left border border-gray-200 rounded-lg overflow-hidden">
+          <thead className="text-gray-700 uppercase bg-sky-50 border-b border-sky-100">
+            <tr>
+              <th scope="col" className="px-4 py-3 font-semibold">
+                Level
+              </th>
+              <th scope="col" className="px-4 py-3 font-semibold">
+                Digits
+              </th>
+              <th scope="col" className="px-4 py-3 font-semibold">
+                Example
+              </th>
+            </tr>
+          </thead>
+          <tbody className="text-gray-600">
+            <tr className="border-b border-gray-100 hover:bg-sky-50/50 transition-colors">
+              <td className="px-4 py-3 font-semibold text-gray-800">Segment</td>
+              <td className="px-4 py-3 font-mono ">
+                <b>XX</b>000000
+              </td>
+              <td className="px-4 py-3">
+                <b>44</b>
+                {"000000 - Office Equipment & Accessories"}
+              </td>
+            </tr>
+            <tr className="border-b border-gray-100 hover:bg-sky-50/50 transition-colors">
+              <td className="px-4 py-3 font-semibold text-gray-800">Family</td>
+              <td className="px-4 py-3 font-mono ">
+                XX<b>YY</b>0000
+              </td>
+              <td className="px-4 py-3">
+                <b>4412</b>0000 - Office supplies
+              </td>
+            </tr>
+            <tr className="border-b border-gray-100 hover:bg-sky-50/50 transition-colors">
+              <td className="px-4 py-3 font-semibold text-gray-800">Class</td>
+              <td className="px-4 py-3 font-mono ">
+                XXYY<b>ZZ</b>00
+              </td>
+              <td className="px-4 py-3">
+                <b>441217</b>00 - Writing instruments
+              </td>
+            </tr>
+            <tr className="hover:bg-sky-50/50 transition-colors">
+              <td className="px-4 py-3 font-semibold text-gray-800">
+                Commodity
+              </td>
+              <td className="px-4 py-3 font-mono ">
+                XXYYZZ<b>KK</b>
+              </td>
+              <td className="px-4 py-3">
+                <b>44121706</b> - Wooden pencils
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p className="text-gray-500 text-sm mb-6">
+        Note: Sometimes a 9th and 10th digit are added to represent the
+        "business function" such as retail, wholesale, or rental, but the core
+        classification relies on the 8-digit structure.
+      </p>
+      <div className="bg-sky-50 border-l-4 border-sky-500 p-4 mb-6 rounded-r-lg">
+        <p className="text-gray-700">
+          <strong className="text-sky-700">Current Version</strong> is UNSPSC
+          UNv260801.1 (18 March 2025) and it includes over{" "}
+          <span className="font-semibold">150,000+</span> active codes covering
+          products and services across all industries.
+        </p>
+      </div>
+      <h3 className="text-lg font-semibold text-gray-800 mb-3 mt-8 flex items-center">
+        <span className="w-1.5 h-1.5 bg-sky-600 rounded-full mr-2"></span>{" "}
+        UNSPSC vs NAICS: What's the difference?
+      </h3>
+      <p className="text-gray-600 mb-4 leading-relaxed">
+        A common point of confusion is the difference between UNSPSC and NAICS
+        (North American Industry Classification System) codes.
+      </p>
+      <div className="grid md:grid-cols-2 gap-4 mb-6">
+        <div className="bg-amber-50 p-4 rounded-lg border border-amber-100">
+          <h4 className="font-semibold text-amber-800 mb-2">
+            NAICS = Companies
+          </h4>
+          <p className="text-sm text-gray-600">
+            Classifies the <strong>company</strong> based on its primary
+            industry or economic activity. Example: "Computer Manufacturing"
+            business.
+          </p>
+        </div>
+        <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
+          <h4 className="font-semibold text-emerald-800 mb-2">
+            UNSPSC = Products
+          </h4>
+          <p className="text-sm text-gray-600">
+            Classifies the <strong>products and services</strong> that the
+            company buys or sells. That same manufacturer uses dozens of UNSPSC
+            codes.
+          </p>
+        </div>
+      </div>
+      <h3 className="text-lg font-semibold text-gray-800 mb-3 mt-8 flex items-center">
+        <span className="w-1.5 h-1.5 bg-sky-600 rounded-full mr-2"></span> Best
+        practices for finding the right code
+      </h3>
+      <p className="text-gray-600 mb-4 leading-relaxed">
+        Finding the perfect code can sometimes feel like finding a needle in a
+        haystack, as there are over 150,000 active codes. Here are tips for
+        using our UNSPSC code finder:
+      </p>
+      <ul className="text-gray-600 space-y-3 mb-4" role="list">
+        <li className="flex items-start">
+          <span className="text-sky-600 mr-2 mt-1">•</span>{" "}
+          <span>
+            <strong className="text-gray-800">
+              Search for the noun, not the adjective:
+            </strong>{" "}
+            Start with the core product (e.g., "monitor") rather than
+            descriptive words (e.g., "flat screen").
+          </span>
+        </li>
+        <li className="flex items-start">
+          <span className="text-sky-600 mr-2 mt-1">•</span>{" "}
+          <span>
+            <strong className="text-gray-800">
+              Think in broad categories:
+            </strong>{" "}
+            If your specific brand or highly niche product isn't showing up,
+            think about what broader category it falls into.
+          </span>
+        </li>
+        <li className="flex items-start">
+          <span className="text-sky-600 mr-2 mt-1">•</span>{" "}
+          <span>
+            <strong className="text-gray-800">Check the hierarchy:</strong> When
+            you find a code that seems close, look at the "Class" and "Family"
+            levels above it for a more accurate "Commodity" code.
+          </span>
+        </li>
+      </ul>
+    </section>
+  );
+}
