@@ -421,10 +421,19 @@ describe("HTTP layer (e2e)", () => {
   );
 
   it("answers unknown paths with FastAPI's 404 body", async () => {
-    const response = await request(server).get("/no-such-page");
+    // A one-segment path such as /no-such-page is a classifier page route,
+    // in Python as here; an empty first segment matches no route.
+    const response = await request(server).get("//no-such-page");
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ detail: "Not Found" });
+  });
+
+  it("answers an unknown first segment as an unknown classifier", async () => {
+    const response = await request(server).get("/no-such-page");
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ detail: "Type 'no-such-page' not found" });
   });
 
   it("answers an unsupported method with 405 and Allow", async () => {

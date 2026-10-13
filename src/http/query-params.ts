@@ -18,7 +18,8 @@ const PYDANTIC_INT = /^[+-]?[0-9]+(?:_[0-9]+)*(?:\.0+)?$/;
 export function parsePydanticInt(text: string): number | undefined {
   const stripped = pyStrip(text);
   if (!PYDANTIC_INT.test(stripped)) return undefined;
-  return Number(stripped.replace(/_|\.0+$/g, ""));
+  // Python has no negative zero integer.
+  return Number(stripped.replace(/_|\.0+$/g, "")) || 0;
 }
 
 /** An optional integer query parameter, or FastAPI's 422 for a bad one. */
