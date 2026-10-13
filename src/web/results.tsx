@@ -114,7 +114,9 @@ function CodeDigits({
   readonly classifierType: string;
 }) {
   const spaced = !UNSPACED_CLASSIFIERS.has(classifierType);
-  return groupOriginalIdTokens(originalId).map((token, index) => (
+  // Jinja renders a missing original_id as an empty string.
+  const id = originalId === undefined ? "" : originalId;
+  return groupOriginalIdTokens(id).map((token, index) => (
     <Fragment key={index}>
       <span className={DIGIT_COLORS[token.char] ?? "text-gray-600"}>
         {token.char}

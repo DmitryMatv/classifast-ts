@@ -214,6 +214,10 @@ first segment, so `/no-such-page` answers the classifier 404
 module import order: `AppModule` imports `ClassifierPageModule` last, and any
 new route, including `/{classifier_type}/fragment`, must register before it.
 The handler reads the decoded path itself instead of Express params.
+Python rebuilds its redirect from the decoded URL, so an encoded `?` or `#`
+in a classifier slug splits the path there: `/UNSPSC/a%3Fb/` redirects to
+`/UNSPSC/ab/?b/`, and `/UNSPSC/a%23b/?x=1` loses its query. Nest keeps the
+request's own query string. This is a decided divergence.
 
 Classifier page parity cases use a recording fake classification service and
 a crawler switch, on both sides: the exporter patches the FastAPI app and

@@ -17,6 +17,8 @@ import {
   classifierConfigFor,
   getAllCollectionNames,
 } from "../src/classifier/classifier-config.js";
+import { get as httpGet, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { GoogleCrawlerVerifier } from "../src/crawlers/google-crawlers.js";
 import {
   configureHttpApp,
@@ -124,6 +126,7 @@ const fake = {
   crawler: false,
   mode: "success" as NonNullable<PageCase["classify"]>,
   calls: [] as NonNullable<PageCase["calls"]>,
+  verify: undefined as (() => Promise<boolean>) | undefined,
 };
 const fakeClassifiers = classifierConfigFor({ model: "fake", dims: 1 });
 
@@ -179,7 +182,9 @@ beforeAll(async () => {
     .overrideProvider(ClassificationService)
     .useValue({ classify: fakeClassify })
     .overrideProvider(GoogleCrawlerVerifier)
-    .useValue({ isVerified: () => Promise.resolve(fake.crawler) })
+    .useValue({
+      isVerified: () => fake.verify?.() ?? Promise.resolve(fake.crawler),
+    })
     .compile();
   app = moduleRef.createNestApplication<NestExpressApplication>(
     createHttpAdapter(),
@@ -263,6 +268,44 @@ describe("pages match the FastAPI app (parity)", () => {
           page.body.value,
         );
         break;
+    }
+  });
+});
+
+describe("classifier page lifecycle", () => {
+  afterEach(() => {
+    fake.verify = undefined;
+  });
+
+  it("skips classification when the client leaves during crawler verification", async () => {
+    let started!: () => void;
+    let finish!: (verified: boolean) => void;
+    const verificationStarted = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    fake.verify = () => {
+      started();
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    };
+    fake.calls = [];
+    const server: Server = app.getHttpServer();
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    try {
+      const { port } = server.address() as AddressInfo;
+      const client = httpGet({ host: "127.0.0.1", port, path: "/UNSPSC/" });
+      client.on("error", () => {});
+      await verificationStarted;
+      client.destroy();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      finish(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(fake.calls).toEqual([]);
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
     }
   });
 });

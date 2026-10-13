@@ -183,9 +183,12 @@ export class ClassifierPageController {
       requestedTopK,
       DEFAULT_TOP_K,
     );
+    // Listen before crawler verification, which can wait on the network.
+    const signal = disconnectSignal(res);
     const isVerifiedCrawler = await this.crawlers.isVerified(
       crawlerRequestOf(req),
     );
+    if (signal.aborted) return;
     const allowQuerySsr =
       isVerifiedCrawler &&
       shouldSsr(
@@ -194,7 +197,6 @@ export class ClassifierPageController {
         canonicalPath,
         this.sitemapQueryPaths,
       );
-    const signal = disconnectSignal(res);
     const seeded = await seedClassifierPageResults(
       (text) =>
         this.classifier.classify(signal, {
