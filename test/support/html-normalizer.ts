@@ -82,11 +82,8 @@ function styleDeclarations(style: string): string {
     .join(";");
 }
 
-// The ?v= asset hash exists only after a frontend build, which a fixture and
-// a test run may not share; asset-url.spec.ts covers the hashes.
 function attributeValue(name: string, value: string): string {
-  if (name === "style") return styleDeclarations(value);
-  return value.replace(/\?v=[^"&#\s]*/g, "");
+  return name === "style" ? styleDeclarations(value) : value;
 }
 
 function openTag(element: Element): string {
@@ -119,9 +116,11 @@ function rawText(element: Element): string | undefined {
 type Item = { node: Element } | { text: string };
 
 // Comments go and adjacent text merges. Outside <pre>, runs of HTML
-// whitespace collapse to one space, a whitespace-only run survives as " "
-// only between an inline element and its sibling, and the first and last
-// text in an element is trimmed.
+// whitespace collapse to one space, the first and last text in an element
+// lose edge spaces, and a whitespace-only run survives as " " only next to
+// an inline element. Edge trimming cannot tell `<span>a </span><span>b`
+// from `<span>a</span><span>b`; the templates indent inline text so widely
+// that keeping edge spaces would flag dozens of invisible differences.
 function normalizedChildren(
   nodes: readonly ChildNode[],
   preformatted: boolean,
@@ -144,8 +143,9 @@ function normalizedChildren(
       return;
     }
     let text = item.text.replace(/[ \t\n\f\r]+/g, " ");
-    if (index === 0) text = text.trimStart();
-    if (index === merged.length - 1) text = text.trimEnd();
+    // Only HTML whitespace collapses; a nonbreaking space renders.
+    if (index === 0) text = text.replace(/^ /, "");
+    if (index === merged.length - 1) text = text.replace(/ $/, "");
     if (text === "") return;
     if (text === " ") {
       const neighbours = [merged[index - 1], merged[index + 1]];
