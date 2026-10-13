@@ -88,10 +88,10 @@ class Ledger implements Pick<Quota, "check" | "charge"> {
 interface Harness {
   readonly ledger: Ledger;
   readonly ran: string[];
-  submit(
+  readonly submit: (
     query: string,
     overrides?: Partial<FragmentDeps>,
-  ): {
+  ) => {
     readonly result: Promise<FragmentOutcome>;
     readonly controller: AbortController;
   };
@@ -122,7 +122,7 @@ function harness(ledger: Ledger): Harness {
   return {
     ledger,
     ran,
-    submit(query, overrides = {}) {
+    submit: (query, overrides = {}) => {
       const controller = new AbortController();
       const deps: FragmentDeps = {
         isVerifiedCrawler: () => Promise.resolve(false),
