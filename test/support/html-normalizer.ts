@@ -1,4 +1,4 @@
-import { parse, type DefaultTreeAdapterTypes } from "parse5";
+import { parse, parseFragment, type DefaultTreeAdapterTypes } from "parse5";
 
 type ChildNode = DefaultTreeAdapterTypes.ChildNode;
 type Element = DefaultTreeAdapterTypes.Element;
@@ -242,6 +242,16 @@ class Printer {
     if ("node" in item) this.element(item.node, depth, preformatted);
     else this.lines.push(`${"  ".repeat(depth)}${JSON.stringify(item.text)}`);
   }
+}
+
+/** normalizeHtml for a fragment that the browser swaps into a page. */
+export function normalizeFragment(html: string): string {
+  const fragment = parseFragment(html);
+  const printer = new Printer(imageSourcesOf(fragment.childNodes, new Set()));
+  for (const item of normalizedChildren(fragment.childNodes, false)) {
+    printer.item(item, 0, false);
+  }
+  return printer.lines.join("\n");
 }
 
 // A canonical, line-per-node rendering of an HTML document for parity

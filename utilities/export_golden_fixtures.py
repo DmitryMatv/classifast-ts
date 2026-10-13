@@ -96,7 +96,8 @@ from app.main import (
 )
 from app.main import app as fastapi_app
 from app.mapping_store import get_mapping_product, list_mapping_products
-from app.query_enhancer import QueryEnhancer, _is_code_like
+from app.usage_tracker import QuotaUnavailableError, SignedInCaller, UsageStatus
+from app.query_enhancer import EnhancementStatus, QueryEnhancer, _is_code_like
 from app.reranker import OpenRouterReranker
 from app.web import build_mapping_canonical_url
 
@@ -2320,13 +2321,17 @@ PAGE_FIXTURE_DIR = FIXTURE_DIR / "pages"
 PAGE_HEADERS = (
     "allow",
     "cache-control",
+    "cache-tag",
     "cloudflare-cdn-cache-control",
     "content-disposition",
     "content-type",
+    "hx-push-url",
     "link",
     "location",
     "retry-after",
     "vary",
+    "x-ratelimit-limit",
+    "x-ratelimit-remaining",
     "x-robots-tag",
 )
 @dataclasses.dataclass(frozen=True)
@@ -2336,7 +2341,8 @@ class PageRequest:
     ``html`` names the fixture file that keeps a full HTML body. ``regions``
     names the groups of elements that ``page_regions`` keeps instead.
     Classifier page requests also set the crawler check and the fake
-    classification outcome.
+    classification outcome. Fragment requests also set the fake quota and
+    store their body as a region.
     """
 
     methods: tuple[str, ...]
@@ -2346,6 +2352,7 @@ class PageRequest:
     crawler: bool = False
     classify: str = "success"
     classifier: bool = False
+    quota: str | None = None
 
 
 GET_AND_HEAD = ("GET", "HEAD")
@@ -2363,6 +2370,25 @@ def classifier_request(
 ) -> PageRequest:
     return PageRequest(
         methods, path, html, regions, crawler, classify, classifier=True
+    )
+
+
+def fragment_request(
+    path: str,
+    *,
+    methods: tuple[str, ...] = ("GET",),
+    quota: str = "allowed",
+    classify: str = "success",
+    crawler: bool = False,
+) -> PageRequest:
+    return PageRequest(
+        methods, path, None, (), crawler, classify, classifier=True, quota=quota
+    )
+
+
+def laptop_fragment(query: str = "", **options: Any) -> PageRequest:
+    return fragment_request(
+        f"/UNSPSC/fragment?product_description=laptop%20computer{query}", **options
     )
 
 
@@ -2517,6 +2543,80 @@ PAGE_REQUESTS: list[PageRequest] = [
     classifier_request(("POST",), "/UNSPSC/"),
     classifier_request(("POST",), "/UNSPSC/laptop_computer/"),
     classifier_request(("POST",), "/UNSPSC"),
+    # GET /{classifier_type}/fragment: push_url and url_change
+    laptop_fragment(),
+    *(
+        laptop_fragment(query)
+        for query in (
+            "&push_url=false",
+            "&push_url=true",
+            "&push_url=YES",
+            "&push_url=0&url_change=1",
+            "&url_change=false",
+            "&url_change=on",
+            "&push_url=true&url_change=false",
+        )
+    ),
+    # Enhancement, options and escaping
+    laptop_fragment("&enhance_query=1"),
+    laptop_fragment("&enhance_query=1", classify="enhancement_failed"),
+    laptop_fragment("&enhance_query=1&push_url=false", classify="enhancement_failed"),
+    laptop_fragment("&enhance_query=true"),
+    laptop_fragment("&top_k=30"),
+    laptop_fragment("&top_k=10&top_k=%2B7"),
+    laptop_fragment("&top_k=1_0"),
+    fragment_request(
+        "/CPV/fragment?product_description=chair"
+        "&version=CPV%202008%20Supplementary%20codes"
+    ),
+    fragment_request("/CPV/fragment?product_description=chair&version=bogus"),
+    fragment_request(
+        "/HTS/fragment?product_description=it%27s%20%3Cb%3E%20%26%20caf%C3%A9"
+    ),
+    fragment_request("/UNSPSC/fragment?product_description=a&product_description=b%2Fc"),
+    fragment_request("/unspsc/fragment?product_description=%20%20laptop%0A%20computer"),
+    fragment_request("/NACE/fragment?product_description=pharmacy"),
+    fragment_request("/nace/fragment?product_description=pharmacy"),
+    laptop_fragment(classify="empty"),
+    # Empty descriptions skip classification and quota
+    fragment_request("/UNSPSC/fragment?product_description="),
+    fragment_request("/UNSPSC/fragment?product_description=+%09+"),
+    fragment_request("/NOPE/fragment?product_description="),
+    fragment_request("/GMDN/fragment?product_description=a"),
+    fragment_request("/NOPE/fragment?product_description=a"),
+    # FastAPI's 422 bodies
+    *(
+        fragment_request(path)
+        for path in (
+            "/UNSPSC/fragment",
+            "/NOPE/fragment?top_k=abc",
+            "/UNSPSC/fragment?product_description=a&top_k=0",
+            "/UNSPSC/fragment?product_description=a&top_k=101",
+            "/UNSPSC/fragment?product_description=a&top_k=99999999999999999999",
+            "/UNSPSC/fragment?product_description=a&top_k=5.5",
+            "/UNSPSC/fragment?product_description=a&top_k=",
+            "/UNSPSC/fragment?product_description=a&push_url=maybe",
+            "/UNSPSC/fragment?product_description=a&push_url=%20true",
+            "/UNSPSC/fragment?product_description=a&url_change=",
+            "/UNSPSC/fragment?top_k=-1&url_change=2&push_url=x&enhance_query=x",
+        )
+    ),
+    # Quota, queue and failures
+    laptop_fragment(quota="denied_anonymous"),
+    laptop_fragment(quota="denied_signed_in"),
+    laptop_fragment("&push_url=false", quota="denied_anonymous"),
+    laptop_fragment(quota="unavailable"),
+    laptop_fragment(quota="charge_denied"),
+    laptop_fragment(quota="charge_unavailable"),
+    laptop_fragment(classify="queue_full"),
+    laptop_fragment(classify="failure"),
+    laptop_fragment(classify="queue_full", quota="denied_anonymous"),
+    laptop_fragment(crawler=True, quota="denied_anonymous"),
+    laptop_fragment(crawler=True, classify="queue_full"),
+    # Other methods and neighbouring paths
+    laptop_fragment(methods=("HEAD", "POST")),
+    fragment_request("/mapping/fragment?product_description=a"),
+    classifier_request(GET, "/UNSPSC/fragment/?product_description=a", regions=RESULTS),
 ]
 
 # The fake classification outcome: codes of several shapes, scores outside
@@ -2571,12 +2671,20 @@ PAGE_FAKE_ELAPSED_SECONDS = 0.4567
 PAGE_FAKE_TOOLTIPS = {"HTS": "Codes are <US> specific"}
 
 
-class FakeClassificationService:
-    """Records each call and answers with ``PAGE_FAKE_RESULTS``."""
+PAGE_FAKE_QUOTA_LIMITS = {"anonymous": 3, "signedIn": 10}
 
-    def __init__(self) -> None:
+
+class FakeClassificationService:
+    """Records each call and answers with ``PAGE_FAKE_RESULTS``.
+
+    Like ClassificationService, it refuses a full queue before ``authorize``
+    and runs ``authorize`` before the pipeline.
+    """
+
+    def __init__(self, events: list[str]) -> None:
         self.mode = "success"
         self.calls: list[dict[str, object]] = []
+        self.events = events
 
     async def classify(
         self,
@@ -2584,35 +2692,99 @@ class FakeClassificationService:
         classifier_type: str,
         version: str | None = None,
         top_k: int = 3,
-        **kwargs: Any,
+        enhancement_enabled: bool | None = None,
+        *,
+        authorize: Callable[[], Any] | None = None,
     ) -> ClassificationOutcome:
-        assert not kwargs, kwargs
-        self.calls.append(
-            {
-                "query": query,
-                "classifierType": classifier_type,
-                "version": version,
-                "topK": top_k,
-            }
-        )
+        call: dict[str, object] = {
+            "query": query,
+            "classifierType": classifier_type,
+            "version": version,
+            "topK": top_k,
+        }
+        if enhancement_enabled is not None:
+            call["enhance"] = enhancement_enabled
+        self.calls.append(call)
+        self.events.append("classify")
         if self.mode == "queue_full":
             raise ClassificationQueueFull()
+        if authorize is not None:
+            await authorize()
         if self.mode == "failure":
             raise RuntimeError("fake classification failure")
-        version_config: dict[str, Any] = dict(
-            CLASSIFIER_CONFIG[classifier_type]["versions"][version or ""]
-        )
+        versions = CLASSIFIER_CONFIG[classifier_type]["versions"]
+        if version and version not in versions:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Version '{version}' for classifier '{classifier_type}' not found",
+            )
+        version_config: dict[str, Any] = dict(versions[version or ""])
         if classifier_type in PAGE_FAKE_TOOLTIPS:
             version_config["tooltip"] = PAGE_FAKE_TOOLTIPS[classifier_type]
         return ClassificationOutcome(
-            results=json.loads(json.dumps(PAGE_FAKE_RESULTS)),
+            results=(
+                []
+                if self.mode == "empty"
+                else json.loads(json.dumps(PAGE_FAKE_RESULTS))
+            ),
             version_config=version_config,
             version_name=version or "",
             collection_name=version_config["collection_name"],
             query=query,
             elapsed_seconds=PAGE_FAKE_ELAPSED_SECONDS,
-            enhancement_status="applied",
+            enhancement_status=(
+                EnhancementStatus.FAILED
+                if self.mode == "enhancement_failed"
+                else EnhancementStatus.APPLIED
+            ),
         )
+
+
+class FakeQuota:
+    """The fragment's caller lookup, read-only check and charge.
+
+    Modes: allowed, denied_anonymous and denied_signed_in (the check
+    refuses), unavailable (the check fails), charge_denied and
+    charge_unavailable (the check passes and the charge does not).
+    """
+
+    def __init__(self, events: list[str]) -> None:
+        self.mode = "allowed"
+        self.events = events
+
+    def _status(self, caller: SignedInCaller | None, allowed: bool) -> UsageStatus:
+        limit = PAGE_FAKE_QUOTA_LIMITS["signedIn" if caller else "anonymous"]
+        return UsageStatus(
+            allowed=allowed,
+            remaining=limit - 1 if allowed else 0,
+            limit=limit,
+            is_authenticated=caller is not None,
+            is_pro=False,
+        )
+
+    async def resolve_caller(
+        self, request: Request, redis_client: Any
+    ) -> SignedInCaller | None:
+        self.events.append("caller")
+        if self.mode == "denied_signed_in":
+            return SignedInCaller(user_id="user-1", is_pro=False)
+        return None
+
+    async def check(
+        self, request: Request, redis_client: Any, caller: SignedInCaller | None
+    ) -> UsageStatus:
+        self.events.append("check")
+        if self.mode == "unavailable":
+            raise QuotaUnavailableError("Usage tracking is temporarily unavailable")
+        return self._status(caller, not self.mode.startswith("denied"))
+
+    async def charge(
+        self, request: Request, redis_client: Any, caller: SignedInCaller | None
+    ) -> UsageStatus:
+        self.events.append("charge")
+        if self.mode == "charge_unavailable":
+            raise QuotaUnavailableError("Usage tracking is temporarily unavailable")
+        return self._status(caller, self.mode != "charge_denied")
 
 
 class FixedDatetime(datetime):
@@ -2710,6 +2882,10 @@ def page_body(
     if not response.content:
         return {"kind": "empty"}
     if content_type.startswith("text/html"):
+        if request.quota is not None:
+            if response.text not in regions:
+                regions.append(response.text)
+            return {"kind": "fragment", "region": regions.index(response.text)}
         if request.regions:
             indexes = []
             for region in page_regions(response.text, request.regions):
@@ -2733,10 +2909,13 @@ def build_pages_fixture() -> dict[str, object]:
     PAGE_FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
     cases = []
     regions: list[str] = []
-    fake = FakeClassificationService()
+    events: list[str] = []
+    fake = FakeClassificationService(events)
+    quota = FakeQuota(events)
     crawler = False
 
     async def is_verified_crawler(request: Request) -> bool:
+        events.append("crawler")
         return crawler
 
     fastapi_app.state.classification_service = fake
@@ -2751,6 +2930,9 @@ def build_pages_fixture() -> dict[str, object]:
         patch.object(
             web, "is_verified_google_search_crawler_request", is_verified_crawler
         ),
+        patch.object(web, "resolve_signed_in_caller", quota.resolve_caller),
+        patch.object(web, "check_usage", quota.check),
+        patch.object(web, "reserve_usage", quota.charge),
         patch.object(dependencies, "_asset_content_version", lambda path: "fixture"),
         patch.object(dependencies, "_asset_version_cache", {}),
     ):
@@ -2759,6 +2941,8 @@ def build_pages_fixture() -> dict[str, object]:
                 crawler = request.crawler
                 fake.mode = request.classify
                 fake.calls.clear()
+                quota.mode = request.quota or "allowed"
+                events.clear()
                 response = client.request(
                     method,
                     request.path,
@@ -2781,6 +2965,9 @@ def build_pages_fixture() -> dict[str, object]:
                     case["crawler"] = request.crawler
                     case["classify"] = request.classify
                     case["calls"] = list(fake.calls)
+                if request.quota is not None:
+                    case["quota"] = request.quota
+                    case["events"] = list(events)
                 cases.append(case)
     del fastapi_app.state.classification_service
     return {
@@ -2790,6 +2977,7 @@ def build_pages_fixture() -> dict[str, object]:
             "results": PAGE_FAKE_RESULTS,
             "elapsedSeconds": PAGE_FAKE_ELAPSED_SECONDS,
             "tooltips": PAGE_FAKE_TOOLTIPS,
+            "quotaLimits": PAGE_FAKE_QUOTA_LIMITS,
         },
         "regions": regions,
         "cases": cases,
