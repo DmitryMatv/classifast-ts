@@ -398,37 +398,45 @@ describe("classifier page lifecycle", () => {
     fake.verify = undefined;
   });
 
-  it("skips classification when the client leaves during crawler verification", async () => {
-    let started!: () => void;
-    let finish!: (verified: boolean) => void;
-    const verificationStarted = new Promise<void>((resolve) => {
-      started = resolve;
-    });
-    fake.verify = () => {
-      started();
-      return new Promise((resolve) => {
-        finish = resolve;
+  it.each([
+    ["page", "/UNSPSC/", true],
+    ["fragment", "/UNSPSC/fragment?product_description=laptop", false],
+  ])(
+    "skips the %s's quota and classification when the client leaves during crawler verification",
+    async (_, path, verified) => {
+      let started!: () => void;
+      let finish!: (verified: boolean) => void;
+      const verificationStarted = new Promise<void>((resolve) => {
+        started = resolve;
       });
-    };
-    fake.calls = [];
-    const server: Server = app.getHttpServer();
-    await new Promise<void>((resolve) =>
-      server.listen(0, "127.0.0.1", resolve),
-    );
-    try {
-      const { port } = server.address() as AddressInfo;
-      const client = httpGet({ host: "127.0.0.1", port, path: "/UNSPSC/" });
-      client.on("error", () => {});
-      await verificationStarted;
-      client.destroy();
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      finish(true);
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      expect(fake.calls).toEqual([]);
-    } finally {
-      await new Promise((resolve) => server.close(resolve));
-    }
-  });
+      fake.verify = () => {
+        started();
+        return new Promise((resolve) => {
+          finish = resolve;
+        });
+      };
+      fake.calls = [];
+      fake.events = [];
+      const server: Server = app.getHttpServer();
+      await new Promise<void>((resolve) =>
+        server.listen(0, "127.0.0.1", resolve),
+      );
+      try {
+        const { port } = server.address() as AddressInfo;
+        const client = httpGet({ host: "127.0.0.1", port, path });
+        client.on("error", () => {});
+        await verificationStarted;
+        client.destroy();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        finish(verified);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(fake.calls).toEqual([]);
+        expect(fake.events).toEqual(["crawler"]);
+      } finally {
+        await new Promise((resolve) => server.close(resolve));
+      }
+    },
+  );
 });
 
 describe("normalizeHtml", () => {

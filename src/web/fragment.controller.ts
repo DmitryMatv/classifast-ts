@@ -63,7 +63,8 @@ const FRAGMENT_PATH = /^\/([^/]+)\/fragment$/s;
 /**
  * Python's GET /{classifier_type}/fragment. It registers before
  * ClassifierPageController and hands that controller every other two-segment
- * path, and HEAD, which FastAPI routes to the classifier page.
+ * path. HEAD answers like GET, a decided divergence from FastAPI, which
+ * routes HEAD to the classifier page.
  */
 @Controller()
 export class FragmentController {
@@ -86,7 +87,7 @@ export class FragmentController {
   ): Promise<void> {
     const decodedPath = unquote(splitRequestTarget(req.originalUrl).rawPath);
     const match = FRAGMENT_PATH.exec(decodedPath);
-    if (req.method !== "GET" || match === null) {
+    if (match === null) {
       next();
       return;
     }

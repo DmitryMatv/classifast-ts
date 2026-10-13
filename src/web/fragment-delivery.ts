@@ -155,12 +155,16 @@ class QuotaDenied extends Error {
  */
 async function prepareCharge(
   deps: FragmentDeps,
+  signal: AbortSignal,
 ): Promise<Authorize | undefined> {
-  if (await deps.isVerifiedCrawler()) {
+  const isCrawler = await deps.isVerifiedCrawler();
+  signal.throwIfAborted();
+  if (isCrawler) {
     logger.log("Bypassing quota for verified Google search crawler");
     return undefined;
   }
   const caller = await deps.resolveCaller();
+  signal.throwIfAborted();
   const usage = await deps.quota.check(caller);
   if (!usage.allowed) throw new QuotaDenied(usage);
   return async () => {
@@ -176,7 +180,7 @@ export async function classifyFragment(
   signal: AbortSignal,
 ): Promise<FragmentOutcome> {
   try {
-    const authorize = await prepareCharge(deps);
+    const authorize = await prepareCharge(deps, signal);
     signal.throwIfAborted();
     const outcome = await deps.classify(signal, request, authorize);
     return { kind: "results", outcome };

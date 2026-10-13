@@ -2614,7 +2614,9 @@ PAGE_REQUESTS: list[PageRequest] = [
     laptop_fragment(crawler=True, quota="denied_anonymous"),
     laptop_fragment(crawler=True, classify="queue_full"),
     # Other methods and neighbouring paths
-    laptop_fragment(methods=("HEAD", "POST")),
+    # HEAD answers like GET in Nest, a decided divergence the contract
+    # suite pins.
+    laptop_fragment(methods=("POST",)),
     fragment_request("/mapping/fragment?product_description=a"),
     classifier_request(GET, "/UNSPSC/fragment/?product_description=a", regions=RESULTS),
 ]
