@@ -232,8 +232,9 @@ fixture; without arguments the exporter writes all of them.
 `FragmentController` registers before `ClassifierPageController` in the same
 module with the pattern `:classifierType/:leaf`; it checks the decoded path
 for `/{type}/fragment` and calls `next()` for every other two-segment path.
-HEAD answers like GET there too, so a HEAD with a description classifies and
-charges quota, where Python sends HEAD to the classifier page (301). Fragment
+HEAD answers like GET there for validation errors and empty descriptions, but
+answers 405 `Allow: GET` where GET would classify, so a probe never takes a
+queue turn or charges quota. Python sends HEAD to the classifier page (301). Fragment
 parity cases (`body.kind == "fragment"`) also fake the quota at Python's
 `resolve_signed_in_caller`, `check_usage` and `reserve_usage` and at Nest's
 `Quota`, and record an `events` list (crawler, caller, check, classify,

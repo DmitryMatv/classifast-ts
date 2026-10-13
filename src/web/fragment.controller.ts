@@ -63,8 +63,9 @@ const FRAGMENT_PATH = /^\/([^/]+)\/fragment$/s;
 /**
  * Python's GET /{classifier_type}/fragment. It registers before
  * ClassifierPageController and hands that controller every other two-segment
- * path. HEAD answers like GET, a decided divergence from FastAPI, which
- * routes HEAD to the classifier page.
+ * path. HEAD answers like GET for validation errors and empty descriptions,
+ * and 405 where GET would classify; FastAPI routes HEAD to the classifier
+ * page instead.
  */
 @Controller()
 export class FragmentController {
@@ -137,6 +138,16 @@ export class FragmentController {
             undefined,
           ),
         );
+      return;
+    }
+
+    // HEAD answers like GET up to here, but never classifies or charges
+    // quota: a probe must not spend a queue turn or a paid lookup.
+    if (req.method === "HEAD") {
+      res
+        .status(405)
+        .set({ Allow: "GET", ...cacheHeaders("NO_STORE") })
+        .end();
       return;
     }
 

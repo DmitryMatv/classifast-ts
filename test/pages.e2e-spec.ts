@@ -21,6 +21,7 @@ import {
 } from "../src/classifier/classifier-config.js";
 import { get as httpGet, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { cacheHeaders } from "../src/http/cache-profiles.js";
 import { GoogleCrawlerVerifier } from "../src/crawlers/google-crawlers.js";
 import {
   configureHttpApp,
@@ -437,6 +438,21 @@ describe("classifier page lifecycle", () => {
       }
     },
   );
+
+  it("refuses HEAD where the fragment would classify, before any check", async () => {
+    fake.calls = [];
+    fake.events = [];
+    const reply = await request(app.getHttpServer()).head(
+      "/UNSPSC/fragment?product_description=laptop",
+    );
+    expect(reply.status).toBe(405);
+    expect(reply.headers["allow"]).toBe("GET");
+    expect(reply.headers["cache-control"]).toBe(
+      cacheHeaders("NO_STORE")["Cache-Control"],
+    );
+    expect(fake.calls).toEqual([]);
+    expect(fake.events).toEqual([]);
+  });
 });
 
 describe("normalizeHtml", () => {
