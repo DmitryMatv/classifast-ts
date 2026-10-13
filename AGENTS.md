@@ -207,6 +207,27 @@ Nest removes a trailing slash from every route path, so `@Get("mapping/")`
 matches `/mapping`. Routes that tell `/x` from `/x/` take an optional slash
 (`@Get("mapping{/}")`) and check `req.path` in the handler.
 
+`ClassifierPageController` (`src/web/classifier-page.module.ts`) ports
+Python's `/{classifier_type}` routes and matches every path with a non-empty
+first segment, so `/no-such-page` answers the classifier 404
+(`Type 'no-such-page' not found`), as in Python. Nest registers controllers in
+module import order: `AppModule` imports `ClassifierPageModule` last, and any
+new route, including `/{classifier_type}/fragment`, must register before it.
+The handler reads the decoded path itself instead of Express params.
+
+Classifier page parity cases use a recording fake classification service and
+a crawler switch, on both sides: the exporter patches the FastAPI app and
+`test/pages.e2e-spec.ts` overrides `ClassificationService` and
+`GoogleCrawlerVerifier`. Five base pages keep full HTML; the other cases keep
+only selected element groups (`body.kind == "regions"`, stored once in the
+fixture's `regions` table), which `test/support/page-regions.ts` and
+`RegionFinder` in the exporter select the same way. Run
+`python utilities/export_golden_fixtures.py pages.json` to regenerate one
+fixture; without arguments the exporter writes all of them.
+
+The contract suite's static and DOM cases need a frontend build
+(`npm run build`) in the checkout the Nest server runs from.
+
 Tailwind does not scan `src/`. The class names in `src/web/*.tsx` are copies
 of the ones in `app/templates`, so they are generated only while those
 templates exist. Add a `@source` line for `src/web` before deleting a
