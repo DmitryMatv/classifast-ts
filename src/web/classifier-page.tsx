@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import type { ClassificationResult } from "../classifier/classification.js";
 import type {
   ClassifierPage as ClassifierPageConfig,
@@ -671,17 +672,19 @@ function ResourceLinks({ classifierType }: { classifierType: string }) {
       aria-label={`${classifierType} resources`}
     >
       <div className={resources.listClassName}>
-        {resources.links.map(([href, label]) => (
-          <a
-            key={href}
-            href={href}
-            className="text-sky-700 hover:text-sky-800 hover:underline decoration-sky-700 underline-offset-2"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {label}
-            <ExternalLinkIcon />
-          </a>
+        {resources.links.map(([href, label], index) => (
+          <Fragment key={href}>
+            {index > 0 && " "}
+            <a
+              href={href}
+              className="text-sky-700 hover:text-sky-800 hover:underline decoration-sky-700 underline-offset-2"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {label}
+              <ExternalLinkIcon />
+            </a>
+          </Fragment>
         ))}
       </div>
     </div>
@@ -1060,15 +1063,18 @@ export function ClassifierPage(props: ClassifierPageProps) {
             <div className="relative">
               <h2 id="classifier-form-heading">{heading}</h2>
               {logo && (
-                <img
-                  src={links.staticFile(logo.path)}
-                  alt={logo.alt}
-                  data-classifier-logo="true"
-                  className={logo.className}
-                  fetchPriority="high"
-                />
+                <>
+                  {" "}
+                  <img
+                    src={links.staticFile(logo.path)}
+                    alt={logo.alt}
+                    data-classifier-logo="true"
+                    className={logo.className}
+                    fetchPriority="high"
+                  />
+                </>
               )}
-            </div>
+            </div>{" "}
             <button
               id="description-toggle"
               type="button"
@@ -1124,7 +1130,7 @@ export function ClassifierPage(props: ClassifierPageProps) {
                     ))}
                   </select>
                 </div>
-              )}
+              )}{" "}
               <textarea
                 name="product_description"
                 id="product_description_area"
@@ -1155,7 +1161,7 @@ export function ClassifierPage(props: ClassifierPageProps) {
                   Expand query{" "}
                   <span className="text-xs text-sky-700">Beta</span>
                 </span>
-              </label>
+              </label>{" "}
               <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-2">
                   <button

@@ -12,6 +12,7 @@ import asyncio
 import base64
 import dataclasses
 import hashlib
+import html.parser
 import http.server
 import json
 import logging
@@ -69,6 +70,8 @@ from app.classifier import (
     rerank_candidates,
     sanitize_query_text,
 )
+from app.classification_executor import ClassificationQueueFull
+from app.classification_service import ClassificationOutcome
 from app.classifier_config import CLASSIFIER_CONFIG
 from app.classifier_page_delivery import (
     SITEMAP_QUERY_PATHS,
@@ -2322,45 +2325,294 @@ PAGE_HEADERS = (
     "content-type",
     "link",
     "location",
+    "retry-after",
     "vary",
     "x-robots-tag",
 )
-HTML_PAGES = {
-    "/": "home",
-    "/mapping/": "mapping-index",
-    "/mapping/unspsc-to-cpv-mapping/": "mapping-unspsc-to-cpv",
-    "/mapping/cpv-to-unspsc-mapping/": "mapping-cpv-to-unspsc",
-}
+@dataclasses.dataclass(frozen=True)
+class PageRequest:
+    """One request against the FastAPI app.
+
+    ``html`` names the fixture file that keeps a full HTML body. ``regions``
+    names the groups of elements that ``page_regions`` keeps instead.
+    Classifier page requests also set the crawler check and the fake
+    classification outcome.
+    """
+
+    methods: tuple[str, ...]
+    path: str
+    html: str | None = None
+    regions: tuple[str, ...] = ()
+    crawler: bool = False
+    classify: str = "success"
+    classifier: bool = False
+
+
 GET_AND_HEAD = ("GET", "HEAD")
-PAGE_REQUESTS: list[tuple[tuple[str, ...], str]] = [
-    *((GET_AND_HEAD, path) for path in HTML_PAGES),
-    (GET_AND_HEAD, "/mapping"),
-    (GET_AND_HEAD, "/mapping?x=1"),
-    (GET_AND_HEAD, "/mappings"),
-    (GET_AND_HEAD, "/mappings?x=1&y=2"),
-    (GET_AND_HEAD, "/mappings/"),
-    (GET_AND_HEAD, "/mappings/?x=1"),
-    (GET_AND_HEAD, "/mapping/unspsc-to-cpv-mapping"),
-    (GET_AND_HEAD, "/mapping/cpv-to-unspsc-mapping?x=1&y=2"),
-    (GET_AND_HEAD, "/mappings/unspsc-to-cpv-mapping"),
-    (GET_AND_HEAD, "/mappings/unspsc-to-cpv-mapping/"),
-    (GET_AND_HEAD, "/mappings/cpv-to-unspsc-mapping/?x=1"),
-    (("GET",), "/mapping/unspsc-to-cpv-mapping/sample"),
-    (("GET",), "/mapping/cpv-to-unspsc-mapping/sample"),
-    (("GET",), "/mappings/unspsc-to-cpv-mapping/sample"),
-    (("GET",), "/mappings/cpv-to-unspsc-mapping/sample?x=1"),
-    (GET_AND_HEAD, "/mapping/nope"),
-    (GET_AND_HEAD, "/mapping/nope/"),
-    (GET_AND_HEAD, "/mappings/nope"),
-    (GET_AND_HEAD, "/mappings/nope/"),
-    (("GET",), "/mapping/nope/sample"),
-    (("GET",), "/mappings/nope/sample"),
-    (GET_AND_HEAD, "/mapping/UNSPSC-to-CPV-mapping/"),
-    (GET_AND_HEAD, "/mapping/constructor/"),
-    (("POST",), "/"),
-    (("POST",), "/mapping/"),
-    (("POST",), "/mapping/unspsc-to-cpv-mapping/"),
+GET = ("GET",)
+
+
+def classifier_request(
+    methods: tuple[str, ...],
+    path: str,
+    *,
+    html: str | None = None,
+    regions: tuple[str, ...] = (),
+    crawler: bool = False,
+    classify: str = "success",
+) -> PageRequest:
+    return PageRequest(
+        methods, path, html, regions, crawler, classify, classifier=True
+    )
+
+
+FULL_CLASSIFIER_PAGES = ("UNSPSC", "GPC", "EMDN", "CPV", "HTS")
+BASE_PAGE = ("head", "form-section", "guides", "popular")
+QUERY_PAGE = ("head", "form-section", "popular")
+RESULTS = ("form", "results")
+FORM = ("form",)
+PAGE_REQUESTS: list[PageRequest] = [
+    PageRequest(GET_AND_HEAD, "/", html="home"),
+    PageRequest(GET_AND_HEAD, "/mapping/", html="mapping-index"),
+    PageRequest(
+        GET_AND_HEAD,
+        "/mapping/unspsc-to-cpv-mapping/",
+        html="mapping-unspsc-to-cpv",
+    ),
+    PageRequest(
+        GET_AND_HEAD,
+        "/mapping/cpv-to-unspsc-mapping/",
+        html="mapping-cpv-to-unspsc",
+    ),
+    PageRequest(GET_AND_HEAD, "/mapping"),
+    PageRequest(GET_AND_HEAD, "/mapping?x=1"),
+    PageRequest(GET_AND_HEAD, "/mappings"),
+    PageRequest(GET_AND_HEAD, "/mappings?x=1&y=2"),
+    PageRequest(GET_AND_HEAD, "/mappings/"),
+    PageRequest(GET_AND_HEAD, "/mappings/?x=1"),
+    PageRequest(GET_AND_HEAD, "/mapping/unspsc-to-cpv-mapping"),
+    PageRequest(GET_AND_HEAD, "/mapping/cpv-to-unspsc-mapping?x=1&y=2"),
+    PageRequest(GET_AND_HEAD, "/mappings/unspsc-to-cpv-mapping"),
+    PageRequest(GET_AND_HEAD, "/mappings/unspsc-to-cpv-mapping/"),
+    PageRequest(GET_AND_HEAD, "/mappings/cpv-to-unspsc-mapping/?x=1"),
+    PageRequest(GET, "/mapping/unspsc-to-cpv-mapping/sample"),
+    PageRequest(GET, "/mapping/cpv-to-unspsc-mapping/sample"),
+    PageRequest(GET, "/mappings/unspsc-to-cpv-mapping/sample"),
+    PageRequest(GET, "/mappings/cpv-to-unspsc-mapping/sample?x=1"),
+    PageRequest(GET_AND_HEAD, "/mapping/nope"),
+    PageRequest(GET_AND_HEAD, "/mapping/nope/"),
+    PageRequest(GET_AND_HEAD, "/mappings/nope"),
+    PageRequest(GET_AND_HEAD, "/mappings/nope/"),
+    PageRequest(GET, "/mapping/nope/sample"),
+    PageRequest(GET, "/mappings/nope/sample"),
+    PageRequest(GET_AND_HEAD, "/mapping/UNSPSC-to-CPV-mapping/"),
+    PageRequest(GET_AND_HEAD, "/mapping/constructor/"),
+    PageRequest(("POST",), "/"),
+    PageRequest(("POST",), "/mapping/"),
+    PageRequest(("POST",), "/mapping/unspsc-to-cpv-mapping/"),
+    # Base pages seed the example's results for every visitor.
+    *(
+        classifier_request(GET_AND_HEAD, f"/{t}/", html=f"classifier-{t.lower()}")
+        for t in FULL_CLASSIFIER_PAGES
+    ),
+    *(
+        classifier_request(GET, f"/{t}/", regions=BASE_PAGE)
+        for t in CLASSIFIER_CONFIG
+        if t not in FULL_CLASSIFIER_PAGES
+    ),
+    classifier_request(GET, "/GPC/", regions=RESULTS, classify="queue_full"),
+    classifier_request(
+        GET, "/GPC/", regions=RESULTS, classify="queue_full", crawler=True
+    ),
+    classifier_request(GET, "/EMDN/", regions=RESULTS, classify="failure"),
+    classifier_request(
+        GET, "/EMDN/", regions=RESULTS, classify="failure", crawler=True
+    ),
+    # Query pages render results only for a verified crawler on a sitemap
+    # path without query parameters.
+    classifier_request(GET_AND_HEAD, "/UNSPSC/laptop_computer/", regions=QUERY_PAGE),
+    classifier_request(
+        GET_AND_HEAD, "/UNSPSC/laptop_computer/", regions=QUERY_PAGE, crawler=True
+    ),
+    classifier_request(
+        GET, "/UNSPSC/laptop_computer/?top_k=30", regions=RESULTS, crawler=True
+    ),
+    classifier_request(
+        GET, "/UNSPSC/laptop_computer/?x", regions=RESULTS, crawler=True
+    ),
+    classifier_request(
+        GET, "/UNSPSC/office_chair/", regions=RESULTS, crawler=True, classify="queue_full"
+    ),
+    classifier_request(
+        GET, "/UNSPSC/office_chair/", regions=RESULTS, classify="queue_full"
+    ),
+    classifier_request(
+        GET, "/UNSPSC/printer/", regions=RESULTS, crawler=True, classify="failure"
+    ),
+    classifier_request(GET, "/UNSPSC/not_in_sitemap/", regions=RESULTS, crawler=True),
+    classifier_request(GET, "/NACE/pharmacy/", regions=QUERY_PAGE, crawler=True),
+    classifier_request(GET, "/UNSPSC/caf%C3%A9_au_lait/", regions=QUERY_PAGE),
+    classifier_request(GET, "/UNSPSC/it's_(new)/", regions=QUERY_PAGE),
+    # ?version=, ?top_k= and ?enhance_query=
+    classifier_request(
+        GET, "/CPV/?version=CPV%202008%20Supplementary%20codes", regions=FORM
+    ),
+    classifier_request(GET, "/CPV/?version=bogus", regions=FORM),
+    classifier_request(
+        GET, "/ISIC/?version=bogus&version=ISIC%20Rev.%205", regions=FORM
+    ),
+    *(
+        classifier_request(GET, f"/UNSPSC/?top_k={top_k}", regions=FORM)
+        for top_k in ("30", "100", "0", "101", "7", "+30", "1_00", "30.0", "-5", "99999999999999999999")
+    ),
+    *(
+        classifier_request(GET_AND_HEAD, f"/UNSPSC/?top_k={top_k}")
+        for top_k in ("abc", "", "1e2", "5.5", "30.", "1__0")
+    ),
+    classifier_request(GET, "/unspsc/?top_k=abc"),
+    classifier_request(GET, "/NOPE/?top_k=abc"),
+    classifier_request(GET, "/UNSPSC?top_k=abc"),
+    classifier_request(GET, "/UNSPSC/?top_k=10&top_k=30", regions=FORM),
+    classifier_request(GET, "/UNSPSC/?enhance_query=1", regions=FORM),
+    classifier_request(GET, "/UNSPSC/?enhance_query=1&enhance_query=0", regions=FORM),
+    classifier_request(GET, "/UNSPSC/?enhance_query=true", regions=FORM),
+    # Redirects, 404 and 410
+    *(
+        classifier_request(GET_AND_HEAD, path)
+        for path in (
+            "/UNSPSC",
+            "/unspsc",
+            "/unspsc?x=1&y=2",
+            "/unspsc/",
+            "/Unspsc/?top_k=30",
+            "/unspsc/laptop_computer/",
+            "/unspsc/laptop_computer/?top_k=30",
+            "/UNSPSC/laptop_computer",
+            "/UNSPSC/laptop_computer?x=1",
+            "/UNSPSC/laptop_computer//",
+            "/UNSPSC/laptop-computer/",
+            "/UNSPSC/laptop%20computer/",
+            "/UNSPSC/Laptop+Computer/",
+            "/UNSPSC/a/b/",
+            "/UNSPSC/a%2Fb/",
+            "/UNSPSC/_laptop_/",
+            "/UNSPSC/100%25_cotton/",
+            "/UNSPSC/caf%C3%A9_au_lait",
+            "/unspsc/caf%C3%A9_au_lait/",
+            "/UNSPSC/%20/",
+            "/%20UNSPSC/",
+            "/UNSPSC%20",
+            "/GMDN",
+            "/gmdn",
+            "/GMDN/",
+            "/gmdn/syringe/",
+            "/NOPE",
+            "/NOPE/",
+            "/NOPE/thing/",
+            "/health/",
+            "/constructor",
+            "/__proto__/",
+        )
+    ),
+    classifier_request(("POST",), "/UNSPSC/"),
+    classifier_request(("POST",), "/UNSPSC/laptop_computer/"),
+    classifier_request(("POST",), "/UNSPSC"),
 ]
+
+# The fake classification outcome: codes of several shapes, scores outside
+# [0, 1], escaping, and payloads without optional fields.
+PAGE_FAKE_RESULTS: list[dict[str, Any]] = [
+    {
+        "id": 1,
+        "score": 0.876543,
+        "payload": {
+            "original_id": "43211503",
+            "id_level": "Commodity",
+            "class_name": "Notebook computers",
+            "definition": "A small portable computer <b>&</b> \"friends\"",
+        },
+    },
+    {
+        "id": 2,
+        "score": 1.2,
+        "payload": {
+            "original_id": "EC000123",
+            "class_name": "Circuit breaker",
+            "definition": "Protects a circuit.",
+        },
+    },
+    {
+        "id": 3,
+        "score": -0.25,
+        "payload": {
+            "original_id": "01.11",
+            "id_level": "",
+            "class_name": "   ",
+            "definition": "Growing of cereals",
+        },
+    },
+    {
+        "id": 4,
+        "score": 0.0049,
+        "payload": {
+            "original_id": "8471.30.01.00",
+            "id_level": "Statistical suffix",
+            "class_name": "Laptops 'portable'",
+            "definition": "",
+        },
+    },
+    {
+        "id": 5,
+        "score": 0.5,
+        "payload": {"original_id": "S10-01-02", "definition": "caf\u00e9"},
+    },
+]
+PAGE_FAKE_ELAPSED_SECONDS = 0.4567
+PAGE_FAKE_TOOLTIPS = {"HTS": "Codes are <US> specific"}
+
+
+class FakeClassificationService:
+    """Records each call and answers with ``PAGE_FAKE_RESULTS``."""
+
+    def __init__(self) -> None:
+        self.mode = "success"
+        self.calls: list[dict[str, object]] = []
+
+    async def classify(
+        self,
+        query: str,
+        classifier_type: str,
+        version: str | None = None,
+        top_k: int = 3,
+        **kwargs: Any,
+    ) -> ClassificationOutcome:
+        assert not kwargs, kwargs
+        self.calls.append(
+            {
+                "query": query,
+                "classifierType": classifier_type,
+                "version": version,
+                "topK": top_k,
+            }
+        )
+        if self.mode == "queue_full":
+            raise ClassificationQueueFull()
+        if self.mode == "failure":
+            raise RuntimeError("fake classification failure")
+        version_config: dict[str, Any] = dict(
+            CLASSIFIER_CONFIG[classifier_type]["versions"][version or ""]
+        )
+        if classifier_type in PAGE_FAKE_TOOLTIPS:
+            version_config["tooltip"] = PAGE_FAKE_TOOLTIPS[classifier_type]
+        return ClassificationOutcome(
+            results=json.loads(json.dumps(PAGE_FAKE_RESULTS)),
+            version_config=version_config,
+            version_name=version or "",
+            collection_name=version_config["collection_name"],
+            query=query,
+            elapsed_seconds=PAGE_FAKE_ELAPSED_SECONDS,
+            enhancement_status="applied",
+        )
 
 
 class FixedDatetime(datetime):
@@ -2369,14 +2621,109 @@ class FixedDatetime(datetime):
         return PAGE_FIXTURE_NOW
 
 
-def page_body(path: str, response: httpx.Response) -> dict[str, object]:
+class RegionFinder(html.parser.HTMLParser):
+    """Finds the outer HTML of the element groups that page-regions.ts selects.
+
+    Groups: "head" (title, meta, the canonical link and JSON-LD),
+    "form-section", or its "form" and "results", "guides" (the standard
+    guides) and "popular" (popular lookups).
+    """
+
+    VOID = {"meta", "link", "img", "input", "br", "hr", "source", "wbr"}
+
+    def __init__(self, text: str, groups: tuple[str, ...]) -> None:
+        super().__init__(convert_charrefs=True)
+        self.text = text
+        self.groups = groups
+        self.line_starts = [0]
+        for index, char in enumerate(text):
+            if char == "\n":
+                self.line_starts.append(index + 1)
+        self.spans: list[tuple[int, int]] = []
+        self.open: tuple[str, int, int] | None = None
+
+    def position(self) -> int:
+        line, column = self.getpos()
+        return self.line_starts[line - 1] + column
+
+    @staticmethod
+    def group_of(tag: str, attrs: dict[str, str | None]) -> str | None:
+        element_id = attrs.get("id") or ""
+        if (
+            tag in ("title", "meta")
+            or (tag == "link" and attrs.get("rel") == "canonical")
+            or (tag == "script" and attrs.get("type") == "application/ld+json")
+        ):
+            return "head"
+        if element_id == "classifier-form-section":
+            return "form-section"
+        if element_id == "classifier-form":
+            return "form"
+        if element_id == "results-container":
+            return "results"
+        if element_id == "popular-lookups":
+            return "popular"
+        if element_id.endswith("-guide") and element_id != "comparison-guide":
+            return "guides"
+        return None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        start = self.position()
+        if self.open is not None:
+            open_tag, open_start, depth = self.open
+            if tag == open_tag:
+                self.open = (open_tag, open_start, depth + 1)
+            return
+        if self.group_of(tag, dict(attrs)) not in self.groups:
+            return
+        if tag in self.VOID:
+            self.spans.append((start, start + len(self.get_starttag_text() or "")))
+        else:
+            self.open = (tag, start, 1)
+
+    def handle_endtag(self, tag: str) -> None:
+        if self.open is None or tag != self.open[0]:
+            return
+        open_tag, open_start, depth = self.open
+        if depth > 1:
+            self.open = (open_tag, open_start, depth - 1)
+            return
+        end = self.text.index(">", self.position()) + 1
+        self.spans.append((open_start, end))
+        self.open = None
+
+
+def page_regions(text: str, groups: tuple[str, ...]) -> list[str]:
+    finder = RegionFinder(text, groups)
+    finder.feed(text)
+    finder.close()
+    # Indentation is insignificant here: the regions hold no <pre> or
+    # <textarea> text that spans lines.
+    return [re.sub(r"\n[ \t]+", "\n", text[start:end]) for start, end in finder.spans]
+
+
+def page_body(
+    request: PageRequest, response: httpx.Response, regions: list[str]
+) -> dict[str, object]:
+    """Describe a body; a region that repeats is stored once in ``regions``."""
     content_type = response.headers.get("content-type", "")
     if not response.content:
         return {"kind": "empty"}
     if content_type.startswith("text/html"):
-        name = HTML_PAGES[path]
-        (PAGE_FIXTURE_DIR / f"{name}.html").write_bytes(response.content)
-        return {"kind": "html", "file": f"pages/{name}.html"}
+        if request.regions:
+            indexes = []
+            for region in page_regions(response.text, request.regions):
+                if region not in regions:
+                    regions.append(region)
+                indexes.append(regions.index(region))
+            return {
+                "kind": "regions",
+                "groups": list(request.regions),
+                "regions": indexes,
+            }
+        assert request.html is not None, request.path
+        (PAGE_FIXTURE_DIR / f"{request.html}.html").write_bytes(response.content)
+        return {"kind": "html", "file": f"pages/{request.html}.html"}
     if content_type.startswith("application/json"):
         return {"kind": "json", "value": response.json()}
     return {"kind": "sha256", "value": hashlib.sha256(response.content).hexdigest()}
@@ -2385,35 +2732,62 @@ def page_body(path: str, response: httpx.Response) -> dict[str, object]:
 def build_pages_fixture() -> dict[str, object]:
     PAGE_FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
     cases = []
+    regions: list[str] = []
+    fake = FakeClassificationService()
+    crawler = False
+
+    async def is_verified_crawler(request: Request) -> bool:
+        return crawler
+
+    fastapi_app.state.classification_service = fake
     # Without a with block TestClient skips the lifespan, so no Qdrant,
     # Redis or Hugging Face client starts.
     client = TestClient(fastapi_app, base_url="http://testserver")
-    with patch.object(web, "datetime", FixedDatetime):
-        for methods, path in PAGE_REQUESTS:
-            for method in methods:
+    with (
+        patch.object(web, "datetime", FixedDatetime),
+        patch.object(classifier_page_delivery, "datetime", FixedDatetime),
+        patch.object(
+            web, "is_verified_google_search_crawler_request", is_verified_crawler
+        ),
+    ):
+        for request in PAGE_REQUESTS:
+            for method in request.methods:
+                crawler = request.crawler
+                fake.mode = request.classify
+                fake.calls.clear()
                 response = client.request(
                     method,
-                    path,
+                    request.path,
                     headers={"accept-encoding": "identity"},
                     follow_redirects=False,
                 )
-                assert "set-cookie" not in response.headers, path
-                cases.append(
-                    {
-                        "method": method,
-                        "path": path,
-                        "status": response.status_code,
-                        "headers": {
-                            name: response.headers[name]
-                            for name in PAGE_HEADERS
-                            if name in response.headers
-                        },
-                        "body": page_body(path, response),
-                    }
-                )
+                assert "set-cookie" not in response.headers, request.path
+                case: dict[str, object] = {
+                    "method": method,
+                    "path": request.path,
+                    "status": response.status_code,
+                    "headers": {
+                        name: response.headers[name]
+                        for name in PAGE_HEADERS
+                        if name in response.headers
+                    },
+                    "body": page_body(request, response, regions),
+                }
+                if request.classifier:
+                    case["crawler"] = request.crawler
+                    case["classify"] = request.classify
+                    case["calls"] = list(fake.calls)
+                cases.append(case)
+    del fastapi_app.state.classification_service
     return {
         "now": PAGE_FIXTURE_NOW.isoformat(),
         "origin": "http://testserver",
+        "fake": {
+            "results": PAGE_FAKE_RESULTS,
+            "elapsedSeconds": PAGE_FAKE_ELAPSED_SECONDS,
+            "tooltips": PAGE_FAKE_TOOLTIPS,
+        },
+        "regions": regions,
         "cases": cases,
     }
 
@@ -2476,7 +2850,9 @@ def main() -> None:
             " editors can NFC-normalize literal inputs such as e + U+0301"
         )
     FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
-    for name, build in FIXTURES.items():
+    names = sys.argv[1:] or list(FIXTURES)
+    for name in names:
+        build = FIXTURES[name]
         path = FIXTURE_DIR / name
         path.write_text(to_json(build()), encoding="utf-8")
         print(f"Wrote {path.relative_to(REPO_ROOT)}")
