@@ -32,6 +32,12 @@ import {
   type QdrantServer,
 } from "./support/qdrant-server.js";
 
+// The exporter pins Python's asset version to "fixture" the same way, so the
+// pages keep ?v= whether or not the frontend was built.
+vi.mock("../src/web/asset-url.js", () => ({
+  assetUrl: (path: string) => `/static${path}?v=fixture`,
+}));
+
 const golden = readGolden(
   "pages.json",
   z.object({
@@ -338,6 +344,19 @@ describe("normalizeHtml", () => {
       normalizeHtml(
         page('<style>b{}</style><link rel="stylesheet" href="/a.css">', ""),
       ),
+    );
+  });
+
+  it("keeps nonbreaking spaces and asset versions", () => {
+    expect(normalizeHtml(page("", "<p>\u00a0Title</p>"))).not.toBe(
+      normalizeHtml(page("", "<p>Title</p>")),
+    );
+    expect(
+      normalizeHtml(
+        page('<script src="/static/js/a.js?v=fixture"></script>', ""),
+      ),
+    ).not.toBe(
+      normalizeHtml(page('<script src="/static/js/a.js"></script>', "")),
     );
   });
 });

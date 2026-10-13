@@ -2743,12 +2743,16 @@ def build_pages_fixture() -> dict[str, object]:
     # Without a with block TestClient skips the lifespan, so no Qdrant,
     # Redis or Hugging Face client starts.
     client = TestClient(fastapi_app, base_url="http://testserver")
+    # A fixed asset version keeps ?v= in the pages whether or not the
+    # frontend was built; asset-url.json covers the real hashes.
     with (
         patch.object(web, "datetime", FixedDatetime),
         patch.object(classifier_page_delivery, "datetime", FixedDatetime),
         patch.object(
             web, "is_verified_google_search_crawler_request", is_verified_crawler
         ),
+        patch.object(dependencies, "_asset_content_version", lambda path: "fixture"),
+        patch.object(dependencies, "_asset_version_cache", {}),
     ):
         for request in PAGE_REQUESTS:
             for method in request.methods:
