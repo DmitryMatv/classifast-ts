@@ -38,35 +38,26 @@ import { unquote } from "../python/urllib.js";
 import { ClassifierPage } from "./classifier-page.js";
 import {
   classifierPageResponse,
+  classifierTypeOr404,
   DEFAULT_TOP_K,
   matchClassifierRoute,
+  removedClassifier,
   seedClassifierPageResults,
   starletteUrlPath,
   type SsrState,
 } from "./classifier-page-delivery.js";
 import { renderPage } from "./render.js";
 import { parseQueryString } from "./request-url.js";
-import { querySuffix, rawQuery, redirect } from "./responses.js";
+import {
+  disconnectSignal,
+  querySuffix,
+  rawQuery,
+  redirect,
+} from "./responses.js";
 import { siteLinks } from "./site-links.js";
 import { SITEMAP_QUERY_PATHS } from "./sitemap.js";
 
 const logger = new Logger("ClassifierPage");
-
-function removedClassifier(classifierType: string): HttpException {
-  return new HttpException(
-    { detail: `Classifier '${classifierType}' is no longer available` },
-    410,
-  );
-}
-
-// Aborts when the client goes away before the response is written.
-function disconnectSignal(res: Response): AbortSignal {
-  const controller = new AbortController();
-  res.on("close", () => {
-    if (!res.writableFinished) controller.abort();
-  });
-  return controller.signal;
-}
 
 /**
  * Python's /{classifier_type} routes. Express gets every one-or-more segment
@@ -125,15 +116,7 @@ export class ClassifierPageController {
     // FastAPI validates query parameters before the handler runs.
     const requestedTopK = optionalIntQuery(params, "top_k");
 
-    const resolution = resolveClassifierType(classifierType, CLASSIFIER_TYPES);
-    if (resolution.kind === "removed") throw removedClassifier(classifierType);
-    if (resolution.kind === "unknown") {
-      throw new HttpException(
-        { detail: `Classifier '${classifierType}' not found` },
-        404,
-      );
-    }
-    const { upperType } = resolution;
+    const upperType = classifierTypeOr404(classifierType);
 
     const normalizedSearchQuery = pyRstrip(searchQuery, "/");
     const canonicalSearchQuery = normalizedSearchQuery

@@ -2,6 +2,7 @@ import { HttpException } from "@nestjs/common";
 import {
   lastQueryValue,
   optionalIntQuery,
+  parsePydanticBool,
   parsePydanticInt,
 } from "./query-params.js";
 
@@ -74,4 +75,31 @@ describe("optionalIntQuery", () => {
       ],
     });
   });
+});
+
+// Results of pydantic's TypeAdapter(bool).validate_python on each string.
+describe("parsePydanticBool", () => {
+  it.each([
+    ["1", true],
+    ["0", false],
+    ["tRuE", true],
+    ["YES", true],
+    ["on", true],
+    ["t", true],
+    ["y", true],
+    ["Off", false],
+    ["f", false],
+    ["n", false],
+    ["no", false],
+    ["false", false],
+  ])("parses %j", (text, value) => {
+    expect(parsePydanticBool(text)).toBe(value);
+  });
+
+  it.each(["", " true", "true ", "2", "maybe", "None", "1.0"])(
+    "rejects %j",
+    (text) => {
+      expect(parsePydanticBool(text)).toBeUndefined();
+    },
+  );
 });

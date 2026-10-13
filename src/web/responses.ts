@@ -18,6 +18,15 @@ export function redirect(res: Response, url: string): void {
   res.end();
 }
 
+// Aborts when the client goes away before the response is written.
+export function disconnectSignal(res: Response): AbortSignal {
+  const controller = new AbortController();
+  res.on("close", () => {
+    if (!res.writableFinished) controller.abort();
+  });
+  return controller.signal;
+}
+
 export function rawQuery(req: Request): string {
   return splitRequestTarget(req.originalUrl).rawQuery;
 }

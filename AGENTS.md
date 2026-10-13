@@ -229,6 +229,22 @@ fixture's `regions` table), which `test/support/page-regions.ts` and
 `python utilities/export_golden_fixtures.py pages.json` to regenerate one
 fixture; without arguments the exporter writes all of them.
 
+`FragmentController` registers before `ClassifierPageController` in the same
+module with the pattern `:classifierType/:leaf`; it checks the decoded path
+for `/{type}/fragment` and calls `next()` for every other two-segment path.
+HEAD answers like GET there for validation errors and empty descriptions, but
+answers 405 `Allow: GET` where GET would classify, so a probe never takes a
+queue turn or charges quota. Python sends HEAD to the classifier page (301). Fragment
+parity cases (`body.kind == "fragment"`) also fake the quota at Python's
+`resolve_signed_in_caller`, `check_usage` and `reserve_usage` and at Nest's
+`Quota`, and record an `events` list (crawler, caller, check, classify,
+charge) that pins the order of quota checks and queue admission.
+
+React 19 hoists a `<title>` to the front of markup rendered without
+`<html>`, so the fragment's out-of-band `<title>` is appended as a string
+escaped by `jinjaEscape`. Python's fragment never sets `results_loaded`, so a
+classification with no results renders `Loading...`; the port copies that.
+
 The contract suite's static and DOM cases need a frontend build
 (`npm run build`) in the checkout the Nest server runs from.
 

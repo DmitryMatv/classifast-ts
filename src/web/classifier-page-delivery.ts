@@ -1,4 +1,7 @@
+import { HttpException } from "@nestjs/common";
 import type { ClassificationOutcome } from "../classifier/classification-service.js";
+import { CLASSIFIER_TYPES } from "../classifier/classifier-config.js";
+import { resolveClassifierType } from "../classifier/classifier-options.js";
 import { ClassificationQueueFull } from "../classifier/classification-queue.js";
 import {
   cacheHeaders,
@@ -10,6 +13,26 @@ import type { ClassifierPageResults } from "./classifier-page.js";
 
 export const DEFAULT_TOP_K = 10;
 export const QUEUE_FULL_RETRY_AFTER_SECONDS = 120;
+
+export function removedClassifier(classifierType: string): HttpException {
+  return new HttpException(
+    { detail: `Classifier '${classifierType}' is no longer available` },
+    410,
+  );
+}
+
+/** Python's get_classifier_or_404: the upper-cased type, or 404 or 410. */
+export function classifierTypeOr404(classifierType: string): string {
+  const resolution = resolveClassifierType(classifierType, CLASSIFIER_TYPES);
+  if (resolution.kind === "removed") throw removedClassifier(classifierType);
+  if (resolution.kind === "unknown") {
+    throw new HttpException(
+      { detail: `Classifier '${classifierType}' not found` },
+      404,
+    );
+  }
+  return resolution.upperType;
+}
 
 export type ClassifierRoute =
   | { readonly kind: "no-slash"; readonly classifierType: string }

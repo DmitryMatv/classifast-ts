@@ -10,7 +10,7 @@ import { assetUrl } from "./asset-url.js";
 import { BODY_STYLE } from "./body-style.js";
 import { CLASSIFIER_GUIDES } from "./classifier-guides.js";
 import { CLASSIFIER_PAGE_CSS } from "./classifier-page-styles.js";
-import { jsonLd } from "./render.js";
+import { jinjaEscape, jsonLd } from "./render.js";
 import { Results } from "./results.js";
 import { SiteFooter } from "./site-footer.js";
 import type { SiteLinks } from "./site-links.js";
@@ -87,17 +87,7 @@ const TRACKING_COOKIE_SCRIPT = `
     `;
 
 // Jinja autoescapes every value it interpolates, also inside the JSON-LD.
-const HTML_ESCAPES: Readonly<Record<string, string>> = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&#34;",
-  "'": "&#39;",
-};
-
-function e(value: string): string {
-  return value.replace(/[&<>"']/g, (character) => HTML_ESCAPES[character]!);
-}
+const e = jinjaEscape;
 
 const FAQ_QUESTIONS: Readonly<
   Record<string, readonly (readonly [string, string])[]>
