@@ -129,7 +129,9 @@ product filter would grant Pro.
 With `CONTRACT_TARGET=nest`, the `retiredRoutes` table expects 404 instead of
 Python's status, HEAD on a GET-only route must answer like GET with an empty
 body, and `.gif` and `.webmanifest` static files expect `STATIC_MEDIA`, which
-Python's `get_static_cache_profile` omits. These are decided divergences.
+Python's `get_static_cache_profile` omits. The public-mode RapidAPI ping
+expects `database: "healthy"`, because Nest refuses to boot without Qdrant.
+These are decided divergences.
 
 Inside test files Vitest replaces `process.env.BASE_URL` with Vite's base
 path, so the config passes the URL on as `CONTRACT_BASE_URL`.
@@ -303,6 +305,21 @@ markup moves to a new directory, add a `@source` line for it.
 ## Rapid API (API.py)
 
 `app/api.py` is specifically made for the Rapid API platform. It contains endpoints that make the classification service accessible on that platform. Ignore api.py unless explicitly asked to work on Rapid API service integration.
+
+The Nest port lives in `src/rapidapi/`. `rapidapi-query.json` drives
+`app/api.py`'s real router, so it pins FastAPI's 422 bodies and pydantic's
+lax `top_k` parsing: `3.0`, `1_0` and `3` padded with any Unicode
+`White_Space` are accepted, while `3.`, `1e1`, a zero-width space and
+fullwidth digits are rejected. Regenerate the fixture
+after changing `app/api.py` or `app/classifier_config.py`.
+`classifier-config.json` pins the display and link fields of the classifier
+table in `src/classifier/classifier-config.ts`. `FastApiErrorFilter` writes
+only the status and the `detail` body. To send a header with an error, such as
+`WWW-Authenticate` or the no-store profile, set it on the response before
+throwing. The canonical-query middleware answers 308 to `?query=%20a` before
+the route strips the value, in both apps. The Nest app cannot boot without
+Qdrant, so `/ping` reports the database as `healthy` or `unhealthy` and never
+as `unavailable`.
 
 ## Gotchas and Non-Obvious Behaviors
 

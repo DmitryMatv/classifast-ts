@@ -60,7 +60,11 @@ const unconfiguredCases: JsonCase[] = [
     json: {
       status: "healthy",
       timestamp: anyTimestamp,
-      services: { embedding: "unavailable", database: "unavailable" },
+      services: {
+        embedding: "unavailable",
+        // Nest refuses to boot without Qdrant, so its client always exists.
+        database: contract.target === "nest" ? "healthy" : "unavailable",
+      },
     },
   },
   {
