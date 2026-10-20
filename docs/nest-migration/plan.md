@@ -76,27 +76,27 @@ setup that the scaffold adds. The user asked to start with the scaffold.
 
 1. [x] Scaffold the Nest app with `nest new` and merge it with the Vite and
        Vitest setup. The Python Docker build must keep working.
-2. [ ] Parse the environment with zod at boot. Add `/health`. Build a Node 24
+2. [x] Parse the environment with zod at boot. Add `/health`. Build a Node 24
        image next to the Python one.
-3. [ ] Port the shared pure functions and check them against the golden
+3. [x] Port the shared pure functions and check them against the golden
        fixtures.
-4. [ ] Port the classification pipeline: Qdrant, Hugging Face embeddings,
+4. [x] Port the classification pipeline: Qdrant, Hugging Face embeddings,
        OpenRouter rerank and query enhancement, the outbound budget, and the
        read-only Qdrant schema check at startup.
        `src/qdrant/qdrant-schema.ts` and `src/qdrant/qdrant-connection.ts`
        already exist for the index CLI; this unit wires them into startup.
-5. [ ] Port the admission queue: one active job, four waiting, FIFO, 503 on
+5. [x] Port the admission queue: one active job, four waiting, FIFO, 503 on
        overflow, cancellation through `AbortSignal`.
-6. [ ] Port Clerk verification, the quota, the tier cache, checkout grace and
+6. [x] Port Clerk verification, the quota, the tier cache, checkout grace and
        the checkout rate limit. Keep every Redis key name and format.
-7. [ ] Port Polar checkout and the webhook. Verify the raw body and validate
+7. [x] Port Polar checkout and the webhook. Verify the raw body and validate
        the payload with a schema.
-8. [ ] Port the middleware (security headers, query normalization, URL
+8. [x] Port the middleware (security headers, query normalization, URL
        validation), the cache profiles, static files with ETag 304s, and crawler
        verification.
-9. [ ] Port the pages and fragments as React components rendered to static
+9. [x] Port the pages and fragments as React components rendered to static
        HTML. Keep the ids, `data-` and `hx-` attributes that the scripts use.
-10. [ ] Port the RapidAPI routes.
+10. [x] Port the RapidAPI routes.
 11. [ ] Cut over. Switch the Dockerfile and compose file to Node, port the
         verify driver, run the side-by-side diff, deploy, and keep the Python
         image for rollback. After the soak, delete the Python runtime code and
