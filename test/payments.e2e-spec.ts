@@ -83,9 +83,10 @@ describe("payment routes on an unconfigured server", () => {
     expect(reply.body).toEqual({ detail: "Webhook secret not configured" });
   });
 
-  it("answers GET with 405 and Allow: POST", async () => {
+  // As in Python, the classifier page route matches GET and 404s on "api".
+  it("answers GET with the classifier page route's 404", async () => {
     const reply = await request(app.getHttpServer()).get("/api/webhooks/polar");
-    expect(reply.status).toBe(405);
-    expect(reply.headers["allow"]).toBe("POST");
+    expect(reply.status).toBe(404);
+    expect(reply.body).toEqual({ detail: "Classifier 'api' not found" });
   });
 });

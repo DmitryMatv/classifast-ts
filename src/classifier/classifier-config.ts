@@ -2,18 +2,23 @@ import { z } from "zod";
 
 export interface ClassifierVersion {
   readonly collectionName: string;
+  /** Where a result's code links to; no link without it. */
   readonly baseUrl?: string;
-  /** Python's default is true: the code is appended to `baseUrl`. */
+  /** Defaults to true. */
   readonly appendCodeToUrl?: boolean;
   readonly codeUrlSuffix?: string;
   readonly tooltip?: string;
 }
 
-export interface ClassifierConfig {
+/** The classifier page text, as in Python's CLASSIFIER_CONFIG. */
+export interface ClassifierPageText {
   readonly title: string;
   readonly heading: string;
   readonly description: string;
   readonly example: string;
+}
+
+export interface ClassifierConfig extends ClassifierPageText {
   readonly embedModelName: string;
   readonly embedDims: number;
   readonly queryInstruction: string;
@@ -260,6 +265,22 @@ export function classifierConfigFor({
       },
     ]),
   );
+}
+
+export interface ClassifierPage extends ClassifierPageText {
+  readonly versions: readonly string[];
+}
+
+export function classifierPage(classifierType: string): ClassifierPage {
+  const { title, heading, description, example, versions } =
+    CLASSIFIERS[classifierType]!;
+  return {
+    title,
+    heading,
+    description,
+    example,
+    versions: Object.keys(versions),
+  };
 }
 
 export function getAllCollectionNames(config: CollectionLayout): string[] {

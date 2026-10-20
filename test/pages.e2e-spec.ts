@@ -6,10 +6,20 @@ import request from "supertest";
 import { vi } from "vitest";
 import { z } from "zod";
 import { AppModule } from "../src/app.module.js";
+import { ClassificationQueueFull } from "../src/classifier/classification-queue.js";
+import {
+  ClassificationService,
+  type ClassificationOutcome,
+  type ClassificationRequest,
+} from "../src/classifier/classification-service.js";
 import {
   buildClassifierConfig,
+  classifierConfigFor,
   getAllCollectionNames,
 } from "../src/classifier/classifier-config.js";
+import { get as httpGet, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
+import { GoogleCrawlerVerifier } from "../src/crawlers/google-crawlers.js";
 import {
   configureHttpApp,
   createHttpAdapter,
@@ -17,34 +27,64 @@ import {
 } from "../src/http-app.js";
 import { readGolden } from "./support/golden.js";
 import { normalizeHtml } from "./support/html-normalizer.js";
-
-// The exporter pins Python's asset version to "fixture" the same way, so the
-// pages keep ?v= whether or not the frontend was built.
-vi.mock("../src/web/asset-url.js", () => ({
-  assetUrl: (path: string) => `/static${path}?v=fixture`,
-}));
+import { normalizeRegions, pageRegions } from "./support/page-regions.js";
 import {
   startQdrantServer,
   validCollections,
   type QdrantServer,
 } from "./support/qdrant-server.js";
 
+// The exporter pins Python's asset version to "fixture" the same way, so the
+// pages keep ?v= whether or not the frontend was built.
+vi.mock("../src/web/asset-url.js", () => ({
+  assetUrl: (path: string) => `/static${path}?v=fixture`,
+}));
+
 const golden = readGolden(
   "pages.json",
   z.object({
     now: z.iso.datetime({ local: true }),
     origin: z.url(),
+    fake: z.object({
+      results: z.array(
+        z.object({
+          id: z.number(),
+          score: z.number(),
+          payload: z.record(z.string(), z.unknown()),
+        }),
+      ),
+      elapsedSeconds: z.number(),
+      tooltips: z.record(z.string(), z.string()),
+    }),
+    regions: z.array(z.string()),
     cases: z.array(
       z.object({
         method: z.enum(["GET", "HEAD", "POST"]),
         path: z.string(),
         status: z.number(),
         headers: z.record(z.string(), z.string()),
+        crawler: z.boolean().optional(),
+        classify: z.enum(["success", "queue_full", "failure"]).optional(),
+        calls: z
+          .array(
+            z.object({
+              query: z.string(),
+              classifierType: z.string(),
+              version: z.string(),
+              topK: z.number(),
+            }),
+          )
+          .optional(),
         body: z.discriminatedUnion("kind", [
           z.object({ kind: z.literal("empty") }),
           z.object({ kind: z.literal("html"), file: z.string() }),
           z.object({ kind: z.literal("json"), value: z.unknown() }),
           z.object({ kind: z.literal("sha256"), value: z.string() }),
+          z.object({
+            kind: z.literal("regions"),
+            groups: z.array(z.string()),
+            regions: z.array(z.number()),
+          }),
         ]),
       }),
     ),
@@ -80,6 +120,43 @@ function rawBody(
   res.on("end", () => done(null, Buffer.concat(chunks)));
 }
 
+// The exporter's fake classification service and crawler switch, at the
+// ClassificationService and GoogleCrawlerVerifier interfaces.
+const fake = {
+  crawler: false,
+  mode: "success" as NonNullable<PageCase["classify"]>,
+  calls: [] as NonNullable<PageCase["calls"]>,
+  verify: undefined as (() => Promise<boolean>) | undefined,
+};
+const fakeClassifiers = classifierConfigFor({ model: "fake", dims: 1 });
+
+function fakeClassify(
+  _signal: AbortSignal,
+  request: ClassificationRequest,
+): Promise<ClassificationOutcome> {
+  const { query, classifierType, topK } = request;
+  const versionName = request.version ?? "";
+  fake.calls.push({ query, classifierType, version: versionName, topK });
+  if (fake.mode === "queue_full") {
+    return Promise.reject(new ClassificationQueueFull());
+  }
+  if (fake.mode === "failure") {
+    return Promise.reject(new Error("fake classification failure"));
+  }
+  const tooltip = golden.fake.tooltips[classifierType];
+  return Promise.resolve({
+    results: golden.fake.results,
+    versionName,
+    version: {
+      ...fakeClassifiers[classifierType]!.versions[versionName]!,
+      ...(tooltip === undefined ? {} : { tooltip }),
+    },
+    query,
+    elapsedSeconds: golden.fake.elapsedSeconds,
+    enhancementStatus: "applied",
+  });
+}
+
 let qdrant: QdrantServer;
 let app: NestExpressApplication;
 
@@ -101,7 +178,14 @@ beforeAll(async () => {
   vi.stubEnv("QDRANT_URL", qdrant.url);
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
-  }).compile();
+  })
+    .overrideProvider(ClassificationService)
+    .useValue({ classify: fakeClassify })
+    .overrideProvider(GoogleCrawlerVerifier)
+    .useValue({
+      isVerified: () => fake.verify?.() ?? Promise.resolve(fake.crawler),
+    })
+    .compile();
   app = moduleRef.createNestApplication<NestExpressApplication>(
     createHttpAdapter(),
     HTTP_APP_OPTIONS,
@@ -118,6 +202,9 @@ afterAll(async () => {
 });
 
 async function send(page: PageCase): Promise<request.Response> {
+  fake.crawler = page.crawler ?? false;
+  fake.mode = page.classify ?? "success";
+  fake.calls = [];
   const agent = request(app.getHttpServer());
   const method = page.method.toLowerCase() as "get" | "head" | "post";
   return agent[method](page.path)
@@ -131,6 +218,7 @@ describe("pages match the FastAPI app (parity)", () => {
   it.each(golden.cases)("$method $path -> $status", async (page) => {
     const response = await send(page);
     expect(response.status).toBe(page.status);
+    if (page.calls !== undefined) expect(fake.calls).toEqual(page.calls);
     expect(response.headers["set-cookie"]).toBeUndefined();
 
     for (const [name, value] of Object.entries(page.headers)) {
@@ -164,11 +252,60 @@ describe("pages match the FastAPI app (parity)", () => {
       case "json":
         expect(JSON.parse(body.toString("utf8"))).toEqual(page.body.value);
         break;
+      case "regions":
+        expect(
+          normalizeRegions(
+            pageRegions(body.toString("utf8"), page.body.groups),
+          ),
+        ).toEqual(
+          normalizeRegions(
+            page.body.regions.map((index) => golden.regions[index]!),
+          ),
+        );
+        break;
       case "sha256":
         expect(createHash("sha256").update(body).digest("hex")).toBe(
           page.body.value,
         );
         break;
+    }
+  });
+});
+
+describe("classifier page lifecycle", () => {
+  afterEach(() => {
+    fake.verify = undefined;
+  });
+
+  it("skips classification when the client leaves during crawler verification", async () => {
+    let started!: () => void;
+    let finish!: (verified: boolean) => void;
+    const verificationStarted = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    fake.verify = () => {
+      started();
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    };
+    fake.calls = [];
+    const server: Server = app.getHttpServer();
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    try {
+      const { port } = server.address() as AddressInfo;
+      const client = httpGet({ host: "127.0.0.1", port, path: "/UNSPSC/" });
+      client.on("error", () => {});
+      await verificationStarted;
+      client.destroy();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      finish(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(fake.calls).toEqual([]);
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
     }
   });
 });

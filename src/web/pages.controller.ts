@@ -14,12 +14,8 @@ import {
   getHomepagePopularLookupLinks,
   type PopularLookupLink,
 } from "../classifier/popular-lookups.js";
-import {
-  cacheHeaders,
-  pageHeaders,
-  sampleDownloadProfile,
-} from "../http/cache-profiles.js";
-import { requestOrigin, splitRequestTarget } from "../http/middleware.js";
+import { cacheHeaders, sampleDownloadProfile } from "../http/cache-profiles.js";
+import { requestOrigin } from "../http/middleware.js";
 import {
   getMappingProduct,
   getRelatedMappingProducts,
@@ -37,31 +33,12 @@ import { HomePage } from "./home-page.js";
 import { MappingIndexPage } from "./mapping-index-page.js";
 import { MappingProductPage } from "./mapping-product-page.js";
 import { renderPage } from "./render.js";
+import { querySuffix, redirect, sendPage } from "./responses.js";
 import { siteLinks } from "./site-links.js";
 import { SITEMAP_QUERY_PATHS } from "./sitemap.js";
 
 const HOME_CANONICAL_URL = "https://classifast.com/";
 const REPO_ROOT = dirname(dirname(STATIC_ROOT));
-
-// Starlette's RedirectResponse percent-encodes the URL with these as safe.
-const REDIRECT_SAFE = ":/%#?=@[]!$&'()*+,;";
-
-function sendPage(res: Response, canonicalUrl: string, html: string): void {
-  res.status(200).set(pageHeaders(canonicalUrl)).send(html);
-}
-
-function redirect(res: Response, url: string): void {
-  res.status(301).set({
-    Location: quote(url, REDIRECT_SAFE),
-    "Content-Length": "0",
-  });
-  res.end();
-}
-
-function querySuffix(req: Request): string {
-  const { rawQuery } = splitRequestTarget(req.originalUrl);
-  return rawQuery ? `?${rawQuery}` : "";
-}
 
 function mappingProductOr404(slug: string): MappingProduct {
   const product = getMappingProduct(slug);
