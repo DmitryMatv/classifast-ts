@@ -10,7 +10,15 @@ export interface ClassifierVersion {
   readonly tooltip?: string;
 }
 
-export interface ClassifierConfig {
+/** The classifier page text, as in Python's CLASSIFIER_CONFIG. */
+export interface ClassifierPageText {
+  readonly title: string;
+  readonly heading: string;
+  readonly description: string;
+  readonly example: string;
+}
+
+export interface ClassifierConfig extends ClassifierPageText {
   readonly embedModelName: string;
   readonly embedDims: number;
   readonly queryInstruction: string;
@@ -30,19 +38,13 @@ const DEFAULT_QUERY_INSTRUCTION =
 const DEFAULT_RERANK_INSTRUCTION =
   "Prioritize the taxonomy entry that most directly and specifically classifies the text description. Favor exact functional, industry, material, and use-case matches over broad parent categories. Penalize candidates that require unsupported inferences.";
 
-/** The classifier page text, as in Python's CLASSIFIER_CONFIG. */
-export interface ClassifierPageText {
-  readonly title: string;
-  readonly heading: string;
-  readonly description: string;
-  readonly example: string;
-}
-
-interface ClassifierDefinition extends ClassifierPageText {
+type ClassifierDefinition = Omit<
+  ClassifierConfig,
+  "embedModelName" | "embedDims" | "queryInstruction" | "rerankInstruction"
+> & {
   readonly queryInstruction?: string;
   readonly rerankInstruction?: string;
-  readonly versions: Readonly<Record<string, ClassifierVersion>>;
-}
+};
 
 const CLASSIFIERS: Readonly<Record<string, ClassifierDefinition>> = {
   ETIM: {
@@ -253,13 +255,13 @@ export function classifierConfigFor({
     Object.entries(CLASSIFIERS).map(([classifierType, definition]) => [
       classifierType,
       {
+        ...definition,
         embedModelName: model,
         embedDims: dims,
         queryInstruction:
           definition.queryInstruction ?? DEFAULT_QUERY_INSTRUCTION,
         rerankInstruction:
           definition.rerankInstruction ?? DEFAULT_RERANK_INSTRUCTION,
-        versions: definition.versions,
       },
     ]),
   );
