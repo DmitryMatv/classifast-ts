@@ -57,12 +57,12 @@ side-by-side diff of Python and Nest responses on unmetered routes.
 Phase 0 runs after Phase 1 unit 1, because the contract suite uses the Vitest
 setup that the scaffold adds. The user asked to start with the scaffold.
 
-- [ ] Write the contract suite in `test/contract/`. It reads `BASE_URL` and
+- [x] Write the contract suite in `test/contract/`. It reads `BASE_URL` and
       checks routes, status codes, redirects (301, 308, 410), cache headers per
       profile, canonical and robots headers, the DOM regions that the scripts
       depend on, the RapidAPI JSON, and signed webhook fixtures. It must pass
       against the Python app first.
-- [ ] Write a Python script that exports golden fixtures to
+- [x] Write a Python script that exports golden fixtures to
       `test/fixtures/golden/`. It covers `normalize_original_id_for_lookup`,
       `sanitize_query_text`, `slugify`, `decode_search_query`, the canonical
       and push URL builders, the page titles that use `str.title()`, and
