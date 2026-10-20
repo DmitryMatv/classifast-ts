@@ -1,39 +1,52 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24-bookworm-slim AS frontend-builder
+FROM node:24-bookworm-slim AS deps
 
-WORKDIR /frontend
+WORKDIR /build
 
-COPY package.json package-lock.json .npmrc tsconfig.json vite.config.ts ./
+COPY package.json package-lock.json .npmrc ./
 RUN --mount=type=cache,target=/root/.npm npm ci
 
+FROM deps AS frontend-builder
+
+COPY tsconfig.json vite.config.ts ./
 COPY app/assets ./app/assets
 COPY app/templates ./app/templates
 RUN npm run build
 
-FROM python:3.14-slim-bookworm AS runtime
+FROM deps AS server-builder
+
+COPY tsconfig.json tsconfig.build.json nest-cli.json ./
+COPY src ./src
+RUN npm run build:server
+
+FROM node:24-bookworm-slim AS prod-deps
+
+WORKDIR /build
+
+COPY package.json package-lock.json .npmrc ./
+RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
+
+FROM node:24-bookworm-slim AS runtime
 
 WORKDIR /service_root
 
-ENV PYTHONUNBUFFERED=1
+ENV NODE_ENV=production
 
-COPY requirements.txt ./
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-compile --uploaded-prior-to=P1D -r requirements.txt
-
-# Install curl for health checks
 RUN apt-get update && apt-get install --no-install-recommends -y curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN groupadd --system appgroup && \
-    useradd --system --gid appgroup --no-create-home appuser
+COPY package.json ./
+COPY --from=prod-deps /build/node_modules ./node_modules
+COPY --from=server-builder /build/dist ./dist
+COPY app/static ./app/static
+COPY --from=frontend-builder /build/app/static/ ./app/static/
 
-COPY --chown=appuser:appgroup app ./app
-COPY --from=frontend-builder --chown=appuser:appgroup /frontend/app/static/ ./app/static/
-
-USER appuser
+USER node
 
 EXPOSE 8001
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--forwarded-allow-ips", "*"]
+HEALTHCHECK --interval=10m --timeout=30s --start-period=60s --retries=3 \
+    CMD ["node", "--input-type=module", "-e", "import { parsePythonInt } from './dist/config/python-number.js'; import { execFileSync } from 'node:child_process'; import { isIP } from 'node:net'; const port = parsePythonInt(process.env.PORT ?? '8001'); if (port === undefined) process.exit(1); const configuredHost = process.env.HOST ?? '0.0.0.0'; const host = new Map([['0.0.0.0', '127.0.0.1'], ['::', '::1'], ['', '127.0.0.1']]).get(configuredHost) ?? configuredHost; const address = isIP(host) === 6 ? '[' + host + ']' : host; execFileSync('curl', ['-f', 'http://' + address + ':' + port + '/health'], { stdio: 'inherit' });"]
+
+CMD ["node", "dist/main.js"]
