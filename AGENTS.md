@@ -359,6 +359,11 @@ Cache headers are defined in `app/cache_profiles.py` - edit the profiles there i
 
 ## Built Frontend Files
 
+The root `.dockerignore` pattern `*.csv` excludes root-level CSVs only.
+The nested public samples in `app/static/mapping_samples/` remain in the Docker
+build context and are copied by `Dockerfile.node`. Check Docker's context
+archive before assuming an ignore pattern excludes a nested asset.
+
 `app/static/js/*.js` and `app/static/css/styles.css` are Vite build outputs
 from `app/assets/ts/` and `app/assets/css/`. Never hand-edit them; edit the TS
 sources and run `npm run build`.
