@@ -6,15 +6,15 @@ const UUID_PATTERN =
 describe("clientIp", () => {
   it("test_cloudflare_ip_takes_precedence", () => {
     const headers = {
-      "cf-connecting-ip": "203.0.113.10",
-      "x-forwarded-for": "198.51.100.5, 198.51.100.6",
+      "cf-connecting-ip": ["203.0.113.10"],
+      "x-forwarded-for": ["198.51.100.5, 198.51.100.6"],
     };
 
     expect(clientIp(headers, "127.0.0.1")).toBe("203.0.113.10");
   });
 
   it("test_forwarded_for_is_used_when_cloudflare_header_missing", () => {
-    const headers = { "x-forwarded-for": "198.51.100.5, 198.51.100.6" };
+    const headers = { "x-forwarded-for": ["198.51.100.5, 198.51.100.6"] };
 
     expect(clientIp(headers, "127.0.0.1")).toBe("198.51.100.5");
   });

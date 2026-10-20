@@ -1,10 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
 
-type Headers = Readonly<Record<string, string | string[] | undefined>>;
+// Node's `headersDistinct`. Plain `headers` joins repeated custom headers
+// with ", ", while Python reads only the first value.
+type Headers = Readonly<Record<string, readonly string[] | undefined>>;
 
 function header(headers: Headers, name: string): string | undefined {
-  const value = headers[name];
-  return Array.isArray(value) ? value[0] : value;
+  return headers[name]?.[0];
 }
 
 export function clientIp(

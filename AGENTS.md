@@ -156,7 +156,27 @@ The Nest app is created with `bodyParser: false` (`HTTP_APP_OPTIONS` in
 or oversized JSON body sent to `/robots.txt` answered 400 or 413 where Python
 answers 405. A route that reads a body, such as the checkout JSON or the raw
 Polar webhook body, must add its own parser. Pass `HTTP_APP_OPTIONS` to every
-`NestFactory.create` and `createNestApplication` call.
+`NestFactory.create` and `createNestApplication` call. The payment routes read
+the raw stream with `readRawBody` (`src/payments/raw-body.ts`), capped at
+1 MiB with 413; Starlette has no cap.
+
+The exception filter renders `{"detail": ...}` from an error's `detail`.
+`HttpStatusError` exposes its message as `detail`; before that, unit 6's
+errors (rate limit, Clerk, quota) rendered only the reason phrase.
+
+The Polar webhook port (`src/payments/`) mirrors `polar.v2026_10`, not just
+`app/payments.py`. The SDK decodes the body as UTF-8 before it checks the
+signature, so an unsigned non-UTF-8 body gets 400, not 403. The SDK drops
+payload keys that `Subscription` does not declare. Python's product-id probes
+of `items`, `products`, `subscriptions`, and `order_items` therefore never see
+data; only `product_id`, `product.id`, `prices`, and the metadata keys count.
+The zod schema checks nested objects only as far as the fields it reads, and
+known non-subscription events only by envelope. Python rejects deeper schema
+errors in those with 400. `test/fixtures/golden/payments.json` replays 83
+webhook requests through the FastAPI route. After you change `app/payments.py`
+or the Polar SDK, rerun `python utilities/export_golden_fixtures.py`.
+Python's payment routes send no cache headers; the Nest routes send
+`NO_STORE` on every answer.
 
 Nest answers `If-None-Match: *` on `/favicon.ico`, `/robots.txt`, and
 `/sitemap.xml` with 304, as `/static` files do in both apps. Python's
