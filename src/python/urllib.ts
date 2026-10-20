@@ -1,3 +1,5 @@
+import { isIP } from "node:net";
+
 // encodeURIComponent leaves !'()* unescaped, and decodeURIComponent throws
 // on malformed input where Python substitutes U+FFFD.
 
@@ -70,4 +72,66 @@ export function urlencode(
   return pairs
     .map(([key, value]) => `${quotePlus(key)}=${quotePlus(value)}`)
     .join("&");
+}
+
+export class UrlSplitError extends Error {
+  override readonly name = "UrlSplitError";
+}
+
+const C0_CONTROL_OR_SPACE = /^[\0-\x20]+/;
+const SCHEME = /^[A-Za-z][A-Za-z0-9+.-]*$/;
+
+// urlsplit(url).netloc, or undefined where Python's is None. Throws where
+// urlsplit raises ValueError.
+export function urlsplitNetloc(url: string): string | undefined {
+  let rest = url.replace(C0_CONTROL_OR_SPACE, "").replace(/[\t\r\n]/g, "");
+  const colon = rest.indexOf(":");
+  if (colon > 0 && SCHEME.test(rest.slice(0, colon))) {
+    rest = rest.slice(colon + 1);
+  }
+  if (!rest.startsWith("//")) return undefined;
+  const end = rest.slice(2).search(/[/?#]/);
+  const netloc = end === -1 ? rest.slice(2) : rest.slice(2, end + 2);
+  if (netloc.includes("[") !== netloc.includes("]")) {
+    throw new UrlSplitError("Invalid IPv6 URL");
+  }
+  if (netloc.includes("[")) checkBracketedNetloc(netloc);
+  checkNetloc(netloc);
+  return netloc;
+}
+
+function checkBracketedNetloc(netloc: string): void {
+  const hostAndPort = netloc.slice(netloc.lastIndexOf("@") + 1);
+  const open = hostAndPort.indexOf("[");
+  let hostname: string;
+  if (open === -1) {
+    hostname = hostAndPort.split(":", 1)[0] ?? "";
+  } else {
+    if (open > 0) throw new UrlSplitError("Invalid IPv6 URL");
+    const bracketed = hostAndPort.slice(open + 1);
+    const close = bracketed.indexOf("]");
+    hostname = close === -1 ? bracketed : bracketed.slice(0, close);
+    const port = close === -1 ? "" : bracketed.slice(close + 1);
+    if (port && !port.startsWith(":")) {
+      throw new UrlSplitError("Invalid IPv6 URL");
+    }
+  }
+  if (/^[vV]/.test(hostname)) {
+    if (!/^[vV][a-fA-F0-9]+\.[^]+$/.test(hostname)) {
+      throw new UrlSplitError("IPvFuture address is invalid");
+    }
+  } else if (isIP(hostname) !== 6) {
+    throw new UrlSplitError("Invalid IPv6 URL");
+  }
+}
+
+function checkNetloc(netloc: string): void {
+  if (/^[\0-\x7f]*$/.test(netloc)) return;
+  const stripped = netloc.replace(/[@:#?]/g, "");
+  const normalized = stripped.normalize("NFKC");
+  if (stripped !== normalized && /[/?#@:]/.test(normalized)) {
+    throw new UrlSplitError(
+      `netloc '${netloc}' contains invalid characters under NFKC normalization`,
+    );
+  }
 }
