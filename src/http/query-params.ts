@@ -22,6 +22,33 @@ export function parsePydanticInt(text: string): number | undefined {
   return Number(stripped.replace(/_|\.0+$/g, "")) || 0;
 }
 
+/** One entry of the `detail` list in FastAPI's 422 body. */
+export interface QueryValidationError {
+  readonly type: string;
+  readonly loc: readonly ["query", string];
+  readonly msg: string;
+  readonly input: string | null;
+  readonly ctx?: Readonly<Record<string, number>>;
+}
+
+export function queryValidationFailed(
+  errors: readonly QueryValidationError[],
+): HttpException {
+  return new HttpException({ detail: errors }, 422);
+}
+
+export function intParsingError(
+  name: string,
+  input: string,
+): QueryValidationError {
+  return {
+    type: "int_parsing",
+    loc: ["query", name],
+    msg: "Input should be a valid integer, unable to parse string as an integer",
+    input,
+  };
+}
+
 /** An optional integer query parameter, or FastAPI's 422 for a bad one. */
 export function optionalIntQuery(
   items: readonly QueryItem[],
@@ -31,19 +58,32 @@ export function optionalIntQuery(
   if (text === undefined) return undefined;
   const value = parsePydanticInt(text);
   if (value === undefined) {
-    throw new HttpException(
-      {
-        detail: [
-          {
-            type: "int_parsing",
-            loc: ["query", name],
-            msg: "Input should be a valid integer, unable to parse string as an integer",
-            input: text,
-          },
-        ],
-      },
-      422,
-    );
+    throw queryValidationFailed([intParsingError(name, text)]);
   }
   return value;
+}
+
+const PYDANTIC_TRUE: ReadonlySet<string> = new Set([
+  "1",
+  "on",
+  "t",
+  "true",
+  "y",
+  "yes",
+]);
+const PYDANTIC_FALSE: ReadonlySet<string> = new Set([
+  "0",
+  "off",
+  "f",
+  "false",
+  "n",
+  "no",
+]);
+
+// Pydantic's lax str-to-bool parsing: case-insensitive, no whitespace.
+export function parsePydanticBool(text: string): boolean | undefined {
+  const lowered = text.toLowerCase();
+  if (PYDANTIC_TRUE.has(lowered)) return true;
+  if (PYDANTIC_FALSE.has(lowered)) return false;
+  return undefined;
 }

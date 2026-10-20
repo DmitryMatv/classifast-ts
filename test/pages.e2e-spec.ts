@@ -6,9 +6,11 @@ import request from "supertest";
 import { vi } from "vitest";
 import { z } from "zod";
 import { AppModule } from "../src/app.module.js";
+import { ClassificationError } from "../src/classifier/classification.js";
 import { ClassificationQueueFull } from "../src/classifier/classification-queue.js";
 import {
   ClassificationService,
+  type Authorize,
   type ClassificationOutcome,
   type ClassificationRequest,
 } from "../src/classifier/classification-service.js";
@@ -19,14 +21,22 @@ import {
 } from "../src/classifier/classifier-config.js";
 import { get as httpGet, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { cacheHeaders } from "../src/http/cache-profiles.js";
 import { GoogleCrawlerVerifier } from "../src/crawlers/google-crawlers.js";
 import {
   configureHttpApp,
   createHttpAdapter,
   HTTP_APP_OPTIONS,
 } from "../src/http-app.js";
+import { REDIS_CONNECTION } from "../src/redis/redis-client.js";
+import {
+  Quota,
+  QuotaUnavailableError,
+  type Caller,
+  type UsageStatus,
+} from "../src/usage/quota.js";
 import { readGolden } from "./support/golden.js";
-import { normalizeHtml } from "./support/html-normalizer.js";
+import { normalizeFragment, normalizeHtml } from "./support/html-normalizer.js";
 import { normalizeRegions, pageRegions } from "./support/page-regions.js";
 import {
   startQdrantServer,
@@ -55,6 +65,7 @@ const golden = readGolden(
       ),
       elapsedSeconds: z.number(),
       tooltips: z.record(z.string(), z.string()),
+      quotaLimits: z.object({ anonymous: z.number(), signedIn: z.number() }),
     }),
     regions: z.array(z.string()),
     cases: z.array(
@@ -64,7 +75,26 @@ const golden = readGolden(
         status: z.number(),
         headers: z.record(z.string(), z.string()),
         crawler: z.boolean().optional(),
-        classify: z.enum(["success", "queue_full", "failure"]).optional(),
+        classify: z
+          .enum([
+            "success",
+            "queue_full",
+            "failure",
+            "empty",
+            "enhancement_failed",
+          ])
+          .optional(),
+        quota: z
+          .enum([
+            "allowed",
+            "denied_anonymous",
+            "denied_signed_in",
+            "unavailable",
+            "charge_denied",
+            "charge_unavailable",
+          ])
+          .optional(),
+        events: z.array(z.string()).optional(),
         calls: z
           .array(
             z.object({
@@ -72,10 +102,12 @@ const golden = readGolden(
               classifierType: z.string(),
               version: z.string(),
               topK: z.number(),
+              enhance: z.boolean().optional(),
             }),
           )
           .optional(),
         body: z.discriminatedUnion("kind", [
+          z.object({ kind: z.literal("fragment"), region: z.number() }),
           z.object({ kind: z.literal("empty") }),
           z.object({ kind: z.literal("html"), file: z.string() }),
           z.object({ kind: z.literal("json"), value: z.unknown() }),
@@ -120,41 +152,104 @@ function rawBody(
   res.on("end", () => done(null, Buffer.concat(chunks)));
 }
 
-// The exporter's fake classification service and crawler switch, at the
-// ClassificationService and GoogleCrawlerVerifier interfaces.
+// The exporter's fake classification service, crawler switch and quota, at
+// the ClassificationService, GoogleCrawlerVerifier and Quota interfaces.
 const fake = {
   crawler: false,
   mode: "success" as NonNullable<PageCase["classify"]>,
+  quota: "allowed" as NonNullable<PageCase["quota"]>,
   calls: [] as NonNullable<PageCase["calls"]>,
+  events: [] as string[],
   verify: undefined as (() => Promise<boolean>) | undefined,
 };
 const fakeClassifiers = classifierConfigFor({ model: "fake", dims: 1 });
 
-function fakeClassify(
+// Like ClassificationService, it refuses a full queue before `authorize`
+// and runs `authorize` before the pipeline.
+async function fakeClassify(
   _signal: AbortSignal,
   request: ClassificationRequest,
+  authorize?: Authorize,
 ): Promise<ClassificationOutcome> {
-  const { query, classifierType, topK } = request;
+  const { query, classifierType, topK, enhance } = request;
   const versionName = request.version ?? "";
-  fake.calls.push({ query, classifierType, version: versionName, topK });
-  if (fake.mode === "queue_full") {
-    return Promise.reject(new ClassificationQueueFull());
-  }
-  if (fake.mode === "failure") {
-    return Promise.reject(new Error("fake classification failure"));
+  fake.calls.push({
+    query,
+    classifierType,
+    version: versionName,
+    topK,
+    ...(enhance === undefined ? {} : { enhance }),
+  });
+  fake.events.push("classify");
+  if (fake.mode === "queue_full") throw new ClassificationQueueFull();
+  await authorize?.();
+  if (fake.mode === "failure") throw new Error("fake classification failure");
+  const { versions } = fakeClassifiers[classifierType]!;
+  if (versionName && !Object.hasOwn(versions, versionName)) {
+    throw new ClassificationError(
+      404,
+      `Version '${versionName}' for classifier '${classifierType}' not found`,
+    );
   }
   const tooltip = golden.fake.tooltips[classifierType];
-  return Promise.resolve({
-    results: golden.fake.results,
+  return {
+    results: fake.mode === "empty" ? [] : golden.fake.results,
     versionName,
     version: {
-      ...fakeClassifiers[classifierType]!.versions[versionName]!,
+      ...versions[versionName]!,
       ...(tooltip === undefined ? {} : { tooltip }),
     },
     query,
     elapsedSeconds: golden.fake.elapsedSeconds,
-    enhancementStatus: "applied",
-  });
+    enhancementStatus:
+      fake.mode === "enhancement_failed" ? "failed" : "applied",
+  };
+}
+
+function fakeUsage(caller: Caller, allowed: boolean): UsageStatus {
+  if (caller.kind === "pro") throw new Error("the fake quota has no Pro");
+  const limit =
+    golden.fake.quotaLimits[
+      caller.kind === "anonymous" ? "anonymous" : "signedIn"
+    ];
+  return {
+    kind: "metered",
+    allowed,
+    remaining: allowed ? limit - 1 : 0,
+    limit,
+    caller,
+  };
+}
+
+const fakeQuota: Pick<Quota, "resolveCaller" | "check" | "charge"> = {
+  resolveCaller: () => {
+    fake.events.push("caller");
+    return Promise.resolve(
+      fake.quota === "denied_signed_in"
+        ? { kind: "free", userId: "user-1" }
+        : { kind: "anonymous", trackingId: "fake", ipHash: "fake" },
+    );
+  },
+  check: (caller) => {
+    fake.events.push("check");
+    if (fake.quota === "unavailable") {
+      return Promise.reject(new QuotaUnavailableError());
+    }
+    return Promise.resolve(fakeUsage(caller, !fake.quota.startsWith("denied")));
+  },
+  charge: (caller) => {
+    fake.events.push("charge");
+    if (fake.quota === "charge_unavailable") {
+      return Promise.reject(new QuotaUnavailableError());
+    }
+    return Promise.resolve(fakeUsage(caller, fake.quota !== "charge_denied"));
+  },
+};
+
+// Python writes the out-of-band title after the results; React would hoist
+// it to the front.
+function oobTitle(html: string): string | undefined {
+  return /<title\b[^>]*>[^<]*<\/title>/.exec(html)?.[0];
 }
 
 let qdrant: QdrantServer;
@@ -183,8 +278,15 @@ beforeAll(async () => {
     .useValue({ classify: fakeClassify })
     .overrideProvider(GoogleCrawlerVerifier)
     .useValue({
-      isVerified: () => fake.verify?.() ?? Promise.resolve(fake.crawler),
+      isVerified: () => {
+        fake.events.push("crawler");
+        return fake.verify?.() ?? Promise.resolve(fake.crawler);
+      },
     })
+    .overrideProvider(Quota)
+    .useValue(fakeQuota)
+    .overrideProvider(REDIS_CONNECTION)
+    .useValue(null)
     .compile();
   app = moduleRef.createNestApplication<NestExpressApplication>(
     createHttpAdapter(),
@@ -204,7 +306,9 @@ afterAll(async () => {
 async function send(page: PageCase): Promise<request.Response> {
   fake.crawler = page.crawler ?? false;
   fake.mode = page.classify ?? "success";
+  fake.quota = page.quota ?? "allowed";
   fake.calls = [];
+  fake.events = [];
   const agent = request(app.getHttpServer());
   const method = page.method.toLowerCase() as "get" | "head" | "post";
   return agent[method](page.path)
@@ -219,6 +323,7 @@ describe("pages match the FastAPI app (parity)", () => {
     const response = await send(page);
     expect(response.status).toBe(page.status);
     if (page.calls !== undefined) expect(fake.calls).toEqual(page.calls);
+    if (page.events !== undefined) expect(fake.events).toEqual(page.events);
     expect(response.headers["set-cookie"]).toBeUndefined();
 
     for (const [name, value] of Object.entries(page.headers)) {
@@ -231,7 +336,16 @@ describe("pages match the FastAPI app (parity)", () => {
         expect(response.headers[name], name).toBe(value);
       }
     }
-    for (const name of ["content-disposition", "location", "link"]) {
+    for (const name of [
+      "cache-tag",
+      "content-disposition",
+      "hx-push-url",
+      "link",
+      "location",
+      "retry-after",
+      "x-ratelimit-limit",
+      "x-ratelimit-remaining",
+    ]) {
       if (!(name in page.headers)) {
         expect(response.headers[name], name).toBeUndefined();
       }
@@ -268,6 +382,14 @@ describe("pages match the FastAPI app (parity)", () => {
           page.body.value,
         );
         break;
+      case "fragment": {
+        const expected = golden.regions[page.body.region]!;
+        expect(normalizeFragment(body.toString("utf8"))).toBe(
+          normalizeFragment(expected),
+        );
+        expect(oobTitle(body.toString("utf8"))).toBe(oobTitle(expected));
+        break;
+      }
     }
   });
 });
@@ -277,36 +399,59 @@ describe("classifier page lifecycle", () => {
     fake.verify = undefined;
   });
 
-  it("skips classification when the client leaves during crawler verification", async () => {
-    let started!: () => void;
-    let finish!: (verified: boolean) => void;
-    const verificationStarted = new Promise<void>((resolve) => {
-      started = resolve;
-    });
-    fake.verify = () => {
-      started();
-      return new Promise((resolve) => {
-        finish = resolve;
+  it.each([
+    ["page", "/UNSPSC/", true],
+    ["fragment", "/UNSPSC/fragment?product_description=laptop", false],
+  ])(
+    "skips the %s's quota and classification when the client leaves during crawler verification",
+    async (_, path, verified) => {
+      let started!: () => void;
+      let finish!: (verified: boolean) => void;
+      const verificationStarted = new Promise<void>((resolve) => {
+        started = resolve;
       });
-    };
+      fake.verify = () => {
+        started();
+        return new Promise((resolve) => {
+          finish = resolve;
+        });
+      };
+      fake.calls = [];
+      fake.events = [];
+      const server: Server = app.getHttpServer();
+      await new Promise<void>((resolve) =>
+        server.listen(0, "127.0.0.1", resolve),
+      );
+      try {
+        const { port } = server.address() as AddressInfo;
+        const client = httpGet({ host: "127.0.0.1", port, path });
+        client.on("error", () => {});
+        await verificationStarted;
+        client.destroy();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        finish(verified);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(fake.calls).toEqual([]);
+        expect(fake.events).toEqual(["crawler"]);
+      } finally {
+        await new Promise((resolve) => server.close(resolve));
+      }
+    },
+  );
+
+  it("refuses HEAD where the fragment would classify, before any check", async () => {
     fake.calls = [];
-    const server: Server = app.getHttpServer();
-    await new Promise<void>((resolve) =>
-      server.listen(0, "127.0.0.1", resolve),
+    fake.events = [];
+    const reply = await request(app.getHttpServer()).head(
+      "/UNSPSC/fragment?product_description=laptop",
     );
-    try {
-      const { port } = server.address() as AddressInfo;
-      const client = httpGet({ host: "127.0.0.1", port, path: "/UNSPSC/" });
-      client.on("error", () => {});
-      await verificationStarted;
-      client.destroy();
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      finish(true);
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      expect(fake.calls).toEqual([]);
-    } finally {
-      await new Promise((resolve) => server.close(resolve));
-    }
+    expect(reply.status).toBe(405);
+    expect(reply.headers["allow"]).toBe("GET");
+    expect(reply.headers["cache-control"]).toBe(
+      cacheHeaders("NO_STORE")["Cache-Control"],
+    );
+    expect(fake.calls).toEqual([]);
+    expect(fake.events).toEqual([]);
   });
 });
 

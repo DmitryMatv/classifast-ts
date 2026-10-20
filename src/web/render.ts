@@ -12,6 +12,19 @@ const JSON_HTML_ESCAPES: Readonly<Record<string, string>> = {
   "'": "\\u0027",
 };
 
+const HTML_ESCAPES: Readonly<Record<string, string>> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&#34;",
+  "'": "&#39;",
+};
+
+/** Jinja's autoescape (markupsafe), byte for byte. */
+export function jinjaEscape(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => HTML_ESCAPES[character]!);
+}
+
 // Jinja's tojson escapes the same characters, so a value cannot close the
 // <script> element that holds it.
 export function jsonLd(value: unknown): string {
