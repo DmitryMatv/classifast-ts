@@ -4,6 +4,7 @@ import { HealthModule } from "./health/health.module.js";
 import { PaymentsModule } from "./payments/payments.module.js";
 import { RapidApiModule } from "./rapidapi/rapidapi.module.js";
 import { StaticModule } from "./static/static.module.js";
+import { WebModule } from "./web/web.module.js";
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { StaticModule } from "./static/static.module.js";
     PaymentsModule,
     RapidApiModule,
     StaticModule,
+    WebModule,
   ],
 })
 export class AppModule {}

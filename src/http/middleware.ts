@@ -119,9 +119,14 @@ function serverAuthority(req: Request): string {
   return `${host}:${req.socket.localPort}`;
 }
 
+// Starlette's request.base_url, which url_for and redirects build on.
+export function requestOrigin(req: Request): string {
+  return `${requestScheme(req)}://${req.headers.host || serverAuthority(req)}`;
+}
+
 // Starlette's request.base_url, with the root path "/".
 export function requestBaseUrl(req: Request): string {
-  return `${requestScheme(req)}://${req.headers.host || serverAuthority(req)}/`;
+  return `${requestOrigin(req)}/`;
 }
 
 export const redirectToCanonicalQuery: RequestHandler = (req, res, next) => {
@@ -132,7 +137,7 @@ export const redirectToCanonicalQuery: RequestHandler = (req, res, next) => {
     return;
   }
   const path = `${unquote(rawPath)}?${rawQuery}`;
-  const url = `${requestScheme(req)}://${req.headers.host || serverAuthority(req)}${path}`;
+  const url = `${requestOrigin(req)}${path}`;
   logger.log(`Redirecting to normalized URL for path: ${rawPath}`);
   res.statusCode = 308;
   // A character above U+00FF makes setHeader throw, and Python answers 500
