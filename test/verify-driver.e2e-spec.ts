@@ -104,33 +104,92 @@ const built =
   existsSync(join(root, "dist/main.js")) &&
   existsSync(join(root, "app/static/js/common.js"));
 
+// A public launch whose processes carry a unique marker. `stop` kills
+// whatever is left of it, so a failed assertion leaves nothing running.
+function publicLaunch() {
+  const runDir = mkdtempSync(join(tmpdir(), "verify-driver-launch-"));
+  const marker = `VERIFY_DRIVER_SPEC_${process.pid}_${Date.now()}`;
+  const launch = spawn(
+    process.execPath,
+    [script, "launch", runDir, "--mode", "public"],
+    { env: { ...process.env, [marker]: "1" }, stdio: "ignore" },
+  );
+  const exited = new Promise<number | null>((done) =>
+    launch.on("exit", (code) => done(code)),
+  );
+  const leftovers = () => [
+    ...new Set([
+      ...processesMentioning(marker),
+      ...processesMentioning(runDir),
+    ]),
+  ];
+  const stop = () => {
+    if (launch.exitCode === null && launch.signalCode === null) {
+      launch.kill("SIGKILL");
+    }
+    for (const pid of leftovers()) {
+      try {
+        process.kill(pid, "SIGCONT");
+        process.kill(pid, "SIGKILL");
+      } catch {
+        // Already gone.
+      }
+    }
+  };
+  return { runDir, launch, exited, leftovers, stop };
+}
+
+const readText = (path: string) =>
+  existsSync(path) ? readFileSync(path, "utf8") : "";
+
 describe.runIf(built)("launch (needs npm run build and build:server)", () => {
   it("stops every started process when SIGTERM arrives during launch", async () => {
-    const runDir = mkdtempSync(join(tmpdir(), "verify-driver-launch-"));
-    const marker = `VERIFY_DRIVER_SPEC_${process.pid}_${Date.now()}`;
-    const launch = spawn(
-      process.execPath,
-      [script, "launch", runDir, "--mode", "public"],
-      { env: { ...process.env, [marker]: "1" }, stdio: "ignore" },
-    );
-    const exited = new Promise<number | null>((done) =>
-      launch.on("exit", (code) => done(code)),
-    );
-    const state = join(runDir, "instance.json");
-    const recorded = () =>
-      existsSync(state) &&
-      (JSON.parse(readFileSync(state, "utf8")) as { processes: unknown[] })
-        .processes.length > 0;
-    await vi.waitFor(() => expect(recorded()).toBe(true), {
-      timeout: 15_000,
-      interval: 20,
-    });
+    const { runDir, launch, exited, leftovers, stop } = publicLaunch();
+    try {
+      const state = join(runDir, "instance.json");
+      const recorded = () =>
+        (JSON.parse(readText(state) || "{}") as { processes?: unknown[] })
+          .processes?.length ?? 0;
+      await vi.waitFor(() => expect(recorded()).toBeGreaterThan(0), {
+        timeout: 15_000,
+        interval: 20,
+      });
 
-    launch.kill("SIGTERM");
+      launch.kill("SIGTERM");
 
-    expect(await exited).toBe(143);
-    expect(existsSync(state)).toBe(false);
-    expect(processesMentioning(marker)).toEqual([]);
-    expect(processesMentioning(runDir)).toEqual([]);
+      expect(await exited).toBe(143);
+      expect(existsSync(state)).toBe(false);
+      expect(leftovers()).toEqual([]);
+    } finally {
+      stop();
+    }
+  }, 60_000);
+
+  // Freezing the launch once the fake Qdrant listens makes the readiness
+  // probe succeed on resume, after the signal handler has begun teardown.
+  it("starts no server once teardown begins during the readiness probe", async () => {
+    const { runDir, launch, exited, leftovers, stop } = publicLaunch();
+    try {
+      const evidence = join(runDir, "evidence");
+      await vi.waitFor(
+        () =>
+          expect(readText(join(evidence, "fake-qdrant.log"))).toContain(
+            "listening",
+          ),
+        { timeout: 15_000, interval: 1 },
+      );
+      process.kill(launch.pid!, "SIGSTOP");
+      await new Promise((done) => setTimeout(done, 300));
+      process.kill(launch.pid!, "SIGTERM");
+      process.kill(launch.pid!, "SIGCONT");
+
+      expect(await exited).toBe(143);
+      expect(readText(join(evidence, "fake-qdrant.log"))).toContain("GET /");
+      expect(existsSync(join(evidence, "server.log"))).toBe(false);
+      expect(existsSync(join(runDir, "instance.json"))).toBe(false);
+      expect(leftovers()).toEqual([]);
+    } finally {
+      stop();
+    }
   }, 60_000);
 });

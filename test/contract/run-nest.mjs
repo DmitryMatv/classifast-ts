@@ -27,7 +27,7 @@ function run(command, args, options = {}) {
   let stdout = "";
   child.stdout?.on("data", (chunk) => (stdout += chunk));
   return new Promise((done) =>
-    child.on("exit", (code) => {
+    child.on("close", (code) => {
       current = undefined;
       done({ code: code ?? 1, stdout });
     }),

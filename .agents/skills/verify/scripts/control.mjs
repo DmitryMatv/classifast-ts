@@ -301,10 +301,11 @@ function startDetached(role, command, args, { env, log }) {
     });
     child.unref();
     if (child.pid === undefined) fail(`Could not start ${role}: ${command}`);
-    return {
-      child,
-      record: { role, pid: child.pid, process_start: processStart(child.pid) },
-    };
+    // Without a start time the record could never be matched to a live
+    // process, and cleanup would wait on a dead PID.
+    const start = processStart(child.pid);
+    if (start === undefined) fail(`${role} exited at once; see ${log}`);
+    return { child, record: { role, pid: child.pid, process_start: start } };
   } finally {
     closeSync(out);
   }
@@ -401,13 +402,22 @@ async function launch(runDir, { app, mode, envFile }) {
   saveState(runDir, state, "wx");
 
   // The children are detached, so Ctrl-C or SIGTERM during launch would
-  // otherwise leave them running.
+  // otherwise leave them running. Once teardown begins, the launch flow
+  // may still be awaiting a readiness probe; `start` refuses to spawn after
+  // that, so no child can appear outside the processes teardown stops.
   let teardown;
   const abort = () => {
     teardown ??= stopAll(state.processes).then(() =>
       removeState(runDir, state.instance),
     );
     return teardown;
+  };
+  const start = (role, command, args, options) => {
+    if (teardown) fail(`Launch aborted before ${role} started`);
+    const started = startDetached(role, command, args, options);
+    state.processes.push(started.record);
+    saveState(runDir, state);
+    return started.child;
   };
   const onSignal = (signal) => {
     console.error(`${signal} during launch; stopping started processes`);
@@ -446,30 +456,21 @@ async function launch(runDir, { app, mode, envFile }) {
       const spec = await fakeQdrantSpec(nestEffectiveEnv(serverEnv, envFile));
       writeFileSync(specPath, `${JSON.stringify(spec, null, 2)}\n`);
       const log = join(evidence, "fake-qdrant.log");
-      const qdrant = startDetached(
+      const qdrant = start(
         "fake-qdrant",
         process.execPath,
         [SCRIPT, "fake-qdrant", specPath, "--port", String(qdrantPort)],
         { env: { PATH: process.env.PATH ?? "" }, log },
       );
-      state.processes.push(qdrant.record);
-      saveState(runDir, state);
       const qdrantUrl = `http://127.0.0.1:${qdrantPort}`;
-      await waitFor(qdrant.child, "Fake Qdrant", log, () =>
-        request(`${qdrantUrl}/`),
-      );
+      await waitFor(qdrant, "Fake Qdrant", log, () => request(`${qdrantUrl}/`));
       serverEnv.QDRANT_URL = qdrantUrl;
     }
 
     const log = join(evidence, "server.log");
     const { command, args } = serverCommand(app, mode, port, envFile);
-    const server = startDetached("server", command, args, {
-      env: serverEnv,
-      log,
-    });
-    state.processes.push(server.record);
-    saveState(runDir, state);
-    return await waitFor(server.child, "Server", log, () => inspect(state));
+    const server = start("server", command, args, { env: serverEnv, log });
+    return await waitFor(server, "Server", log, () => inspect(state));
   } catch (error) {
     await abort();
     throw error;
