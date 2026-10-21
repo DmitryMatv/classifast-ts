@@ -25,10 +25,12 @@ from python-dotenv: it does not expand `${VAR}`, and it treats `#` as a
 comment start in more places. On 2026-10-08 every key in the local `.env`
 parsed the same under both. Production is unaffected, because the image has
 no `.env` and Coolify or compose supplies the variables.
-`src/config/app-config.ts` parses every variable the Python app reads; add new variables to that schema instead
-of reading `process.env` elsewhere. `Dockerfile` builds the Nest image that
-production runs. `Dockerfile.python` builds the FastAPI image, kept for
-rollback until the Python code is deleted.
+`src/config/app-config.ts` parses every variable the Python app reads; add
+new variables to that schema instead of reading `process.env` elsewhere.
+`Dockerfile` builds the Nest image that production runs. `Dockerfile.python`
+builds the FastAPI image, kept for rollback until the Python code is deleted.
+The `Dockerfile` `CMD` raises Node's 16 KiB request-header limit to 64 KiB,
+near uvicorn's; launch Nest with the same flag when comparing the two.
 
 The `redis` project's globalSetup starts Redis 7.4.2 through
 `redis-memory-server`. Because `.npmrc` sets `ignore-scripts=true`, the first
@@ -355,7 +357,7 @@ Self-hosted from Raspberry Pi 4 (4GB) via Coolify behind Cloudflare Tunnel (Full
 
 ## When Modifying Cache Behaviour
 
-Cache headers are defined in `app/cache_profiles.py` - edit the profiles there instead of hand-rolling headers.
+Cache headers are defined in `src/http/cache-profiles.ts` - edit the profiles there instead of hand-rolling headers. `app/cache_profiles.py` is the rollback image's copy.
 
 - Never add `Set-Cookie` to fragment responses - breaks CDN caching
 - Paywalls must use `no-store` - prevents serving cached paywall to allowed users
@@ -451,10 +453,6 @@ as `unavailable`.
   `CF-Connecting-IP`; `app/google_crawlers.py` requires the explicit
   `GOOGLE_CRAWLER_TRUST_CF_CONNECTING_IP` opt-in. Pick one policy deliberately
   for new IP-dependent code.
-- Without that opt-in the two apps verify crawlers against different
-  addresses. Uvicorn runs with `--forwarded-allow-ips "*"`, so Python's
-  `request.client.host` is the first `X-Forwarded-For` address. Nest's
-  `crawlerRequestOf` uses the TCP peer, which behind Coolify is the proxy.
 - `paywall.ts` is wrapped in a parse guard on purpose (class declarations
   re-execute on bfcache/history-restore re-parsing). Do not remove the guard.
 - System classification retries must use `requestCurrentClassifierSubmission`

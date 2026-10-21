@@ -55,10 +55,12 @@ Visit the working instance at [classifast.com](https://classifast.com) to try.
 ## Installation
 
 1. Clone the repository
-2. Install Python dependencies: `pip install -r requirements.txt`
-3. Install frontend dependencies: `npm install`
-4. Set environment variables for embedding inference, API keys, and payments/quota behavior
-5. Run frontend watchers and the app: `npm run dev`
+2. Install dependencies: `npm ci`
+3. Set environment variables for embedding inference, API keys, and payments/quota behavior
+4. Run the frontend watcher and the NestJS app: `npm run dev`
+
+The Python app in `app/` is kept for rollback. To run it, install
+`requirements.txt` and run `uvicorn app.main:app --reload --port 8001`.
 
 Relevant embedding environment variables:
 
@@ -99,7 +101,6 @@ Relevant payment and quota environment variables:
 - `POLAR_ACCESS_TOKEN`
 - `POLAR_WEBHOOK_SECRET`
 - `POLAR_PRO_PRODUCT_ID`
-- `QUOTA_FAIL_OPEN` defaults to `true`
 - `CHECKOUT_GRACE_TTL` defaults to `300`
 
 Frontend JS/CSS files under `app/static/` are build artifacts. They are generated from `app/assets/` and are intentionally not committed to git.
@@ -133,13 +134,15 @@ app reads the same variable names as the Python app, with these differences:
 - The app does not start when Qdrant is unreachable or a collection fails the
   schema check. Without `HF_TOKEN` it starts, but `/health` answers 503 and
   the container becomes unhealthy, as with the Python image.
-- Google crawler verification uses the TCP peer address, which is the reverse
-  proxy's, unless `GOOGLE_CRAWLER_TRUST_CF_CONNECTING_IP=true`. Uvicorn ran
-  with `--forwarded-allow-ips "*"`, so the Python app used the first
-  `X-Forwarded-For` address instead. Set the opt-in only when the origin
-  receives requests through Cloudflare alone.
+- Google crawler verification uses the first `X-Forwarded-For` address, as
+  the Python app did through uvicorn's `--forwarded-allow-ips "*"`. Set
+  `GOOGLE_CRAWLER_TRUST_CF_CONNECTING_IP=true` to use Cloudflare's
+  `CF-Connecting-IP` instead, which a client cannot forge through Cloudflare.
+  Set it only when the origin receives requests through Cloudflare alone.
 - The app does not log one line per request, as uvicorn did. It logs startup,
   warnings, errors, and classification steps.
+- The app accepts request headers up to 64 KiB (`--max-http-header-size` in
+  the `CMD`). Node's default of 16 KiB was below uvicorn's limit.
 
 `docker-compose.yaml` runs the same image for local or manual container runs.
 It pins `HOST` and `PORT`, because its port mapping and health check expect
@@ -195,12 +198,12 @@ and keeps health checks, webhooks, and cached-page handling responsive.
 
 ## Testing
 
-Automated backend tests live under `tests/` and use pytest as the test runner.
-The existing tests retain their `unittest.TestCase`-compatible structure.
+- Run the unit tests (frontend and NestJS): `npm test`
+- Run the NestJS end-to-end tests: `npm run test:e2e`
+- Run the typecheck: `npm run typecheck`
 
-- Run the backend suite: `pytest`
-- Run the frontend typecheck: `npm run typecheck`
-- Run the Python typecheck: `python -m mypy`
+The Python app's tests live under `tests/` and use pytest. Run them with
+`pytest`, and the Python typecheck with `python -m mypy`.
 
 `utilities/test_*.py` scripts are manual smoke/debug helpers for live integrations and are intentionally separate from the main regression suite.
 
