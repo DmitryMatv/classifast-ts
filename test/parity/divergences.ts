@@ -41,7 +41,13 @@ export type Difference = {
   readonly field: Field;
   readonly python: string | null;
   readonly nest: string | null;
+  // For a body: each side's full text, with the ping timestamp masked.
+  readonly texts?: readonly [python: string, nest: string];
 };
+
+type Pair = readonly [python: Expected, nest: Expected];
+// Decides a body difference from both full texts.
+type BodyRule = (python: string, nest: string) => boolean;
 
 export type Divergence = {
   readonly name: string;
@@ -49,10 +55,13 @@ export type Divergence = {
   readonly modes?: readonly Mode[];
   readonly matches: (probe: Probe) => boolean;
   // The fields allowed to differ, each with the [Python, Nest] values the
-  // decision produces. Bodies compare as described in routes.parity.ts.
-  readonly differences: Partial<
-    Record<ExplainableField, readonly [python: Expected, nest: Expected]>
-  >;
+  // decision produces. Body values are the excerpts routes.parity.ts
+  // reports, unless a BodyRule reads the full texts.
+  readonly differences: {
+    readonly [F in ExplainableField]?: F extends "body"
+      ? Pair | BodyRule
+      : Pair;
+  };
 };
 
 function fits(value: string | null, expected: Expected): boolean {
@@ -63,7 +72,16 @@ function fits(value: string | null, expected: Expected): boolean {
   return value === expected;
 }
 
-const present = /^[\s\S]+$/;
+const httpDate = /^\w{3}, \d{2} \w{3} \d{4} \d{2}:\d{2}:\d{2} GMT$/;
+const rootFileTypes = [
+  "image/vnd.microsoft.icon",
+  "text/plain; charset=utf-8",
+  "text/xml; charset=utf-8",
+];
+// The cache profiles of the GET-only routes: root files, samples, fragments.
+const getOnlyProfiles = (
+  ["STATIC_TEXT", "STATIC_MEDIA", "CLASSIFICATION_RESULT"] as const
+).map((name) => cacheProfiles[name]);
 const pathOnly = (probe: Probe) => probe.path.split("?")[0]!;
 const nestNotFound =
   /^\d+ bytes, sha256 \w+: \{"detail":"(Type|Classifier) '[^']+' not found"\}$/;
@@ -109,17 +127,30 @@ export const KNOWN_DIVERGENCES: readonly Divergence[] = [
         ["200", "503"],
       ],
       location: [/^\/[^/]+\/fragment\/\?/, null],
-      "content-type": [["application/json", null], present],
+      "content-type": [
+        ["application/json", null],
+        [
+          ...rootFileTypes,
+          "text/csv; charset=utf-8",
+          "text/html; charset=utf-8",
+        ],
+      ],
       "content-encoding": ["gzip", null],
       vary: [
         ["accept-encoding", null],
         ["accept-encoding", null],
       ],
-      "cache-control": [null, present],
-      "cloudflare-cdn-cache-control": [null, present],
+      "cache-control": [
+        null,
+        getOnlyProfiles.map((profile) => profile.cacheControl),
+      ],
+      "cloudflare-cdn-cache-control": [
+        null,
+        getOnlyProfiles.map((profile) => profile.cloudflare),
+      ],
       "cache-tag": [null, "static-files"],
       etag: [null, /^"[^"]+"$/],
-      "last-modified": [null, present],
+      "last-modified": [null, httpDate],
       "content-disposition": [null, /^attachment; filename="[^"]+"$/],
     },
   },
@@ -153,8 +184,8 @@ export const KNOWN_DIVERGENCES: readonly Divergence[] = [
       (probe.conditional === true || probe.headers?.["if-none-match"] === "*"),
     differences: {
       status: ["200", "304"],
-      "content-type": [present, null],
-      "last-modified": [present, null],
+      "content-type": [rootFileTypes, null],
+      "last-modified": [httpDate, null],
       vary: ["accept-encoding", null],
       "content-encoding": ["gzip", null],
       body: [/^[1-9]\d* bytes/, "empty"],
@@ -170,7 +201,10 @@ export const KNOWN_DIVERGENCES: readonly Divergence[] = [
     matches: (probe) =>
       probe.method === "GET" && probe.path === "/api/v1/rapid/ping",
     differences: {
-      body: [/"database":"unavailable"/, /"database":"healthy"/],
+      body: (python, nest) =>
+        nest.includes('"database":"healthy"') &&
+        python ===
+          nest.replace('"database":"healthy"', '"database":"unavailable"'),
     },
   },
   {
@@ -191,17 +225,17 @@ export const KNOWN_DIVERGENCES: readonly Divergence[] = [
 export function explain(
   mode: Mode,
   probe: Probe,
-  { field, python, nest }: Difference,
+  { field, python, nest, texts }: Difference,
 ): Divergence | undefined {
   return KNOWN_DIVERGENCES.find((divergence) => {
     if (!(divergence.modes?.includes(mode) ?? true)) return false;
     if (!divergence.matches(probe)) return false;
     const allowed =
       divergence.differences[field as keyof Divergence["differences"]];
-    return (
-      allowed !== undefined &&
-      fits(python, allowed[0]) &&
-      fits(nest, allowed[1])
-    );
+    if (allowed === undefined) return false;
+    if (typeof allowed === "function") {
+      return texts !== undefined && allowed(...texts);
+    }
+    return fits(python, allowed[0]) && fits(nest, allowed[1]);
   });
 }

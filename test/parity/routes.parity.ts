@@ -156,12 +156,44 @@ function differences(python: Answer, nest: Answer): Difference[] {
   const views: [string, string] = [bodyView(python), bodyView(nest)];
   if (views[0] !== views[1]) {
     const [left, right] = bodyExcerpts([python, nest], views);
-    found.push({ field: "body", python: left, nest: right });
+    const texts = [python, nest].map((answer) =>
+      (headerView(answer, "content-type") ?? "").startsWith("application/json")
+        ? withoutTimestamp(answer.body).toString("utf8")
+        : answer.body.toString("utf8"),
+    ) as [string, string];
+    found.push({ field: "body", python: left, nest: right, texts });
   }
   return found;
 }
 
-type ReportEntry = Difference & { probe: string; verdict: string };
+// Every header except the framing ones and the per-request clock. Gzip
+// negotiates a body, so HEAD carries neither Content-Encoding nor the
+// Accept-Encoding token that compression adds to Vary, in either app.
+const VARYING_HEADERS = new Set([
+  "content-length",
+  "transfer-encoding",
+  "date",
+  "x-process-time",
+  "content-encoding",
+]);
+
+function headView(answer: Answer): Record<string, string | null> {
+  const vary = varyTokenSet(headerView(answer, "vary"))
+    .filter((token) => token !== "accept-encoding")
+    .join(", ");
+  return Object.fromEntries(
+    Object.keys(answer.headers)
+      .filter((name) => !VARYING_HEADERS.has(name) && name !== "vary")
+      .sort()
+      .map((name) => [name, headerView(answer, name)])
+      .concat(vary ? [["vary", vary]] : []),
+  );
+}
+
+type ReportEntry = Omit<Difference, "texts"> & {
+  probe: string;
+  verdict: string;
+};
 const report: ReportEntry[] = [];
 
 function sampleLinks(html: string): string[] {
@@ -212,22 +244,29 @@ describe(`Python and Nest parity (${mode} mode)`, () => {
       const [python, nest] = await Promise.all(
         APPS.map((app) => answer(app, probe)),
       );
-      const unexplained = differences(python!, nest!).filter((difference) => {
-        const divergence = explain(mode, probe, difference);
-        report.push({
-          probe: label,
-          ...difference,
-          verdict: divergence ? `known: ${divergence.name}` : "unexplained",
-        });
-        return divergence === undefined;
-      });
-      expect(unexplained).toEqual([]);
+      const entries = differences(python!, nest!).map(
+        ({ texts, ...difference }) => {
+          const divergence = explain(mode, probe, { ...difference, texts });
+          const verdict = divergence
+            ? `known: ${divergence.name}`
+            : "unexplained";
+          return { probe: label, ...difference, verdict };
+        },
+      );
+      report.push(...entries);
+      expect(
+        entries.filter((entry) => entry.verdict === "unexplained"),
+      ).toEqual([]);
       if (probe.method === "HEAD") {
         const get = await exchange("nest", { ...probe, method: "GET" });
-        expect(nest!.status, "Nest HEAD status matches its GET").toBe(
-          get.status,
-        );
-        expect(nest!.body.length, "Nest HEAD body").toBe(0);
+        expect(
+          {
+            status: nest!.status,
+            headers: headView(nest!),
+            body: nest!.body.length,
+          },
+          "Nest HEAD answers like its GET",
+        ).toEqual({ status: get.status, headers: headView(get), body: 0 });
       }
     },
   );
