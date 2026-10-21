@@ -16,7 +16,8 @@ export type Probe = {
 
 export function probeLabel(probe: Probe): string {
   const headers = Object.entries(probe.headers ?? {}).map(
-    ([name, value]) => ` [${name}: ${value}]`,
+    ([name, value]) =>
+      ` [${name}: ${value.length > 40 ? `<${value.length} bytes>` : value}]`,
   );
   const conditional = probe.conditional ? " [if-none-match: <etag>]" : "";
   return `${probe.method} ${probe.path}${headers.join("")}${conditional}`;
@@ -177,6 +178,12 @@ export function staticCorpus(): Probe[] {
     ),
     ...retiredPaths.flatMap(both),
     ...paymentPaths.map((path): Probe => ({ method: "GET", path })),
+    // Node's default 16 KiB header limit answers 431 where uvicorn accepts.
+    {
+      method: "GET",
+      path: "/mapping/",
+      headers: { "x-parity-padding": "x".repeat(20_000) },
+    },
   ];
   return probes;
 }

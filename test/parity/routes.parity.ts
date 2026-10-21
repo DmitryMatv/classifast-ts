@@ -21,7 +21,7 @@ import {
   COMPARED_HEADERS,
   explain,
   KNOWN_DIVERGENCES,
-  type Field,
+  type Difference,
 } from "./divergences.js";
 
 const { mode, runDir, urls } = inject("parity");
@@ -93,6 +93,7 @@ function headerView(answer: Answer, name: string): string | null {
 }
 
 function bodyView(answer: Answer): string {
+  if (answer.body.length === 0) return "empty";
   const type = headerView(answer, "content-type") ?? "";
   if (type.startsWith("text/html")) {
     const html = answer.body.toString("utf8");
@@ -117,29 +118,27 @@ function withoutTimestamp(body: Buffer): Buffer {
   );
 }
 
-// The first differing normalized line with three lines of context, or the
-// size and digest of a non-HTML body plus its leading text.
+// Each side's leading text when its view is one line (a digest), or the
+// first differing normalized line with three lines of context.
 function bodyExcerpts(
-  python: Answer,
-  nest: Answer,
-  views: [string, string],
+  answers: readonly [Answer, Answer],
+  views: readonly [string, string],
 ): [string, string] {
-  if (!views[0].includes("\n") && !views[1].includes("\n")) {
-    return [python, nest].map(
-      (answer, index) =>
-        `${views[index]}: ${answer.body.toString("utf8").slice(0, 300)}`,
-    ) as [string, string];
+  const lines = views.map((view) => view.split("\n"));
+  let first = 0;
+  while (first < lines[0]!.length && lines[0]![first] === lines[1]![first]) {
+    first++;
   }
-  const [left, right] = views.map((view) => view.split("\n"));
-  let line = 0;
-  while (left![line] === right![line]) line++;
-  const start = Math.max(0, line - 3);
-  return [left!, right!].map(
-    (lines) => `line ${line + 1}:\n${lines.slice(start, line + 4).join("\n")}`,
-  ) as [string, string];
+  const start = Math.max(0, first - 3);
+  return answers.map((answer, index) => {
+    const view = views[index]!;
+    if (view === "empty") return view;
+    if (!view.includes("\n")) {
+      return `${view}: ${answer.body.toString("utf8").slice(0, 300)}`;
+    }
+    return `line ${first + 1}:\n${lines[index]!.slice(start, first + 4).join("\n")}`;
+  }) as [string, string];
 }
-
-type Difference = { field: Field; python: string | null; nest: string | null };
 
 function differences(python: Answer, nest: Answer): Difference[] {
   const found: Difference[] = [];
@@ -156,7 +155,7 @@ function differences(python: Answer, nest: Answer): Difference[] {
   }
   const views: [string, string] = [bodyView(python), bodyView(nest)];
   if (views[0] !== views[1]) {
-    const [left, right] = bodyExcerpts(python, nest, views);
+    const [left, right] = bodyExcerpts([python, nest], views);
     found.push({ field: "body", python: left, nest: right });
   }
   return found;
@@ -214,7 +213,7 @@ describe(`Python and Nest parity (${mode} mode)`, () => {
         APPS.map((app) => answer(app, probe)),
       );
       const unexplained = differences(python!, nest!).filter((difference) => {
-        const divergence = explain(mode, probe, difference.field);
+        const divergence = explain(mode, probe, difference);
         report.push({
           probe: label,
           ...difference,
@@ -223,6 +222,13 @@ describe(`Python and Nest parity (${mode} mode)`, () => {
         return divergence === undefined;
       });
       expect(unexplained).toEqual([]);
+      if (probe.method === "HEAD") {
+        const get = await exchange("nest", { ...probe, method: "GET" });
+        expect(nest!.status, "Nest HEAD status matches its GET").toBe(
+          get.status,
+        );
+        expect(nest!.body.length, "Nest HEAD body").toBe(0);
+      }
     },
   );
 
