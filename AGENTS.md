@@ -161,8 +161,15 @@ never classify or charge quota, with `Host: classifast.com`,
 an allowlist of headers, and the body: normalized HTML, bytes otherwise.
 Every difference goes to `report.json` in the run directory under
 `.cache/parity/`. `KNOWN_DIVERGENCES` in `test/parity/divergences.ts` holds
-the decided differences; an unlisted difference fails, and so does an entry
-that no probe produces. Base classifier pages `/{TYPE}/` classify their
+the decided differences. Each entry names the fields allowed to differ and
+the Python and Nest values the decision produces, so a 500 or an extra
+header on a matched route still fails. No entry can excuse a security header
+or a `Set-Cookie`. An unlisted difference fails, and so does an entry that
+no probe produces. Every HEAD probe also checks that Nest answers its GET
+status with an empty body. One probe sends a 20 KB header: Node's default
+16 KiB limit answers 431 where uvicorn answers 200, so the driver starts
+Nest with `--max-http-header-size=65536`, the flag in the `Dockerfile.node`
+CMD. Base classifier pages `/{TYPE}/` classify their
 example through the live pipeline, so `checkedCorpus` refuses any probe for
 one, even a query-string variant that would redirect first. Full mode needs
 the driver's Redis at `127.0.0.1:16379` and, for Python, `VIRTUAL_ENV` or
