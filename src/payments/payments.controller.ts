@@ -27,9 +27,7 @@ export class PaymentsController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<CheckoutReply> {
     res.set(cacheHeaders("NO_STORE"));
-    await this.rateLimit.enforce(
-      clientIp(req.headersDistinct, req.socket.remoteAddress),
-    );
+    await this.rateLimit.enforce(clientIp(req));
     const userId = await this.clerk.requireSessionUser(
       req.headers.authorization,
     );
@@ -47,9 +45,7 @@ export class PaymentsController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<CheckoutReply> {
     res.set(cacheHeaders("NO_STORE"));
-    await this.rateLimit.enforce(
-      clientIp(req.headersDistinct, req.socket.remoteAddress),
-    );
+    await this.rateLimit.enforce(clientIp(req));
     return this.checkouts.createMapping(
       await readRawBody(req),
       requestBaseUrl(req),
