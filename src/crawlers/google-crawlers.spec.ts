@@ -30,7 +30,7 @@ function crawlerRequest(
   return {
     userAgent: GOOGLEBOT,
     cfConnectingIp: "66.249.64.1",
-    peerAddress: "127.0.0.1",
+    clientHost: "127.0.0.1",
     ...overrides,
   };
 }
@@ -106,18 +106,18 @@ describe("GoogleCrawlerVerifier", () => {
     );
 
     const verified = await verifier.isVerified(
-      crawlerRequest({ peerAddress: "203.0.113.10" }),
+      crawlerRequest({ clientHost: "203.0.113.10" }),
     );
 
     expect(verified).toBe(false);
     expect(current).toHaveBeenCalledOnce();
   });
 
-  it("uses the peer address when CF-Connecting-IP is missing", async () => {
+  it("uses the client host when CF-Connecting-IP is missing", async () => {
     const { verifier } = verifierWith(crawlerConfig());
 
     const verified = await verifier.isVerified(
-      crawlerRequest({ cfConnectingIp: undefined, peerAddress: "66.249.64.1" }),
+      crawlerRequest({ cfConnectingIp: undefined, clientHost: "66.249.64.1" }),
     );
 
     expect(verified).toBe(true);
