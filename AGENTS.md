@@ -12,10 +12,9 @@ Run the Nest e2e tests with `npm run test:e2e`. `npm run typecheck` checks both 
 (Nest, `src/` and `test/`) and `app/assets/tsconfig.json` (frontend and the
 Vite and Vitest configs).
 
-The NestJS app in `src/` is an early migration scaffold. Start it with
-`npm run start:dev`. It serves only `/health` so far; production still runs the
-FastAPI app. The root `test/` directory holds Nest e2e specs for Vitest; the
-Python suite lives in `tests/`.
+The NestJS app in `src/` ports every route of the FastAPI app and is what
+production runs. Start it with `npm run start:dev`. The root `test/` directory
+holds Nest e2e specs for Vitest; the Python suite lives in `tests/`.
 
 The Nest app listens on `HOST` and `PORT` (default `0.0.0.0:8001`), the same
 port as the Python app. Set `PORT` to run both at once. Like Python's
@@ -25,10 +24,11 @@ variables already in the environment win. A worktree has no `.env`, so pass
 from python-dotenv: it does not expand `${VAR}`, and it treats `#` as a
 comment start in more places. On 2026-10-08 every key in the local `.env`
 parsed the same under both. Production is unaffected, because the image has
-no `.env` and compose supplies the variables. `src/config/app-config.ts` parses
-every variable the Python app reads; add new variables to that schema instead
-of reading `process.env` elsewhere. `Dockerfile.node` builds the Nest image;
-production still uses `Dockerfile`.
+no `.env` and Coolify or compose supplies the variables.
+`src/config/app-config.ts` parses every variable the Python app reads; add
+new variables to that schema instead of reading `process.env` elsewhere.
+`Dockerfile` builds the Nest image that production runs. `Dockerfile.python`
+builds the FastAPI image, kept for rollback until the Python code is deleted.
 
 The `redis` project's globalSetup starts Redis 7.4.2 through
 `redis-memory-server`. Because `.npmrc` sets `ignore-scripts=true`, the first
@@ -150,7 +150,7 @@ supplies those keys, or when Python's `load_dotenv()`, which searches upward
 from `app/`, finds the main checkout's `.env` from a nested worktree. Nest
 public mode also starts a detached fake Qdrant; `instance.json` records it
 with the server, and `cleanup` stops both. The driver starts Nest with
-`NODE_ENV=production`, as `Dockerfile.node` does, because React's
+`NODE_ENV=production`, as `Dockerfile` does, because React's
 development build is not what production renders.
 
 `npm run test:parity` (`test/parity/`) launches the Python and Nest apps
@@ -168,7 +168,7 @@ or a `Set-Cookie`. An unlisted difference fails, and so does an entry that
 no probe produces. Every HEAD probe also checks that Nest answers its GET
 status with an empty body. One probe sends a 20 KB header: Node's default
 16 KiB limit answers 431 where uvicorn answers 200, so the driver starts
-Nest with `--max-http-header-size=65536`, the flag in the `Dockerfile.node`
+Nest with `--max-http-header-size=65536`, the flag in the `Dockerfile`
 CMD. Base classifier pages `/{TYPE}/` classify their
 example through the live pipeline, so `checkedCorpus` refuses any probe for
 one, even a query-string variant that would redirect first. Full mode needs
@@ -356,7 +356,7 @@ can NFC-normalize literals such as `e` plus U+0301; write such inputs as escapes
 Parity with
 Python holds only where Node and Python implement the same Unicode version.
 The fixtures record Python's Unicode 16.0, while Node 24.21 (the `node:24`
-line in `Dockerfile.node`, verified locally) and Node 26 ship Unicode 17.0
+line in `Dockerfile`, verified locally) and Node 26 ship Unicode 17.0
 (ICU 78). Code-point sweeps (`test/support/golden.ts`) therefore skip the
 code points unassigned in the fixtures' version, plus the assigned ones whose
 general category or case mapping Node's newer data changed (U+0295, U+A7D3
@@ -376,17 +376,18 @@ Classifast is a classification service web application that uses embeddings and 
 
 ## Tech Stack
 
-- Backend: Python FastAPI
-- Frontend: TypeScript with Tailwind CSS (built with Node/npm and Vite, served via FastAPI)
+- Backend: NestJS (`src/`), built by `Dockerfile`. The Python FastAPI app
+  (`app/`, `Dockerfile.python`) remains for rollback.
+- Frontend: TypeScript with Tailwind CSS (built with Node/npm and Vite, served by the backend)
 - Infrastructure: Redis (usage tracking), Qdrant (vector database), Hugging Face Inference (embeddings), OpenRouter (deployed-service reranking and opt-in query enhancement), Clerk (authentication), Polar (payments)
 
 ## Hardware, Deployment, Cache
 
-Self-hosted from Raspberry Pi 4 (4GB) via Coolify behind Cloudflare Tunnel (Full HTTPS/TLS Setup for All Resources). The app uses Cloudflare's CDN edge caching to reduce API costs and improve performance. Classification results are cached at edge for 7 days.
+Self-hosted from Raspberry Pi 4 (4GB) via Coolify behind Cloudflare Tunnel (Full HTTPS/TLS Setup for All Resources). Coolify builds `./Dockerfile` with its Dockerfile build pack, not `docker-compose.yaml`. The app uses Cloudflare's CDN edge caching to reduce API costs and improve performance. Classification results are cached at edge for 7 days.
 
 ## When Modifying Cache Behaviour
 
-Cache headers are defined in `app/cache_profiles.py` - edit the profiles there instead of hand-rolling headers.
+Cache headers are defined in `src/http/cache-profiles.ts` - edit the profiles there instead of hand-rolling headers. `app/cache_profiles.py` is the rollback image's copy.
 
 - Never add `Set-Cookie` to fragment responses - breaks CDN caching
 - Paywalls must use `no-store` - prevents serving cached paywall to allowed users
@@ -402,7 +403,7 @@ Cache headers are defined in `app/cache_profiles.py` - edit the profiles there i
 
 The root `.dockerignore` pattern `*.csv` excludes root-level CSVs only.
 The nested public samples in `app/static/mapping_samples/` remain in the Docker
-build context and are copied by `Dockerfile.node`. Check Docker's context
+build context and are copied by `Dockerfile`. Check Docker's context
 archive before assuming an ignore pattern excludes a nested asset.
 
 `app/static/js/*.js` and `app/static/css/styles.css` are Vite build outputs
