@@ -29,8 +29,6 @@ no `.env` and Coolify or compose supplies the variables.
 new variables to that schema instead of reading `process.env` elsewhere.
 `Dockerfile` builds the Nest image that production runs. `Dockerfile.python`
 builds the FastAPI image, kept for rollback until the Python code is deleted.
-The `Dockerfile` `CMD` raises Node's 16 KiB request-header limit to 64 KiB,
-near uvicorn's; launch Nest with the same flag when comparing the two.
 
 The `redis` project's globalSetup starts Redis 7.4.2 through
 `redis-memory-server`. Because `.npmrc` sets `ignore-scripts=true`, the first
@@ -152,7 +150,7 @@ supplies those keys, or when Python's `load_dotenv()`, which searches upward
 from `app/`, finds the main checkout's `.env` from a nested worktree. Nest
 public mode also starts a detached fake Qdrant; `instance.json` records it
 with the server, and `cleanup` stops both. The driver starts Nest with
-`NODE_ENV=production`, as `Dockerfile.node` does, because React's
+`NODE_ENV=production`, as `Dockerfile` does, because React's
 development build is not what production renders.
 
 `npm run test:parity` (`test/parity/`) launches the Python and Nest apps
@@ -170,7 +168,7 @@ or a `Set-Cookie`. An unlisted difference fails, and so does an entry that
 no probe produces. Every HEAD probe also checks that Nest answers its GET
 status with an empty body. One probe sends a 20 KB header: Node's default
 16 KiB limit answers 431 where uvicorn answers 200, so the driver starts
-Nest with `--max-http-header-size=65536`, the flag in the `Dockerfile.node`
+Nest with `--max-http-header-size=65536`, the flag in the `Dockerfile`
 CMD. Base classifier pages `/{TYPE}/` classify their
 example through the live pipeline, so `checkedCorpus` refuses any probe for
 one, even a query-string variant that would redirect first. Full mode needs
