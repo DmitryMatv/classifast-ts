@@ -53,7 +53,7 @@ export function clientIp(request: ClientRequest): string {
   const forwarded = headersDistinct["x-forwarded-for"]?.[0];
   if (forwarded) {
     const [firstHop = ""] = forwarded.split(",");
-    return firstHop.trim();
+    return pyStrip(firstHop);
   }
   return clientHost(request) ?? "unknown";
 }

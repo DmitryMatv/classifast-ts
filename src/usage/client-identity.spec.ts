@@ -19,6 +19,7 @@ const golden = readGolden(
         lines: z.array(z.string()),
         peer: z.string().nullable(),
         host: z.string().nullable(),
+        ip: z.string(),
       }),
     ),
   }),
@@ -31,19 +32,26 @@ function requestFrom(
   return { headersDistinct, socket: { remoteAddress: peer } };
 }
 
-describe("clientHost matches uvicorn's ProxyHeadersMiddleware", () => {
-  it.each(
-    golden.cases.map((testCase) => ({
-      ...testCase,
-      label: JSON.stringify(testCase.lines).slice(0, 60),
-    })),
-  )("$label from $peer -> $host", ({ lines, peer, host }) => {
-    // Node leaves a header it did not receive out of headersDistinct.
-    const headers = lines.length === 0 ? {} : { "x-forwarded-for": lines };
+const proxiedCases = golden.cases.map(({ lines, peer, ...expected }) => ({
+  label: JSON.stringify(lines).slice(0, 60),
+  peer,
+  // Node leaves a header it did not receive out of headersDistinct.
+  request: requestFrom(
+    lines.length === 0 ? {} : { "x-forwarded-for": lines },
+    peer ?? undefined,
+  ),
+  ...expected,
+}));
 
-    expect(clientHost(requestFrom(headers, peer ?? undefined))).toBe(
-      host ?? undefined,
-    );
+describe("clientHost matches request.client.host under uvicorn's proxy headers", () => {
+  it.each(proxiedCases)("$label from $peer -> $host", ({ request, host }) => {
+    expect(clientHost(request)).toBe(host ?? undefined);
+  });
+});
+
+describe("clientIp matches get_client_ip under uvicorn's proxy headers", () => {
+  it.each(proxiedCases)("$label from $peer -> $ip", ({ request, ip }) => {
+    expect(clientIp(request)).toBe(ip);
   });
 });
 

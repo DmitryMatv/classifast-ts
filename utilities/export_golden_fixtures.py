@@ -99,7 +99,12 @@ from app.main import (
 )
 from app.main import app as fastapi_app
 from app.mapping_store import get_mapping_product, list_mapping_products
-from app.usage_tracker import QuotaUnavailableError, SignedInCaller, UsageStatus
+from app.usage_tracker import (
+    QuotaUnavailableError,
+    SignedInCaller,
+    UsageStatus,
+    get_client_ip,
+)
 from app.query_enhancer import EnhancementStatus, QueryEnhancer, _is_code_like
 from app.reranker import OpenRouterReranker
 from app.web import build_mapping_canonical_url
@@ -1618,11 +1623,17 @@ PROXY_CLIENT_INPUTS: list[tuple[list[bytes], str | None]] = [
 ]
 
 
-def proxied_client_host(lines: list[bytes], peer: str | None) -> str | None:
-    clients: list[tuple[str, int] | None] = []
+def proxied_client(lines: list[bytes], peer: str | None) -> dict[str, object]:
+    seen: list[dict[str, object]] = []
 
     async def capture(scope: Any, _receive: Any, _send: Any) -> None:
-        clients.append(scope["client"])
+        request = Request(scope)
+        seen.append(
+            {
+                "host": request.client.host if request.client else None,
+                "ip": get_client_ip(request),
+            }
+        )
 
     scope = {
         "type": "http",
@@ -1632,8 +1643,8 @@ def proxied_client_host(lines: list[bytes], peer: str | None) -> str | None:
     }
     middleware = ProxyHeadersMiddleware(capture, trusted_hosts="*")
     asyncio.run(middleware(scope, None, None))
-    [client] = clients
-    return None if client is None else client[0]
+    [client] = seen
+    return client
 
 
 def build_proxy_client_fixture() -> dict[str, object]:
@@ -1642,7 +1653,7 @@ def build_proxy_client_fixture() -> dict[str, object]:
             {
                 "lines": [line.decode("latin-1") for line in lines],
                 "peer": peer,
-                "host": proxied_client_host(lines, peer),
+                **proxied_client(lines, peer),
             }
             for lines, peer in PROXY_CLIENT_INPUTS
         ]
