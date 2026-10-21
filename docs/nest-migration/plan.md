@@ -101,6 +101,9 @@ setup that the scaffold adds. The user asked to start with the scaffold.
         verify driver, run the side-by-side diff, deploy, and keep the Python
         image for rollback. After the soak, delete the Python runtime code and
         update AGENTS.md and the README.
+        Repo side: #17 (client host parity), #19 (verify driver, contract
+        runner, parity diff), #20 (Dockerfile switch; merging it deploys).
+        Open: the deploy, the soak, and deleting the Python code.
 12. [ ] Render results for every visitor on sitemap query pages (decision 3),
         backed by a result cache. Deploy this unit on its own after the
         cutover soak, with contract cases for the new page output and a check
