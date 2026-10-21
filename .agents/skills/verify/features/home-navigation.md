@@ -36,4 +36,4 @@ Preconditions: doctor reports `mapping_page_ready: true` for this run.
 - `/UNSPSC` and `/mapping` redirect to slash-terminated canonical routes.
 - The standard list contains several links named by acronym; scope the UNSPSC click to `#standards`.
 - The homepage hamburger can open the menu at desktop width too. Resize to test the narrow layout, and scope menu links to `nav[aria-label='Mobile navigation']`.
-- Popular lookup links come from the sitemap-filtered list in `app/classifier_page_delivery.py`; record the visible destination rather than hardcoding the first query. Compare URL pathnames because links can be relative or absolute.
+- Popular lookup links come from the sitemap-filtered list in `src/classifier/popular-lookups.ts`; record the visible destination rather than hardcoding the first query. Compare URL pathnames because links can be relative or absolute.
