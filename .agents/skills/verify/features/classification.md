@@ -30,7 +30,7 @@ Preconditions: use the default full-mode launch with the disposable local Redis 
 - To check `classify-beta-enhancement`:
   1. Start at `/UNSPSC/` and confirm `Expand query Beta` is off. Enter a short query such as `POS` and submit it. Record the URL, input value, results heading, and first result.
   2. Click the visible `Expand query Beta` label and submit the same query again. Confirm the URL includes `?enhance_query=1`, the switch is on, the input and heading still show the original query, and a completed result list appears.
-  3. Record the first result. Check `evidence/server.log` for a successful OpenRouter chat completion and rerank request using the expanded query. Live model output can vary, so do not require a particular code or score.
+  3. Record the first result. Check `evidence/server.log` for the rerank request: Nest logs `RERANK: OpenRouter reranking <n> candidates for query='<text>'` with the expanded query, then `RERANK_COMPLETE`. A successful query enhancement has no log line of its own; a failed one logs a warning, and the reranked query is then the submitted text. Live model output can vary, so do not require a particular code or score.
   4. Reopen the enhanced URL and confirm it restores the switch and original query.
 
 ## Quota recovery and paid access
