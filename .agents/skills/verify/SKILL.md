@@ -21,7 +21,7 @@ RUN_DIR=$(mktemp -d "$PWD/.cache/verify/run-XXXXXX")
 node .agents/skills/verify/scripts/control.mjs launch "$RUN_DIR" --env-file /path/to/.env
 ```
 
-The command prints the instance URL and `run_dir`. Copy the printed `run_dir` into `RUN_DIR` at the start of every later shell tool call; shell variables do not persist between calls. The server binds to a free `127.0.0.1` port and writes `instance.json` under `RUN_DIR`. That file records the PID and `/proc` start time of every process the launch started. Launch refuses a run directory that already has `instance.json`.
+The command prints the instance URL and `run_dir`. Copy the printed `run_dir` into `RUN_DIR` at the start of every later shell tool call; shell variables do not persist between calls. The server binds to a free `127.0.0.1` port and writes `instance.json` under `RUN_DIR`. That file records the PID and `/proc` start time of every process the launch started. Launch refuses a run directory that already has `instance.json`. Nest starts with `--max-http-header-size=65536`, as the `Dockerfile.node` CMD does, because uvicorn accepts request headers past Node's 16 KiB default.
 
 `--env-file <path>` passes the file to the app: `node --env-file` for Nest and `uvicorn --env-file` for Python. Variables already in the environment win over the file. Nest also loads the checkout's own `.env` when one exists. A worktree has none, so pass the main checkout's `.env` explicitly. Python's `load_dotenv()` searches upward from `app/`, so a worktree nested under the main checkout loads the main checkout's `.env` even without `--env-file`. Never print, copy, or commit the env file.
 
@@ -30,13 +30,15 @@ Full mode is the default. It loads the configured Qdrant, Hugging Face, and Open
 Start a disposable Redis at that address before a full-mode launch. Without Docker, use the Redis 7.4.2 binary that the `redis` test project compiles into `node_modules/.cache/redis-memory-server/` on its first run (`npx vitest run --project redis`):
 
 ```bash
+mkdir -p .cache/verify/redis
 setsid node_modules/.cache/redis-memory-server/redis-binaries/7.4.2/redis-server \
   --port 16379 --bind 127.0.0.1 --save "" --appendonly no \
-  > "$RUN_DIR/evidence/redis.log" 2>&1 < /dev/null &
+  > .cache/verify/redis/redis.log 2>&1 < /dev/null &
+sleep 1
 ss -ltnp | grep ':16379 '
 ```
 
-Record the PID that `ss` reports and its start time (field 22 of `/proc/<pid>/stat`), and stop only that process after the run. With Docker, `sudo docker run --rm -d --name classifast-verify-redis -p 127.0.0.1:16379:6379 redis:7.4 redis-server --save "" --appendonly no` works too; Docker may ask for a sudo password, so never copy credentials into a tool call. If a Redis already answers on 16379, check that it is a disposable instance before you use it.
+Record the PID that `ss` reports and its start time (`cut -d' ' -f22 /proc/<pid>/stat`). After the run, check that the start time still matches, then stop only that PID with `kill <pid>`. The Redis lives outside any run directory, so several runs can share it. With Docker, `sudo docker run --rm -d --name classifast-verify-redis -p 127.0.0.1:16379:6379 redis:7.4 redis-server --save "" --appendonly no` works too; Docker may ask for a sudo password, so never copy credentials into a tool call. If a Redis already answers on 16379, check that it is a disposable instance before you use it.
 
 For page and download checks without live classification, launch a fresh run directory with `--mode public`. Public mode answers like a server with no credentials and no Redis, even when an env file supplies them: it sets `HF_TOKEN`, `OPENROUTER_API_KEY`, `QDRANT_API_KEY`, `CLERK_SECRET_KEY`, `POLAR_ACCESS_TOKEN`, `POLAR_WEBHOOK_SECRET`, `RAPIDAPI_SECRET`, `REDIS_USERNAME` and `REDIS_PASSWORD` to empty values, which both apps treat as absent, and points Redis at the unreachable `127.0.0.1:1`. Nest refuses to boot without Qdrant, so public mode first starts a detached fake Qdrant (`control.mjs fake-qdrant`) that serves the configured collections and logs every request to `evidence/fake-qdrant.log`. Python public mode disables the FastAPI lifespan instead and connects to nothing. Public mode cannot prove classification results or checkout; a fragment with a description answers 503 `Usage tracking is temporarily unavailable`. `npm run test:contract:nest` runs the contract suite against this mode. Do not drive another instance or use the deployed site as a substitute.
 
@@ -73,6 +75,6 @@ node .agents/skills/verify/scripts/control.mjs cleanup "$RUN_DIR"
 test -f "$RUN_DIR/evidence/doctor.json"
 ```
 
-The script checks each recorded PID against its process start time, stops the server and then the fake Qdrant, and removes `instance.json`. Keep `$RUN_DIR/evidence/` and its screenshots, downloads, and logs. Never use `pkill` or remove another run's directory. After a failed launch, the script stops every process it started and removes `instance.json`; inspect `evidence/server.log` before retrying in a new run directory.
+The script checks each recorded PID against its process start time, stops the server and then the fake Qdrant, and removes `instance.json` only while it still names the instance it loaded, so a late cleanup never deletes a newer launch's state. It attempts every process even when one fails, and keeps `instance.json` when any process could not be stopped. Keep `$RUN_DIR/evidence/` and its screenshots, downloads, and logs. Never use `pkill` or remove another run's directory. After a failed or interrupted launch (Ctrl-C, SIGTERM or SIGHUP), the script stops every process it started and removes `instance.json`; inspect `evidence/server.log` before retrying in a new run directory.
 
 Stop the Redis you started by its recorded PID after checking that its start time still matches, or remove the exact container with `sudo docker rm -f classifast-verify-redis`. Leave a Redis running if someone else started it.

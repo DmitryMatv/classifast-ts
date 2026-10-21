@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Start, inspect, and stop a Classifast verification instance.
 import { spawn, execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import {
   closeSync,
   existsSync,
@@ -12,6 +13,7 @@ import {
 } from "node:fs";
 import { createServer, createConnection } from "node:net";
 import { createServer as createHttpServer } from "node:http";
+import { constants as osConstants } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs, parseEnv } from "node:util";
@@ -23,6 +25,7 @@ const LOCAL_REDIS = { host: "127.0.0.1", port: 16379 };
 const READY_ATTEMPTS = 300;
 const READY_INTERVAL_MS = 200;
 const STOP_GRACE_MS = 10_000;
+const LAUNCH_SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"];
 
 // Public mode answers like a server with no credentials and no Redis, even
 // when an env file or the repository-root .env supplies them. Both apps
@@ -46,7 +49,7 @@ function fail(message) {
   throw new Error(message);
 }
 
-function processStart(pid) {
+export function processStart(pid) {
   try {
     const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
     const fields = stat.slice(stat.lastIndexOf(") ") + 2).split(" ");
@@ -60,21 +63,39 @@ function owns(proc) {
   return processStart(proc.pid) === proc.process_start;
 }
 
-async function stopProcess(proc) {
+// The process can exit between owns() and kill(); ESRCH means it is gone.
+function signalOwned(proc, signal) {
   if (!owns(proc)) return;
-  process.kill(proc.pid, "SIGTERM");
-  for (let waited = 0; waited < STOP_GRACE_MS; waited += 100) {
-    await sleep(100);
-    if (!owns(proc)) return;
-  }
-  if (owns(proc)) process.kill(proc.pid, "SIGKILL");
-  for (let waited = 0; waited < 2_000 && owns(proc); waited += 100) {
-    await sleep(100);
+  try {
+    process.kill(proc.pid, signal);
+  } catch (error) {
+    if (error.code !== "ESRCH") throw error;
   }
 }
 
-async function stopAll(state) {
-  for (const proc of [...state.processes].reverse()) await stopProcess(proc);
+async function stopProcess(proc) {
+  signalOwned(proc, "SIGTERM");
+  for (let waited = 0; waited < STOP_GRACE_MS && owns(proc); waited += 100) {
+    await sleep(100);
+  }
+  signalOwned(proc, "SIGKILL");
+  for (let waited = 0; waited < 2_000 && owns(proc); waited += 100) {
+    await sleep(100);
+  }
+  if (owns(proc)) fail("still running after SIGKILL");
+}
+
+/** Stops every recorded process, last started first, then reports failures. */
+export async function stopAll(processes) {
+  const failures = [];
+  for (const proc of [...processes].reverse()) {
+    try {
+      await stopProcess(proc);
+    } catch (error) {
+      failures.push(`${proc.role} ${proc.pid}: ${error.message}`);
+    }
+  }
+  if (failures.length > 0) fail(`Could not stop ${failures.join("; ")}`);
 }
 
 function localRedisReady() {
@@ -126,6 +147,22 @@ function saveState(runDir, state, flag = "w") {
   writeFileSync(stateFile(runDir), `${JSON.stringify(state, null, 2)}\n`, {
     flag,
   });
+}
+
+/**
+ * Removes the state file only while it still describes `instance`, so a
+ * late cleanup cannot delete the state of a newer launch in the same
+ * directory.
+ */
+export function removeState(runDir, instance) {
+  try {
+    if (loadState(runDir).instance !== instance) return false;
+    unlinkSync(stateFile(runDir));
+    return true;
+  } catch (error) {
+    if (error.code === "ENOENT") return false;
+    throw error;
+  }
 }
 
 async function inspect(state) {
@@ -293,7 +330,13 @@ function serverCommand(app, mode, port, envFile) {
   if (app === "nest") {
     return {
       command: process.execPath,
-      args: [...(envFile ? [`--env-file=${envFile}`] : []), "dist/main.js"],
+      args: [
+        ...(envFile ? [`--env-file=${envFile}`] : []),
+        // Matches the CMD in Dockerfile.node; uvicorn accepts request
+        // headers well past Node's 16 KiB default.
+        "--max-http-header-size=65536",
+        "dist/main.js",
+      ],
     };
   }
   return {
@@ -344,6 +387,7 @@ async function launch(runDir, { app, mode, envFile }) {
   mkdirSync(evidence, { recursive: true });
   const port = await freePort();
   const state = {
+    instance: randomUUID(),
     app,
     mode,
     url: `http://127.0.0.1:${port}`,
@@ -355,6 +399,21 @@ async function launch(runDir, { app, mode, envFile }) {
     processes: [],
   };
   saveState(runDir, state, "wx");
+
+  // The children are detached, so Ctrl-C or SIGTERM during launch would
+  // otherwise leave them running.
+  let teardown;
+  const abort = () => {
+    teardown ??= stopAll(state.processes).then(() =>
+      removeState(runDir, state.instance),
+    );
+    return teardown;
+  };
+  const onSignal = (signal) => {
+    console.error(`${signal} during launch; stopping started processes`);
+    abort().finally(() => process.exit(128 + osConstants.signals[signal]));
+  };
+  for (const signal of LAUNCH_SIGNALS) process.on(signal, onSignal);
 
   const serverEnv = {
     ...process.env,
@@ -412,37 +471,38 @@ async function launch(runDir, { app, mode, envFile }) {
     saveState(runDir, state);
     return await waitFor(server.child, "Server", log, () => inspect(state));
   } catch (error) {
-    await stopAll(state);
-    unlinkSync(stateFile(runDir));
+    await abort();
     throw error;
+  } finally {
+    for (const signal of LAUNCH_SIGNALS) process.off(signal, onSignal);
   }
 }
 
 async function cleanup(runDir) {
   const state = loadState(runDir);
-  await stopAll(state);
-  unlinkSync(stateFile(runDir));
+  await stopAll(state.processes);
   return {
     stopped: state.processes,
+    state_removed: removeState(runDir, state.instance),
     evidence: join(runDir, "evidence"),
   };
 }
 
-const { values, positionals } = parseArgs({
-  allowPositionals: true,
-  options: {
-    app: { type: "string", default: "nest" },
-    mode: { type: "string", default: "full" },
-    "env-file": { type: "string" },
-    port: { type: "string" },
-  },
-});
-const [action, target] = positionals;
 const usage =
   "Usage: control.mjs launch|doctor|cleanup <run_dir> " +
   "[--app nest|python] [--mode full|public] [--env-file <path>]";
 
 async function main() {
+  const { values, positionals } = parseArgs({
+    allowPositionals: true,
+    options: {
+      app: { type: "string", default: "nest" },
+      mode: { type: "string", default: "full" },
+      "env-file": { type: "string" },
+      port: { type: "string" },
+    },
+  });
+  const [action, target] = positionals;
   if (action === "fake-qdrant") {
     serveFakeQdrant(Number(values.port), target);
     return;
@@ -466,7 +526,9 @@ async function main() {
   console.log(JSON.stringify({ ...result, run_dir: runDir }, null, 2));
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+if (process.argv[1] && resolve(process.argv[1]) === SCRIPT) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
+}
