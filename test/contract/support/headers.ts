@@ -52,3 +52,13 @@ export const securityHeaders = {
     "frame-ancestors 'none'; " +
     "upgrade-insecure-requests;",
 } as const;
+
+// Python repeats tokens ("Accept-Encoding, Accept-Encoding") because GZip
+// middleware appends to a route-set Vary; caches treat Vary as a set.
+export function varyTokenSet(value: string | null | undefined): string[] {
+  const tokens = (value ?? "")
+    .split(",")
+    .map((token) => token.trim().toLowerCase())
+    .filter(Boolean);
+  return [...new Set(tokens)].sort();
+}

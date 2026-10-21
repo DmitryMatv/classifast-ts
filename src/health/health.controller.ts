@@ -1,6 +1,8 @@
-import { Controller, Get, HttpException, Inject } from "@nestjs/common";
+import { Controller, Get, HttpException, Inject, Res } from "@nestjs/common";
 import type { QdrantClient } from "@qdrant/js-client-rest";
+import type { Response } from "express";
 import { EMBEDDING_CLIENT } from "../classifier/classification.module.js";
+import { sendJson } from "../http/error-filter.js";
 import { QDRANT_CLIENT } from "../qdrant/qdrant.module.js";
 import { isHealthy } from "./health.js";
 
@@ -13,7 +15,7 @@ export class HealthController {
   ) {}
 
   @Get("health")
-  async health(): Promise<{ status: "healthy" }> {
+  async health(@Res() res: Response): Promise<void> {
     const healthy = await isHealthy({
       embeddingReady: this.embeddingClient !== null,
       probeQdrant: () => this.qdrant.getCollections(),
@@ -21,6 +23,6 @@ export class HealthController {
     if (!healthy) {
       throw new HttpException({ detail: "Service Unavailable" }, 503);
     }
-    return { status: "healthy" };
+    sendJson(res, { status: 200, body: { status: "healthy" } });
   }
 }

@@ -97,6 +97,7 @@ describe("/health (e2e)", () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ status: "healthy" });
+    expect(response.headers["content-type"]).toBe("application/json");
     expect(response.headers["cache-control"]).toBeUndefined();
     expect(response.headers["etag"]).toBeUndefined();
     expect(response.headers["x-powered-by"]).toBeUndefined();
