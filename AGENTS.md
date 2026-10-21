@@ -67,9 +67,18 @@ request. The IP counter decides the same outcome either way.
 
 Node joins repeated request headers such as `CF-Connecting-IP` into one
 comma-separated string, while Starlette's `headers.get` returns the first
-value. Pass `req.headersDistinct` to `clientIp` in
-`src/usage/client-identity.ts`, not `req.headers`, to read the first value as
-Python does.
+value. Read `req.headersDistinct`, not `req.headers`, to read the first value
+as Python does; `clientIp` in `src/usage/client-identity.ts` does.
+
+Production uvicorn runs with `--forwarded-allow-ips "*"`, so Python's
+`request.client.host` is the first X-Forwarded-For entry. The TCP peer counts
+only when that entry has no host. Behind Coolify's proxy the peer is the proxy,
+and `TestClient` skips uvicorn, so the page fixtures cannot show this. Where
+Python reads `request.client.host`, call `clientHost` in
+`src/usage/client-identity.ts`; never read `req.socket.remoteAddress`.
+`proxy-client.json` replays uvicorn's real `ProxyHeadersMiddleware`. Rerun
+`python utilities/export_golden_fixtures.py proxy-client.json` after a uvicorn
+upgrade.
 
 The Qdrant JS client requests `GET /` to check the server version when it is
 constructed, and logs a warning when that fails. Fake Qdrant servers in tests
