@@ -282,16 +282,17 @@ path. Do not regenerate the fixtures to match Nest. The results come from
   instructions, so bump `v1` after changing them or the value shape; the
   old keys expire by TTL.
 - Only results whose `rerank` is `applied` or `not_needed` are stored. A
-  `failed` or `skipped` rerank still renders, but every view classifies
-  again until the reranker works.
+  `failed` or `skipped` rerank still renders, but with `NO_STORE` on both
+  cache headers, no `Cache-Tag`, and `index, follow`, so neither Redis nor
+  Cloudflare keeps it. Every view classifies again until the reranker works.
 - A miss runs one fill per key through `ClassificationQueue`. The fill runs
   under the app-shutdown signal, so a visitor who leaves does not cancel it.
 - These views charge no quota. The page verifies a crawler only when the
   queue is full, the one case where a crawler gets a different answer (503
   with `Retry-After`; a visitor gets a 200 `NO_STORE` loading shell). The
   base `/{TYPE}/` page follows the same rule but is never cached.
-- A rendered page sends `Cache-Tag: sitemap-results`, so a Cloudflare purge
-  by tag drops every such page.
+- A page rendered from complete results sends `Cache-Tag: sitemap-results`,
+  so a Cloudflare purge by tag drops every such page.
 
 `test/pages.e2e-spec.ts` replaces the store with an in-memory map
 (`SITEMAP_RESULT_STORE`) and clears it before each parity case.

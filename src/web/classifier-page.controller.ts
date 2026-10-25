@@ -258,7 +258,7 @@ export class ClassifierPageController {
     request: PageRequest,
   ): Promise<PageClassification> {
     const version = classifierVersion(request.classifierType, request.version);
-    const { results, elapsedSeconds } = await this.sitemapResults.get(
+    const { result, complete } = await this.sitemapResults.get(
       {
         collectionName: version.collectionName,
         topK: request.topK,
@@ -267,6 +267,11 @@ export class ClassifierPageController {
       signal,
       (fillSignal) => this.classifier.classify(fillSignal, request),
     );
-    return { results, version, elapsedSeconds };
+    return {
+      results: result.results,
+      version,
+      elapsedSeconds: result.elapsedSeconds,
+      complete,
+    };
   }
 }

@@ -566,6 +566,17 @@ describe("sitemap query pages (decided divergence from Python)", () => {
     return { response, events: fake.events };
   }
 
+  async function visitCompleted() {
+    sitemapResults.clear();
+    const rerank = fake.rerank;
+    fake.rerank = "applied";
+    try {
+      return await visit();
+    } finally {
+      fake.rerank = rerank;
+    }
+  }
+
   function regions(html: string): string[] {
     if (crawlerPage.body.kind !== "regions")
       throw new Error("expected regions");
@@ -645,15 +656,42 @@ describe("sitemap query pages (decided divergence from Python)", () => {
     expect(retried.events).toEqual(["classify"]);
   });
 
-  it("renders a ranking whose rerank failed without storing it", async () => {
-    fake.rerank = "failed";
-    const degraded = await visit();
-    const again = await visit();
+  it.each(["failed", "skipped"] as const)(
+    "renders a ranking whose rerank %s, but keeps it out of every cache",
+    async (rerank) => {
+      fake.rerank = rerank;
+      const degraded = await visit();
+      const again = await visit();
 
-    expect(degraded.response.status).toBe(200);
-    expect(degraded.response.headers["cache-tag"]).toBe("sitemap-results");
-    expect(again.events).toEqual(["classify"]);
-  });
+      expect(degraded.events).toEqual(["classify"]);
+      expect(again.events).toEqual(["classify"]);
+      expect(degraded.response.status).toBe(200);
+      expect(degraded.response.headers["cache-control"]).toBe(
+        cacheHeaders("NO_STORE")["Cache-Control"],
+      );
+      expect(degraded.response.headers["cloudflare-cdn-cache-control"]).toBe(
+        cacheHeaders("NO_STORE")["Cloudflare-CDN-Cache-Control"],
+      );
+      expect(degraded.response.headers["cache-tag"]).toBeUndefined();
+      expect(degraded.response.headers["x-robots-tag"]).toBe("index, follow");
+      expect(regions(degraded.response.text)).toEqual(
+        regions((await visitCompleted()).response.text),
+      );
+    },
+  );
+
+  it.each(["applied", "not_needed"] as const)(
+    "lets the edge cache a ranking whose rerank is %s",
+    async (rerank) => {
+      fake.rerank = rerank;
+      const { response } = await visit();
+
+      expect(response.headers["cloudflare-cdn-cache-control"]).toBe(
+        cacheHeaders("HTML_PAGE")["Cloudflare-CDN-Cache-Control"],
+      );
+      expect(response.headers["cache-tag"]).toBe("sitemap-results");
+    },
+  );
 
   it("answers HEAD without classifying", async () => {
     const { response, events } = await visit("head");

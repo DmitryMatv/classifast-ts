@@ -70,7 +70,9 @@ export function starletteUrlPath(decodedPath: string): string {
   return decodedPath.replace(/[\t\r\n]/g, "").replace(/[?#].*$/s, "");
 }
 
-export type SsrState = "not_attempted" | "success" | "failure" | "overloaded";
+/** `degraded`: results rendered, but their ranking is too weak to cache. */
+export type SsrState =
+  "not_attempted" | "success" | "degraded" | "failure" | "overloaded";
 
 export interface SeededResults {
   readonly results: ClassifierPageResults;
@@ -84,7 +86,10 @@ export type SsrFailureLogger = (state: SsrState, error: unknown) => void;
 export type PageClassification = Pick<
   ClassifierPageResults,
   "results" | "version" | "elapsedSeconds"
->;
+> & {
+  /** False when the ranking is too degraded to cache. */
+  readonly complete?: boolean;
+};
 
 /**
  * Port of maybe_seed_classifier_page_results. A base page classifies the
@@ -131,7 +136,7 @@ export async function seedClassifierPageResults(
       },
       defaultExamplePrefill: !decodedQuery,
       triggerSearchOnLoad: false,
-      state: "success",
+      state: outcome.complete === false ? "degraded" : "success",
     };
   } catch (error) {
     const state =
@@ -161,7 +166,7 @@ export function classifierPageResponse(
   const retryLater = state === "overloaded" && isVerifiedCrawler;
   const headers = pageHeaders(canonicalUrl);
   if (state === "success" && cacheTag) headers["Cache-Tag"] = cacheTag;
-  if (state === "failure" || state === "overloaded") {
+  if (state === "degraded" || state === "failure" || state === "overloaded") {
     Object.assign(headers, cacheHeaders("NO_STORE"));
   }
   if (state === "failure") headers["X-Robots-Tag"] = "noindex, nofollow";

@@ -47,6 +47,12 @@ const sitemapResultSchema = z.object({
   computedAt: z.iso.datetime(),
 }) satisfies z.ZodType<SitemapResult>;
 
+/** `complete` is false for a fill whose ranking was too degraded to store. */
+export interface SitemapLookup {
+  readonly result: SitemapResult;
+  readonly complete: boolean;
+}
+
 export const SITEMAP_RESULT_STORE = Symbol("SITEMAP_RESULT_STORE");
 
 export interface ResultStore {
@@ -115,7 +121,7 @@ export interface SitemapResultCacheOptions {
  * as a miss, and a failed write still returns the result.
  */
 export class SitemapResultCache {
-  readonly #fills = new Map<string, Promise<SitemapResult>>();
+  readonly #fills = new Map<string, Promise<SitemapLookup>>();
   readonly #shutdown = new AbortController();
   readonly #now: () => Date;
   readonly #random: () => number;
@@ -140,12 +146,12 @@ export class SitemapResultCache {
     input: SitemapResultInput,
     signal: AbortSignal,
     classify: Classify,
-  ): Promise<SitemapResult> {
+  ): Promise<SitemapLookup> {
     const key = sitemapResultKey(input);
     const filling = this.#fills.get(key);
     if (filling) return untilAborted(filling, signal);
     const stored = await untilAborted(this.#read(key), signal);
-    if (stored) return stored;
+    if (stored) return { result: stored, complete: true };
     return untilAborted(this.#fill(key, classify), signal);
   }
 
@@ -169,7 +175,7 @@ export class SitemapResultCache {
     return stored;
   }
 
-  #fill(key: string, classify: Classify): Promise<SitemapResult> {
+  #fill(key: string, classify: Classify): Promise<SitemapLookup> {
     let fill = this.#fills.get(key);
     if (fill) return fill;
     fill = this.#classifyAndStore(key, classify).finally(() => {
@@ -184,7 +190,7 @@ export class SitemapResultCache {
   async #classifyAndStore(
     key: string,
     classify: Classify,
-  ): Promise<SitemapResult> {
+  ): Promise<SitemapLookup> {
     const outcome = await classify(this.#shutdown.signal);
     const result: SitemapResult = {
       results: outcome.results,
@@ -193,9 +199,8 @@ export class SitemapResultCache {
       elapsedSeconds: outcome.elapsedSeconds,
       computedAt: this.#now().toISOString(),
     };
-    if (!this.store || !STORED_RERANK_STATUSES.has(outcome.rerank)) {
-      return result;
-    }
+    const complete = STORED_RERANK_STATUSES.has(outcome.rerank);
+    if (!this.store || !complete) return { result, complete };
     try {
       await this.store.set(
         key,
@@ -205,6 +210,6 @@ export class SitemapResultCache {
     } catch (error) {
       logger.warn(`Sitemap result write failed: ${String(error)}`);
     }
-    return result;
+    return { result, complete };
   }
 }

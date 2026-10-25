@@ -75,6 +75,19 @@ describe("seedClassifierPageResults", () => {
     expect(seeded.results.loaded).toBe(true);
   });
 
+  it("renders an incomplete classification as degraded", async () => {
+    const seeded = await seedClassifierPageResults(
+      () => Promise.resolve({ ...outcome, complete: false }),
+      "laptop",
+      "example",
+      true,
+      ignore,
+    );
+    expect(seeded.state).toBe("degraded");
+    expect(seeded.results.loaded).toBe(true);
+    expect(seeded.triggerSearchOnLoad).toBe(false);
+  });
+
   it.each([
     [new ClassificationQueueFull(), "overloaded"],
     [new Error("boom"), "failure"],
@@ -133,7 +146,21 @@ describe("classifierPageResponse", () => {
     expect(headers["Cache-Control"]).toBe("no-store, max-age=0");
   });
 
-  it.each(["not_attempted", "overloaded", "failure"] as const)(
+  it("serves degraded results indexable but uncached", () => {
+    const { status, headers } = classifierPageResponse(
+      "degraded",
+      false,
+      url,
+      "sitemap-results",
+    );
+    expect(status).toBe(200);
+    expect(headers["Cache-Control"]).toBe("no-store, max-age=0");
+    expect(headers["Cloudflare-CDN-Cache-Control"]).toBe("no-store");
+    expect(headers["X-Robots-Tag"]).toBe("index, follow");
+    expect(headers["Cache-Tag"]).toBeUndefined();
+  });
+
+  it.each(["not_attempted", "degraded", "overloaded", "failure"] as const)(
     "tags only a page whose results rendered, not %s",
     (state) => {
       const tag = "sitemap-results";

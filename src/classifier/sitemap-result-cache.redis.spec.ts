@@ -88,11 +88,14 @@ describe("SitemapResultCache", () => {
     const hit = await connectedCache().get(key, live(), second.classify);
 
     expect(filled).toEqual({
-      results: outcome().results,
-      versionName: "UNSPSC v26",
-      query: "laptop computer",
-      elapsedSeconds: 1.2345,
-      computedAt: "2026-10-25T12:00:00.000Z",
+      result: {
+        results: outcome().results,
+        versionName: "UNSPSC v26",
+        query: "laptop computer",
+        elapsedSeconds: 1.2345,
+        computedAt: "2026-10-25T12:00:00.000Z",
+      },
+      complete: true,
     });
     expect(hit).toEqual(filled);
     expect(first.calls).toHaveLength(1);
@@ -149,7 +152,7 @@ describe("SitemapResultCache", () => {
     await raw.set(sitemapResultKey(key), value);
     const { calls, classify } = counting();
 
-    const result = await connectedCache().get(key, live(), classify);
+    const { result } = await connectedCache().get(key, live(), classify);
 
     expect(calls).toHaveLength(1);
     expect(result.results).toEqual(outcome().results);
@@ -159,17 +162,18 @@ describe("SitemapResultCache", () => {
   });
 
   it.each(["failed", "skipped"] as const)(
-    "returns a result whose reranking %s without storing it",
+    "returns an incomplete result whose reranking %s without storing it",
     async (rerank) => {
       const key = input();
       const cache = connectedCache();
 
-      const result = await cache.get(key, live(), counting(rerank).classify);
+      const lookup = await cache.get(key, live(), counting(rerank).classify);
       const stored = await raw.exists(sitemapResultKey(key));
       const again = counting(rerank);
       await cache.get(key, live(), again.classify);
 
-      expect(result.results).toEqual(outcome().results);
+      expect(lookup.result.results).toEqual(outcome().results);
+      expect(lookup.complete).toBe(false);
       expect(stored).toBe(0);
       expect(again.calls).toHaveLength(1);
     },
@@ -177,8 +181,13 @@ describe("SitemapResultCache", () => {
 
   it("stores a result that ID matches decided without reranking", async () => {
     const key = input();
-    await connectedCache().get(key, live(), counting("not_needed").classify);
+    const lookup = await connectedCache().get(
+      key,
+      live(),
+      counting("not_needed").classify,
+    );
 
+    expect(lookup.complete).toBe(true);
     expect(await raw.exists(sitemapResultKey(key))).toBe(1);
   });
 
@@ -225,7 +234,7 @@ describe("SitemapResultCache", () => {
     expect(fillSignal!.aborted).toBe(false);
     finish(outcome());
 
-    expect((await second).results).toEqual(outcome().results);
+    expect((await second).result.results).toEqual(outcome().results);
     expect(await raw.exists(sitemapResultKey(key))).toBe(1);
   });
 
@@ -264,10 +273,13 @@ describe("SitemapResultCache", () => {
     });
     const { calls, classify } = counting();
 
-    const result = await cache.get(key, live(), classify);
+    const lookup = await cache.get(key, live(), classify);
 
     expect(calls).toHaveLength(1);
-    expect(result.results).toEqual(outcome().results);
+    expect(lookup).toMatchObject({
+      result: { results: outcome().results },
+      complete: true,
+    });
     expect(await raw.exists(sitemapResultKey(key))).toBe(0);
   });
 
