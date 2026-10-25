@@ -58,6 +58,7 @@ function outcome(): ClassificationOutcome {
     version: config.versions[UNSPSC_VERSION]!,
     query: "test widget",
     elapsedSeconds: 0.25,
+    rerank: "applied",
   };
 }
 

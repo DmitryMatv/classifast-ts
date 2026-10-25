@@ -206,6 +206,7 @@ async function fakeClassify(
     },
     query,
     elapsedSeconds: golden.fake.elapsedSeconds,
+    rerank: "applied",
     enhancementStatus:
       fake.mode === "enhancement_failed" ? "failed" : "applied",
   };

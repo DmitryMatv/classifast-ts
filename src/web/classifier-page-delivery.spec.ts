@@ -37,6 +37,7 @@ describe("seedClassifierPageResults", () => {
     version: { collectionName: "c" },
     query: "q",
     elapsedSeconds: 0.25,
+    rerank: "applied",
   } satisfies ClassificationOutcome;
   const ignore = () => {};
 

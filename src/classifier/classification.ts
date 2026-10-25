@@ -35,6 +35,19 @@ export interface StoredPoint {
 
 export type EnhancementStatus = "applied" | "skipped" | "failed";
 
+/**
+ * How reranking shaped the results. `not_needed`: ID matches decided them,
+ * or no semantic candidate was left. `skipped`: no reranker is configured.
+ * `failed`: the reranker failed or the outbound budget ran out, so the
+ * semantic scores stand.
+ */
+export type RerankStatus = "applied" | "not_needed" | "skipped" | "failed";
+
+export interface RankedResults {
+  readonly results: ClassificationResult[];
+  readonly rerank: RerankStatus;
+}
+
 export const EXACT_ID_SCORE = 1.0;
 export const PARTIAL_ID_SCORE = 0.9;
 export const EXACT_ID_LIMIT = 3;

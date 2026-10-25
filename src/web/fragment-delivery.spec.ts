@@ -117,6 +117,7 @@ function harness(ledger: Ledger): Harness {
         version: UNSPSC.versions[versionName!]!,
         query: request.query,
         elapsedSeconds: 0,
+        rerank: "applied",
       } satisfies ClassificationOutcome;
     });
   return {

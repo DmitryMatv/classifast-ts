@@ -13,7 +13,9 @@ import {
   useRerankScores,
   withRerankScore,
   type ClassificationResult,
+  type RankedResults,
   type RerankedResult,
+  type RerankStatus,
 } from "./classification.js";
 import type {
   ClassifierConfig,
@@ -58,6 +60,7 @@ export interface Classification {
   readonly version: ClassifierVersion;
   /** The sanitized query that the ID searches used. */
   readonly query: string;
+  readonly rerank: RerankStatus;
 }
 
 export interface PreparedClassification {
@@ -155,13 +158,14 @@ export async function prepareClassification(
 
 function classification(
   prepared: PreparedClassification,
-  results: readonly ClassificationResult[],
+  { results, rerank }: RankedResults,
 ): Classification {
   return {
     results,
     versionName: prepared.versionName,
     version: prepared.version,
     query: prepared.query,
+    rerank,
   };
 }
 
@@ -177,10 +181,10 @@ export function exactOutcome(
   logger.log(
     `ID_SEARCH_SHORTCUT: classifier=${prepared.classifierType} query='${prepared.query}' matches=${prepared.exactResults.length}`,
   );
-  return classification(
-    prepared,
-    exactIdShortcutResults(prepared.exactResults, topK),
-  );
+  return classification(prepared, {
+    results: exactIdShortcutResults(prepared.exactResults, topK),
+    rerank: "not_needed",
+  });
 }
 
 async function partialIdResults(
@@ -248,8 +252,8 @@ export async function rerankCandidates(
   candidates: readonly ClassificationResult[],
   { topK, rerankTopN, instruction, queryFormat, timeoutSeconds }: RerankOptions,
   signal: AbortSignal,
-): Promise<ClassificationResult[]> {
-  if (candidates.length === 0) return [];
+): Promise<RankedResults> {
+  if (candidates.length === 0) return { results: [], rerank: "not_needed" };
   const toRerank = candidates.slice(0, rerankTopN);
   const remaining = candidates.slice(toRerank.length);
   let reranked: RerankedResult[];
@@ -274,9 +278,12 @@ export async function rerankCandidates(
     logger.warn(
       `RERANK_FAILED: OpenRouter reranking failed: ${errorText(error)}, using semantic search scores`,
     );
-    return candidates.slice(0, topK);
+    return { results: candidates.slice(0, topK), rerank: "failed" };
   }
-  return [...reranked, ...withRerankScore(remaining, 0.0)].slice(0, topK);
+  return {
+    results: [...reranked, ...withRerankScore(remaining, 0.0)].slice(0, topK),
+    rerank: "applied",
+  };
 }
 
 export async function rankSemanticResults(
@@ -286,35 +293,41 @@ export async function rankSemanticResults(
   idMatches: readonly ClassificationResult[],
   options: Omit<RerankOptions, "timeoutSeconds"> & { deadline: number },
   signal: AbortSignal,
-): Promise<ClassificationResult[]> {
+): Promise<RankedResults> {
   const { topK, deadline } = options;
+  const unranked = (rerank: RerankStatus): RankedResults => ({
+    results: withRerankScore(semantic.slice(0, topK), 0.0),
+    rerank,
+  });
   if (deps.reranker && idMatches.length === 0 && semantic.length > 0) {
     const remainingSeconds = (deadline - deps.clock.now()) / 1000;
     if (remainingSeconds < MIN_RERANK_BUDGET_SECONDS) {
       logger.warn(
         `RERANK_STATUS: Skipped - outbound budget exhausted (${pyFormatFixed(Math.max(0, remainingSeconds), 2)}s left)`,
       );
-      return withRerankScore(semantic.slice(0, topK), 0.0);
+      return unranked("failed");
     }
     logger.log(
       `RERANK_STATUS: Using OpenRouter for ${semantic.length} semantic candidates`,
     );
-    return useRerankScores(
-      await rerankCandidates(
-        deps.reranker,
-        query,
-        semantic,
-        { ...options, timeoutSeconds: remainingSeconds },
-        signal,
-      ),
+    const ranked = await rerankCandidates(
+      deps.reranker,
+      query,
+      semantic,
+      { ...options, timeoutSeconds: remainingSeconds },
+      signal,
     );
+    return { ...ranked, results: useRerankScores(ranked.results) };
   }
   if (idMatches.length > 0) {
     logger.log("RERANK_STATUS: Skipped - ID matches present");
-  } else if (!deps.reranker) {
-    logger.log("RERANK_STATUS: Skipped - OpenRouter reranker not available");
+    return unranked("not_needed");
   }
-  return withRerankScore(semantic.slice(0, topK), 0.0);
+  if (!deps.reranker) {
+    logger.log("RERANK_STATUS: Skipped - OpenRouter reranker not available");
+    return unranked("skipped");
+  }
+  return unranked("not_needed");
 }
 
 export async function completeClassification(
@@ -404,10 +417,10 @@ export async function completeClassification(
       },
       signal,
     );
-    return classification(
-      prepared,
-      mergeClassificationResults(partialResults, ranked, topK),
-    );
+    return classification(prepared, {
+      results: mergeClassificationResults(partialResults, ranked.results, topK),
+      rerank: ranked.rerank,
+    });
   } catch (error) {
     if (error instanceof ClassificationError || signal.aborted) throw error;
     logger.error(
