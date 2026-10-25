@@ -1,7 +1,59 @@
-import { clientIp, hashIp, trackingId } from "./client-identity.js";
+import { z } from "zod";
+import { readGolden } from "../../test/support/golden.js";
+import {
+  clientHost,
+  clientIp,
+  hashIp,
+  trackingId,
+  type ClientRequest,
+} from "./client-identity.js";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+const golden = readGolden(
+  "proxy-client.json",
+  z.object({
+    cases: z.array(
+      z.object({
+        lines: z.array(z.string()),
+        peer: z.string().nullable(),
+        host: z.string().nullable(),
+        ip: z.string(),
+      }),
+    ),
+  }),
+);
+
+function requestFrom(
+  headersDistinct: ClientRequest["headersDistinct"],
+  peer: string | undefined,
+): ClientRequest {
+  return { headersDistinct, socket: { remoteAddress: peer } };
+}
+
+const proxiedCases = golden.cases.map(({ lines, peer, ...expected }) => ({
+  label: JSON.stringify(lines).slice(0, 60),
+  peer,
+  // Node leaves a header it did not receive out of headersDistinct.
+  request: requestFrom(
+    lines.length === 0 ? {} : { "x-forwarded-for": lines },
+    peer ?? undefined,
+  ),
+  ...expected,
+}));
+
+describe("clientHost matches request.client.host under uvicorn's proxy headers", () => {
+  it.each(proxiedCases)("$label from $peer -> $host", ({ request, host }) => {
+    expect(clientHost(request)).toBe(host ?? undefined);
+  });
+});
+
+describe("clientIp matches get_client_ip under uvicorn's proxy headers", () => {
+  it.each(proxiedCases)("$label from $peer -> $ip", ({ request, ip }) => {
+    expect(clientIp(request)).toBe(ip);
+  });
+});
 
 describe("clientIp", () => {
   it("test_cloudflare_ip_takes_precedence", () => {
@@ -10,24 +62,24 @@ describe("clientIp", () => {
       "x-forwarded-for": ["198.51.100.5, 198.51.100.6"],
     };
 
-    expect(clientIp(headers, "127.0.0.1")).toBe("203.0.113.10");
+    expect(clientIp(requestFrom(headers, "127.0.0.1"))).toBe("203.0.113.10");
   });
 
   it("test_forwarded_for_is_used_when_cloudflare_header_missing", () => {
     const headers = { "x-forwarded-for": ["198.51.100.5, 198.51.100.6"] };
 
-    expect(clientIp(headers, "127.0.0.1")).toBe("198.51.100.5");
+    expect(clientIp(requestFrom(headers, "127.0.0.1"))).toBe("198.51.100.5");
   });
 
   it("falls back to the socket peer, then to unknown", () => {
-    expect(clientIp({}, "127.0.0.1")).toBe("127.0.0.1");
-    expect(clientIp({}, undefined)).toBe("unknown");
+    expect(clientIp(requestFrom({}, "127.0.0.1"))).toBe("127.0.0.1");
+    expect(clientIp(requestFrom({}, undefined))).toBe("unknown");
   });
 
   it("reads the first of repeated headers", () => {
     const headers = { "cf-connecting-ip": ["203.0.113.10", "203.0.113.11"] };
 
-    expect(clientIp(headers, undefined)).toBe("203.0.113.10");
+    expect(clientIp(requestFrom(headers, undefined))).toBe("203.0.113.10");
   });
 });
 

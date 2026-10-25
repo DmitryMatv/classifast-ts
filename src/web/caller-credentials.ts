@@ -36,6 +36,6 @@ export function callerCredentialsOf(req: Request): CallerCredentials {
     authorization: req.headersDistinct.authorization?.[0],
     sessionCookie: cookies.get("__session"),
     trackingCookie: cookies.get("cf_track"),
-    clientIp: clientIp(req.headersDistinct, req.socket.remoteAddress),
+    clientIp: clientIp(req),
   };
 }
