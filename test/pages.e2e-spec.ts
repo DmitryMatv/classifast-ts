@@ -22,7 +22,11 @@ import {
 import { get as httpGet, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { cacheHeaders } from "../src/http/cache-profiles.js";
-import { GoogleCrawlerVerifier } from "../src/crawlers/google-crawlers.js";
+import {
+  GoogleCrawlerVerifier,
+  type CrawlerRequest,
+} from "../src/crawlers/google-crawlers.js";
+import { parseIpNetwork } from "../src/crawlers/ip-network.js";
 import {
   configureHttpApp,
   createHttpAdapter,
@@ -160,7 +164,8 @@ const fake = {
   quota: "allowed" as NonNullable<PageCase["quota"]>,
   calls: [] as NonNullable<PageCase["calls"]>,
   events: [] as string[],
-  verify: undefined as (() => Promise<boolean>) | undefined,
+  verify: undefined as
+    ((crawler: CrawlerRequest) => Promise<boolean>) | undefined,
 };
 const fakeClassifiers = classifierConfigFor({ model: "fake", dims: 1 });
 
@@ -278,9 +283,9 @@ beforeAll(async () => {
     .useValue({ classify: fakeClassify })
     .overrideProvider(GoogleCrawlerVerifier)
     .useValue({
-      isVerified: () => {
+      isVerified: (crawler: CrawlerRequest) => {
         fake.events.push("crawler");
-        return fake.verify?.() ?? Promise.resolve(fake.crawler);
+        return fake.verify?.(crawler) ?? Promise.resolve(fake.crawler);
       },
     })
     .overrideProvider(Quota)
@@ -452,6 +457,57 @@ describe("classifier page lifecycle", () => {
     );
     expect(fake.calls).toEqual([]);
     expect(fake.events).toEqual([]);
+  });
+});
+
+describe("crawler verification behind a proxy", () => {
+  // Production uvicorn runs with --forwarded-allow-ips "*", so Python reads
+  // the client from X-Forwarded-For. Supertest's address stands in for the
+  // proxy's, which is never Google's.
+  const verifier = new GoogleCrawlerVerifier(
+    {
+      bypassEnabled: true,
+      trustCfConnectingIp: false,
+      ipRangeTtlSeconds: 60,
+      ipRangeNegativeTtlSeconds: 300,
+      ipRangeTimeoutSeconds: 2,
+    },
+    { current: () => Promise.resolve([parseIpNetwork("66.249.64.0/27")!]) },
+  );
+
+  beforeEach(() => {
+    fake.verify = (crawler) => verifier.isVerified(crawler);
+    fake.mode = "success";
+    fake.quota = "denied_anonymous";
+    fake.calls = [];
+    fake.events = [];
+  });
+
+  afterEach(() => {
+    fake.verify = undefined;
+  });
+
+  function googlebotFragment(forwardedFor: string): request.Test {
+    return request(app.getHttpServer())
+      .get("/UNSPSC/fragment?product_description=laptop")
+      .set("User-Agent", "Googlebot/2.1 (+http://www.google.com/bot.html)")
+      .set("X-Forwarded-For", forwardedFor);
+  }
+
+  it("serves results without quota to Googlebot whose first X-Forwarded-For entry is Google's", async () => {
+    const response = await googlebotFragment("66.249.64.1, 172.18.0.5");
+
+    expect(fake.events).toEqual(["crawler", "classify"]);
+    expect(response.status).toBe(200);
+    expect(response.headers["cache-tag"]).toBe("classification-results");
+  });
+
+  it("paywalls Googlebot whose Google address is not the first X-Forwarded-For entry", async () => {
+    const response = await googlebotFragment("203.0.113.10, 66.249.64.1");
+
+    expect(response.headers["cache-tag"]).toBeUndefined();
+    expect(response.headers["x-ratelimit-remaining"]).toBe("0");
+    expect(fake.events).toEqual(["crawler", "caller", "check"]);
   });
 });
 

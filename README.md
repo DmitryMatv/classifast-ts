@@ -55,10 +55,12 @@ Visit the working instance at [classifast.com](https://classifast.com) to try.
 ## Installation
 
 1. Clone the repository
-2. Install Python dependencies: `pip install -r requirements.txt`
-3. Install frontend dependencies: `npm install`
-4. Set environment variables for embedding inference, API keys, and payments/quota behavior
-5. Run frontend watchers and the app: `npm run dev`
+2. Install dependencies: `npm ci`
+3. Set environment variables for embedding inference, API keys, and payments/quota behavior
+4. Run the frontend watcher and the NestJS app: `npm run dev`
+
+The Python app in `app/` is kept for rollback. To run it, install
+`requirements.txt` and run `uvicorn app.main:app --reload --port 8001`.
 
 Relevant embedding environment variables:
 
@@ -99,23 +101,61 @@ Relevant payment and quota environment variables:
 - `POLAR_ACCESS_TOKEN`
 - `POLAR_WEBHOOK_SECRET`
 - `POLAR_PRO_PRODUCT_ID`
-- `QUOTA_FAIL_OPEN` defaults to `true`
 - `CHECKOUT_GRACE_TTL` defaults to `300`
 
 Frontend JS/CSS files under `app/static/` are build artifacts. They are generated from `app/assets/` and are intentionally not committed to git.
 
 ## Deployment
 
-For production, deploy from the repo root with the provided `Dockerfile`. The image builds the frontend assets in a Node/npm builder stage and copies only the compiled files into the final Python runtime image.
+For production, deploy from the repo root with the provided `Dockerfile`. It
+builds the NestJS app on `node:24-bookworm-slim`. Builder stages compile the
+frontend assets and the server, and the runtime stage receives only `dist/`,
+`app/static/`, and the production `node_modules`. The container runs
+`node dist/main.js` as the `node` user with `NODE_ENV=production`. Its
+`HEALTHCHECK` requests `/health` every 10 minutes.
 
-For Coolify, use:
+`Dockerfile.python` builds the previous FastAPI image. It stays in the
+repository for rollback until the Nest release has soaked.
+
+For Coolify, use these settings. The switch to Nest does not change them:
 
 - Source directory: repo root
 - Build pack: Dockerfile
 - Dockerfile path: `./Dockerfile`
 - Include Source Commit in Build: disabled
 
-`docker-compose.yaml` can still be used for local or manual container runs, but the recommended Coolify production path is the Dockerfile build directly.
+The image contains no `.env` file, so set every variable in Coolify. The Nest
+app reads the same variable names as the Python app, with these differences:
+
+- The app listens on `HOST` and `PORT`, which default to `0.0.0.0` and `8001`.
+  The Python image hard-coded both and ignored the variables. Leave them unset,
+  or keep `PORT` equal to the port that Coolify exposes. The `HEALTHCHECK`
+  reads the same two variables.
+- The app does not start when Qdrant is unreachable or a collection fails the
+  schema check. Without `HF_TOKEN` it starts, but `/health` answers 503 and
+  the container becomes unhealthy, as with the Python image.
+- Google crawler verification uses the first `X-Forwarded-For` address, as
+  the Python app did through uvicorn's `--forwarded-allow-ips "*"`. Set
+  `GOOGLE_CRAWLER_TRUST_CF_CONNECTING_IP=true` to use Cloudflare's
+  `CF-Connecting-IP` instead, which a client cannot forge through Cloudflare.
+  Set it only when the origin receives requests through Cloudflare alone.
+- The app does not log one line per request, as uvicorn did. It logs startup,
+  warnings, errors, and classification steps.
+- The app accepts request headers up to 64 KiB (`--max-http-header-size` in
+  the `CMD`). Node's default of 16 KiB was below uvicorn's limit.
+
+`docker-compose.yaml` runs the same image for local or manual container runs.
+It pins `HOST` and `PORT`, because its port mapping and health check expect
+port 8001. The recommended Coolify production path is the Dockerfile build directly.
+
+To roll back to the Python app, use one of these methods:
+
+- In Coolify, open the application's Rollback tab and redeploy the image of
+  the last Python deployment. This works while Coolify still keeps that image.
+- Set the Dockerfile path to `./Dockerfile.python` and redeploy. Set it back
+  to `./Dockerfile` to return to Nest.
+
+For a compose deployment, add `dockerfile: Dockerfile.python` under `build`.
 
 Application startup validates every configured Qdrant collection, vector size,
 and required payload index without modifying Qdrant. Startup fails when the
@@ -158,12 +198,12 @@ and keeps health checks, webhooks, and cached-page handling responsive.
 
 ## Testing
 
-Automated backend tests live under `tests/` and use pytest as the test runner.
-The existing tests retain their `unittest.TestCase`-compatible structure.
+- Run the unit tests (frontend and NestJS): `npm test`
+- Run the NestJS end-to-end tests: `npm run test:e2e`
+- Run the typecheck: `npm run typecheck`
 
-- Run the backend suite: `pytest`
-- Run the frontend typecheck: `npm run typecheck`
-- Run the Python typecheck: `python -m mypy`
+The Python app's tests live under `tests/` and use pytest. Run them with
+`pytest`, and the Python typecheck with `python -m mypy`.
 
 `utilities/test_*.py` scripts are manual smoke/debug helpers for live integrations and are intentionally separate from the main regression suite.
 

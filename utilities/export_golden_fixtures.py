@@ -53,6 +53,7 @@ from fastapi import FastAPI, HTTPException
 from starlette.requests import Request
 from starlette.responses import FileResponse, Response
 from starlette.testclient import TestClient
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app import classifier_page_delivery, dependencies, payments, web
 from app.classifier import (
@@ -98,7 +99,12 @@ from app.main import (
 )
 from app.main import app as fastapi_app
 from app.mapping_store import get_mapping_product, list_mapping_products
-from app.usage_tracker import QuotaUnavailableError, SignedInCaller, UsageStatus
+from app.usage_tracker import (
+    QuotaUnavailableError,
+    SignedInCaller,
+    UsageStatus,
+    get_client_ip,
+)
 from app.query_enhancer import EnhancementStatus, QueryEnhancer, _is_code_like
 from app.reranker import OpenRouterReranker
 from app.web import build_mapping_canonical_url
@@ -1559,6 +1565,98 @@ def build_ip_network_fixture() -> dict[str, object]:
             for a in addresses
             for n in networks
         ],
+    }
+
+
+PROXY_PEER = "172.18.0.5"
+PROXY_CLIENT_INPUTS: list[tuple[list[bytes], str | None]] = [
+    ([], PROXY_PEER),
+    ([b""], PROXY_PEER),
+    ([b"", b"66.249.64.1"], PROXY_PEER),
+    ([b"66.249.64.1"], PROXY_PEER),
+    ([b"66.249.64.1", b"203.0.113.10"], PROXY_PEER),
+    ([b"203.0.113.10, 10.0.0.1", b"66.249.64.1"], PROXY_PEER),
+    ([b"66.249.64.1, 10.0.0.1, 172.18.0.5"], PROXY_PEER),
+    ([b"  66.249.64.1  ,10.0.0.1"], PROXY_PEER),
+    ([b"\t66.249.64.1\t"], PROXY_PEER),
+    ([b" , 66.249.64.1"], PROXY_PEER),
+    ([b",66.249.64.1"], PROXY_PEER),
+    ([b","], PROXY_PEER),
+    ([b"66.249.64.1:443"], PROXY_PEER),
+    ([b"66.249.64.1:"], PROXY_PEER),
+    ([b"66.249.64.1:https"], PROXY_PEER),
+    ([b"66.249.64.1:+443"], PROXY_PEER),
+    ([b"66.249.64.1:-1"], PROXY_PEER),
+    ([b"66.249.64.1:4_43"], PROXY_PEER),
+    ([b"66.249.64.1:_443"], PROXY_PEER),
+    ([b"66.249.64.1:44__3"], PROXY_PEER),
+    ([b"66.249.64.1: 443 "], PROXY_PEER),
+    ([b"66.249.64.1:\xa0443\x85"], PROXY_PEER),
+    ([b"66.249.64.1:\x1c443"], PROXY_PEER),
+    ([b"66.249.64.1:" + b"1" * 4300], PROXY_PEER),
+    ([b"66.249.64.1:" + b"1" * 4301], PROXY_PEER),
+    ([b":443"], PROXY_PEER),
+    ([b"a:1"], PROXY_PEER),
+    ([b"[2001:4860:4801:10::1]"], PROXY_PEER),
+    ([b"[2001:4860:4801:10::1]:8080"], PROXY_PEER),
+    ([b"[2001:4860:4801:10::1]:"], PROXY_PEER),
+    ([b"[2001:4860:4801:10::1]:http"], PROXY_PEER),
+    ([b"[2001:4860:4801:10::1]8080"], PROXY_PEER),
+    ([b"[2001:4860:4801:10::1"], PROXY_PEER),
+    ([b"[66.249.64.1]:80"], PROXY_PEER),
+    ([b"[]"], PROXY_PEER),
+    ([b"[]:80"], PROXY_PEER),
+    ([b"2001:4860:4801:10::1"], PROXY_PEER),
+    ([b"::ffff:66.249.64.1"], PROXY_PEER),
+    ([b"fe80::1%eth0"], PROXY_PEER),
+    ([b"unknown"], PROXY_PEER),
+    ([b"not an ip"], PROXY_PEER),
+    ([b"<script>alert(1)</script>"], PROXY_PEER),
+    ([b"\xa066.249.64.1\x85"], PROXY_PEER),
+    ([b"66.249.64.1\xff"], PROXY_PEER),
+    ([b"\xe9"], PROXY_PEER),
+    ([b"\x1c66.249.64.1\x1f"], PROXY_PEER),
+    ([], "::1"),
+    ([], None),
+    ([b""], None),
+    ([b"66.249.64.1"], None),
+]
+
+
+def proxied_client(lines: list[bytes], peer: str | None) -> dict[str, object]:
+    seen: list[dict[str, object]] = []
+
+    async def capture(scope: Any, _receive: Any, _send: Any) -> None:
+        request = Request(scope)
+        seen.append(
+            {
+                "host": request.client.host if request.client else None,
+                "ip": get_client_ip(request),
+            }
+        )
+
+    scope = {
+        "type": "http",
+        "headers": [(b"host", b"classifast.com")]
+        + [(b"x-forwarded-for", line) for line in lines],
+        "client": None if peer is None else (peer, 51234),
+    }
+    middleware = ProxyHeadersMiddleware(capture, trusted_hosts="*")
+    asyncio.run(middleware(scope, None, None))
+    [client] = seen
+    return client
+
+
+def build_proxy_client_fixture() -> dict[str, object]:
+    return {
+        "cases": [
+            {
+                "lines": [line.decode("latin-1") for line in lines],
+                "peer": peer,
+                **proxied_client(lines, peer),
+            }
+            for lines, peer in PROXY_CLIENT_INPUTS
+        ]
     }
 
 
@@ -3396,6 +3494,7 @@ FIXTURES: dict[str, Callable[[], dict[str, object]]] = {
     "python-float-repr.json": build_python_float_repr_fixture,
     "static-files.json": build_static_files_fixture,
     "ip-network.json": build_ip_network_fixture,
+    "proxy-client.json": build_proxy_client_fixture,
     "query-text.json": build_query_text_fixture,
     "classifier-urls.json": build_classifier_urls_fixture,
     "classifier-options.json": build_classifier_options_fixture,
