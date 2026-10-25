@@ -13,8 +13,14 @@ coverage/
 
 # Data files (not needed in container)
 data/
+/embedders/
+/mapping/
 *.xlsx
 *.csv
+
+# Local agent worktrees and scratch, gigabytes in a working checkout
+/.claude/
+/.cache/
 
 # Docker
 docker-compose.y*ml

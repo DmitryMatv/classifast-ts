@@ -1,11 +1,16 @@
 services:
-  fastapi-app:
+  app:
     build:
       context: .
     ports:
       - "127.0.0.1:8001:8001"
     env_file:
       - .env
+    # Nest reads HOST and PORT, which the Python image's CMD ignored. These
+    # win over .env, so the port mapping and health check stay on 8001.
+    environment:
+      HOST: 0.0.0.0
+      PORT: "8001"
     init: true
     mem_limit: 1g
     restart: unless-stopped
