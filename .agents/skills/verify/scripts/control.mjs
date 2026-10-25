@@ -333,7 +333,7 @@ function serverCommand(app, mode, port, envFile) {
       command: process.execPath,
       args: [
         ...(envFile ? [`--env-file=${envFile}`] : []),
-        // Matches the CMD in Dockerfile.node; uvicorn accepts request
+        // Matches the CMD in Dockerfile; uvicorn accepts request
         // headers well past Node's 16 KiB default.
         "--max-http-header-size=65536",
         "dist/main.js",
@@ -431,7 +431,7 @@ async function launch(runDir, { app, mode, envFile }) {
     PORT: String(port),
     NO_COLOR: "1",
   };
-  // Dockerfile.node sets it; React's development build renders differently.
+  // Dockerfile sets it; React's development build renders differently.
   if (app === "nest") serverEnv.NODE_ENV = "production";
   if (mode === "full") {
     Object.assign(serverEnv, {
