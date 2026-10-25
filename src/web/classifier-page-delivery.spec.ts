@@ -132,4 +132,17 @@ describe("classifierPageResponse", () => {
     expect(headers["X-Robots-Tag"]).toBe("noindex, nofollow");
     expect(headers["Cache-Control"]).toBe("no-store, max-age=0");
   });
+
+  it.each(["not_attempted", "overloaded", "failure"] as const)(
+    "tags only a page whose results rendered, not %s",
+    (state) => {
+      const tag = "sitemap-results";
+      expect(
+        classifierPageResponse("success", false, url, tag).headers["Cache-Tag"],
+      ).toBe(tag);
+      expect(
+        classifierPageResponse(state, false, url, tag).headers["Cache-Tag"],
+      ).toBeUndefined();
+    },
+  );
 });

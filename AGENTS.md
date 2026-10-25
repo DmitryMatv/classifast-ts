@@ -142,7 +142,11 @@ Python's status, HEAD on a GET-only route must answer like GET with an empty
 body, and `.gif` and `.webmanifest` static files expect `STATIC_MEDIA`, which
 Python's `get_static_cache_profile` omits. The public-mode RapidAPI ping
 expects `database: "healthy"`, because Nest refuses to boot without Qdrant.
-These are decided divergences.
+A GET of a sitemap query page such as `/UNSPSC/laptop_computer/` expects
+`NO_STORE` and `noindex, nofollow` in public mode, because Nest tries to
+render its results and cannot classify there. In full mode it expects
+`HTML_PAGE` with `Cache-Tag: sitemap-results`, and two GETs must render the
+same results and "Finished in" time. These are decided divergences.
 
 Inside test files Vitest replaces `process.env.BASE_URL` with Vite's base
 path, so the config passes the URL on as `CONTRACT_BASE_URL`.
@@ -261,6 +265,36 @@ fixture's `regions` table), which `test/support/page-regions.ts` and
 `RegionFinder` in the exporter select the same way. Run
 `python utilities/export_golden_fixtures.py pages.json` to regenerate one
 fixture; without arguments the exporter writes all of them.
+
+Nest renders a sitemap query page's results for every visitor; Python
+renders them only for a verified Google crawler. This is a decided
+divergence (plan unit 12). `nestCase` in `test/pages.e2e-spec.ts` rewrites
+the golden visitor cases for those pages from the crawler case at the same
+path. Do not regenerate the fixtures to match Nest. The results come from
+`SitemapResultCache` (`src/classifier/sitemap-result-cache.ts`) in Redis:
+
+- The key is `ssr-result:v1:{collectionName}:{topK}:{query}`, with the
+  whitespace-collapsed query. The value is JSON
+  `{results, versionName, query, elapsedSeconds, computedAt}`, parsed with
+  zod on read. A malformed value or a Redis error is a miss.
+- The TTL is 30 days, plus or minus 20%. Never flush these keys. The key
+  does not include the embedding model or the rerank and query
+  instructions, so bump `v1` after changing them or the value shape; the
+  old keys expire by TTL.
+- Only results whose `rerank` is `applied` or `not_needed` are stored. A
+  `failed` or `skipped` rerank still renders, but every view classifies
+  again until the reranker works.
+- A miss runs one fill per key through `ClassificationQueue`. The fill runs
+  under the app-shutdown signal, so a visitor who leaves does not cancel it.
+- These views charge no quota. The page verifies a crawler only when the
+  queue is full, the one case where a crawler gets a different answer (503
+  with `Retry-After`; a visitor gets a 200 `NO_STORE` loading shell). The
+  base `/{TYPE}/` page follows the same rule but is never cached.
+- A rendered page sends `Cache-Tag: sitemap-results`, so a Cloudflare purge
+  by tag drops every such page.
+
+`test/pages.e2e-spec.ts` replaces the store with an in-memory map
+(`SITEMAP_RESULT_STORE`) and clears it before each parity case.
 
 `FragmentController` registers before `ClassifierPageController` in the same
 module with the pattern `:classifierType/:leaf`; it checks the decoded path

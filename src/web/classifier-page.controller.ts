@@ -10,10 +10,14 @@ import {
 } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { createElement } from "react";
-import { ClassificationService } from "../classifier/classification-service.js";
+import {
+  ClassificationService,
+  type ClassificationRequest,
+} from "../classifier/classification-service.js";
 import {
   CLASSIFIER_TYPES,
   classifierPage,
+  classifierVersion,
 } from "../classifier/classifier-config.js";
 import {
   resolveClassifierOptions,
@@ -27,6 +31,7 @@ import {
   shouldSsr,
 } from "../classifier/classifier-urls.js";
 import { getPopularLookupLinks } from "../classifier/popular-lookups.js";
+import { SitemapResultCache } from "../classifier/sitemap-result-cache.js";
 import {
   crawlerRequestOf,
   GoogleCrawlerVerifier,
@@ -43,7 +48,9 @@ import {
   matchClassifierRoute,
   removedClassifier,
   seedClassifierPageResults,
+  SITEMAP_RESULTS_CACHE_TAG,
   starletteUrlPath,
+  type PageClassification,
   type SsrState,
 } from "./classifier-page-delivery.js";
 import { renderPage } from "./render.js";
@@ -59,6 +66,8 @@ import { SITEMAP_QUERY_PATHS } from "./sitemap.js";
 
 const logger = new Logger("ClassifierPage");
 
+type PageRequest = ClassificationRequest & { readonly version: string };
+
 /**
  * Python's /{classifier_type} routes. Express gets every one-or-more segment
  * path here, so this controller must register after every other route.
@@ -72,6 +81,8 @@ export class ClassifierPageController {
     private readonly classifier: Pick<ClassificationService, "classify">,
     @Inject(GoogleCrawlerVerifier)
     private readonly crawlers: Pick<GoogleCrawlerVerifier, "isVerified">,
+    @Inject(SitemapResultCache)
+    private readonly sitemapResults: Pick<SitemapResultCache, "get">,
   ) {}
 
   @Get([":classifierType{/}", ":classifierType/*searchQuery"])
@@ -166,31 +177,26 @@ export class ClassifierPageController {
       requestedTopK,
       DEFAULT_TOP_K,
     );
-    // Listen before crawler verification, which can wait on the network.
     const signal = disconnectSignal(res);
-    const isVerifiedCrawler = await this.crawlers.isVerified(
-      crawlerRequestOf(req),
+    const sitemapQuery = shouldSsr(
+      decodedQuery,
+      params.length > 0,
+      canonicalPath,
+      this.sitemapQueryPaths,
     );
-    if (signal.aborted) return;
-    const allowQuerySsr =
-      isVerifiedCrawler &&
-      shouldSsr(
-        decodedQuery,
-        params.length > 0,
-        canonicalPath,
-        this.sitemapQueryPaths,
-      );
+    const request = (text: string): PageRequest => ({
+      query: text,
+      classifierType: upperType,
+      version,
+      topK,
+    });
     const seeded = await seedClassifierPageResults(
-      (text) =>
-        this.classifier.classify(signal, {
-          query: text,
-          classifierType: upperType,
-          version,
-          topK,
-        }),
+      sitemapQuery
+        ? (text) => this.#sitemapResults(signal, request(text))
+        : (text) => this.classifier.classify(signal, request(text)),
       decodedQuery,
       pyStrip(page.example),
-      allowQuerySsr,
+      sitemapQuery,
       (state: SsrState, error: unknown) => {
         if (state === "overloaded") {
           logger.warn(
@@ -204,6 +210,11 @@ export class ClassifierPageController {
         }
       },
     );
+    if (signal.aborted) return;
+    // Only a full queue answers a verified crawler differently.
+    const isVerifiedCrawler =
+      seeded.state === "overloaded" &&
+      (await this.crawlers.isVerified(crawlerRequestOf(req)));
     if (signal.aborted) return;
 
     const html = renderPage(
@@ -233,7 +244,29 @@ export class ClassifierPageController {
       seeded.state,
       isVerifiedCrawler,
       canonicalUrl,
+      sitemapQuery ? SITEMAP_RESULTS_CACHE_TAG : undefined,
     );
     res.status(status).set(headers).send(html);
+  }
+
+  /**
+   * A sitemap query page renders the same results for every visitor, from
+   * the result cache, and charges no quota.
+   */
+  async #sitemapResults(
+    signal: AbortSignal,
+    request: PageRequest,
+  ): Promise<PageClassification> {
+    const version = classifierVersion(request.classifierType, request.version);
+    const { results, elapsedSeconds } = await this.sitemapResults.get(
+      {
+        collectionName: version.collectionName,
+        topK: request.topK,
+        query: request.query,
+      },
+      signal,
+      (fillSignal) => this.classifier.classify(fillSignal, request),
+    );
+    return { results, version, elapsedSeconds };
   }
 }

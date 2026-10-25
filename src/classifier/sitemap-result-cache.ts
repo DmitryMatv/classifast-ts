@@ -47,6 +47,8 @@ const sitemapResultSchema = z.object({
   computedAt: z.iso.datetime(),
 }) satisfies z.ZodType<SitemapResult>;
 
+export const SITEMAP_RESULT_STORE = Symbol("SITEMAP_RESULT_STORE");
+
 export interface ResultStore {
   get(key: string): Promise<string | null>;
   set(key: string, value: string, ttlSeconds: number): Promise<void>;
