@@ -278,6 +278,7 @@ async function fakeClassify(
     query,
     elapsedSeconds: golden.fake.elapsedSeconds,
     rerank: fake.rerank,
+    idSearch: "ok",
     enhancementStatus:
       fake.mode === "enhancement_failed" ? "failed" : "applied",
   };
@@ -566,17 +567,6 @@ describe("sitemap query pages (decided divergence from Python)", () => {
     return { response, events: fake.events };
   }
 
-  async function visitCompleted() {
-    sitemapResults.clear();
-    const rerank = fake.rerank;
-    fake.rerank = "applied";
-    try {
-      return await visit();
-    } finally {
-      fake.rerank = rerank;
-    }
-  }
-
   function regions(html: string): string[] {
     if (crawlerPage.body.kind !== "regions")
       throw new Error("expected regions");
@@ -656,15 +646,25 @@ describe("sitemap query pages (decided divergence from Python)", () => {
     expect(retried.events).toEqual(["classify"]);
   });
 
-  it.each(["failed", "skipped"] as const)(
+  // The process remembers a degraded result for 10 minutes, so each case
+  // takes a sitemap page that no other case visits.
+  it.each([
+    ["failed", "/UNSPSC/laser_printer/"],
+    ["skipped", "/UNSPSC/label_printer/"],
+  ] as const)(
     "renders a ranking whose rerank %s, but keeps it out of every cache",
-    async (rerank) => {
+    async (rerank, degradedPath) => {
       fake.rerank = rerank;
-      const degraded = await visit();
-      const again = await visit();
+      const degraded = await visit("get", degradedPath);
+      const again = await visit("get", degradedPath);
 
       expect(degraded.events).toEqual(["classify"]);
-      expect(again.events).toEqual(["classify"]);
+      expect(again.events).toEqual([]);
+      expect(sitemapResults.size).toBe(0);
+      expect(again.response.text).toBe(degraded.response.text);
+      expect(again.response.headers["cache-control"]).toBe(
+        cacheHeaders("NO_STORE")["Cache-Control"],
+      );
       expect(degraded.response.status).toBe(200);
       expect(degraded.response.headers["cache-control"]).toBe(
         cacheHeaders("NO_STORE")["Cache-Control"],
@@ -674,9 +674,10 @@ describe("sitemap query pages (decided divergence from Python)", () => {
       );
       expect(degraded.response.headers["cache-tag"]).toBeUndefined();
       expect(degraded.response.headers["x-robots-tag"]).toBe("index, follow");
-      expect(regions(degraded.response.text)).toEqual(
-        regions((await visitCompleted()).response.text),
-      );
+      expect(degraded.response.text).toContain('data-autoload-enabled="false"');
+      expect(
+        degraded.response.text.match(/role="listitem"/g) ?? [],
+      ).toHaveLength(golden.fake.results.length);
     },
   );
 

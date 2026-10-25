@@ -118,6 +118,7 @@ function harness(ledger: Ledger): Harness {
         query: request.query,
         elapsedSeconds: 0,
         rerank: "applied",
+        idSearch: "ok",
       } satisfies ClassificationOutcome;
     });
   return {

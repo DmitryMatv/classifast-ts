@@ -146,7 +146,11 @@ A GET of a sitemap query page such as `/UNSPSC/laptop_computer/` expects
 `NO_STORE` and `noindex, nofollow` in public mode, because Nest tries to
 render its results and cannot classify there. In full mode it expects
 `HTML_PAGE` with `Cache-Tag: sitemap-results`, and two GETs must render the
-same results and "Finished in" time. These are decided divergences.
+same results and "Finished in" time. With `CONTRACT_NO_OPENROUTER_KEY=1` the
+results are degraded, so the full-mode GET expects `NO_STORE`,
+`index, follow` and no `Cache-Tag`, and the two-GET case skips. HEAD on a
+sitemap query page never classifies and answers `HTML_PAGE` without a
+`Cache-Tag`; that is accepted. These are decided divergences.
 
 Inside test files Vitest replaces `process.env.BASE_URL` with Vite's base
 path, so the config passes the URL on as `CONTRACT_BASE_URL`.
@@ -281,18 +285,34 @@ path. Do not regenerate the fixtures to match Nest. The results come from
   does not include the embedding model or the rerank and query
   instructions, so bump `v1` after changing them or the value shape; the
   old keys expire by TTL.
-- Only results whose `rerank` is `applied` or `not_needed` are stored. A
-  `failed` or `skipped` rerank still renders, but with `NO_STORE` on both
-  cache headers, no `Cache-Tag`, and `index, follow`, so neither Redis nor
-  Cloudflare keeps it. Every view classifies again until the reranker works.
-- A miss runs one fill per key through `ClassificationQueue`. The fill runs
-  under the app-shutdown signal, so a visitor who leaves does not cancel it.
+- Only complete results are stored: `rerank` is `applied` or `not_needed`,
+  `idSearch` is `ok`, and at least one result was found. An incomplete
+  result still renders, but with `NO_STORE` on both cache headers, no
+  `Cache-Tag`, and `index, follow`, so neither Redis nor Cloudflare keeps
+  it.
+- The process remembers an incomplete result, and a complete one that Redis
+  could not store, for 10 minutes (at most 2,000 keys). A view in that window
+  does not classify. Without this, an OpenRouter or Redis outage would make
+  every crawler view a free classification that fills the queue paying
+  fragment users share. A remembered result keeps the headers of its first
+  view.
+- A miss runs one fill per key through `ClassificationQueue`. No signal
+  cancels a fill: a visitor who leaves does not stop it, and at shutdown the
+  queue rejects waiting fills and lets the active one finish and store.
+  Waiters get the result when it is classified, not when the Redis write
+  settles; the key stays claimed until then.
+- A full queue or a queue closed for shutdown is `overloaded`, not a
+  failure: a verified crawler gets 503 with `Retry-After` and a visitor a
+  200 `NO_STORE` loading shell. Only genuine failures send `noindex`.
 - These views charge no quota. The page verifies a crawler only when the
-  queue is full, the one case where a crawler gets a different answer (503
-  with `Retry-After`; a visitor gets a 200 `NO_STORE` loading shell). The
-  base `/{TYPE}/` page follows the same rule but is never cached.
+  queue is full or closed, the one case where a crawler gets a different
+  answer. The base `/{TYPE}/` page follows the same rule. It never uses the
+  result cache, but Cloudflare still caches it as `HTML_PAGE`.
 - A page rendered from complete results sends `Cache-Tag: sitemap-results`,
   so a Cloudflare purge by tag drops every such page.
+- A stored result keeps the "Finished in" time of the classification that
+  filled it, so every view of the page shows the same time. This is a
+  decided choice.
 
 `test/pages.e2e-spec.ts` replaces the store with an in-memory map
 (`SITEMAP_RESULT_STORE`) and clears it before each parity case.

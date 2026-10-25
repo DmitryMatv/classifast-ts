@@ -34,6 +34,7 @@ const both = ["GET", "HEAD"] as const;
  * Nest renders a sitemap query page's results for every visitor (unit 12, a
  * decided divergence); Python leaves them to the client. A public-mode
  * server cannot classify, so the page is the uncached failure shell there.
+ * HEAD never classifies, so it answers HTML_PAGE without a Cache-Tag.
  */
 function sitemapQueryPage(path: string, canonical: string): PageCase[] {
   if (contract.target === "python") return [{ path, canonical, methods: both }];
@@ -47,13 +48,22 @@ function sitemapQueryPage(path: string, canonical: string): PageCase[] {
       robots: "noindex, nofollow",
       modes: ["public"],
     },
-    {
-      path,
-      canonical,
-      methods: ["GET"],
-      cacheTag: "sitemap-results",
-      modes: ["full"],
-    },
+    // Without a reranker the results are degraded: shown, never cached.
+    contract.noOpenRouterKey
+      ? {
+          path,
+          canonical,
+          methods: ["GET"],
+          profile: "NO_STORE",
+          modes: ["full"],
+        }
+      : {
+          path,
+          canonical,
+          methods: ["GET"],
+          cacheTag: "sitemap-results",
+          modes: ["full"],
+        },
   ];
 }
 

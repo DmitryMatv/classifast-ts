@@ -7,8 +7,9 @@ import type { ClassificationOutcome } from "./classification-service.js";
 const KEY_PREFIX = "ssr-result:v1";
 const TTL_SECONDS = 30 * 24 * 60 * 60;
 const TTL_JITTER = 0.2;
+const MEMORY_SECONDS = 10 * 60;
 
-/** A degraded ranking would stay on the page for a month. */
+/** A degraded result would stay on the page for a month. */
 const STORED_RERANK_STATUSES: ReadonlySet<RerankStatus> = new Set([
   "applied",
   "not_needed",
@@ -47,7 +48,10 @@ const sitemapResultSchema = z.object({
   computedAt: z.iso.datetime(),
 }) satisfies z.ZodType<SitemapResult>;
 
-/** `complete` is false for a fill whose ranking was too degraded to store. */
+/**
+ * `complete` is false for a result too degraded to store: its rerank failed
+ * or was skipped, an ID search failed, or it found nothing.
+ */
 export interface SitemapLookup {
   readonly result: SitemapResult;
   readonly complete: boolean;
@@ -111,36 +115,64 @@ export type Classify = (signal: AbortSignal) => Promise<ClassificationOutcome>;
 export interface SitemapResultCacheOptions {
   readonly now?: () => Date;
   readonly random?: () => number;
+  /** Results remembered in memory at most; the sitemap lists about 420. */
+  readonly memoryLimit?: number;
 }
+
+/** Whether Redis may keep a classification for a month. */
+function isCompleteClassification(outcome: ClassificationOutcome) {
+  return (
+    STORED_RERANK_STATUSES.has(outcome.rerank) &&
+    outcome.idSearch === "ok" &&
+    outcome.results.length > 0
+  );
+}
+
+interface Remembered {
+  readonly lookup: SitemapLookup;
+  readonly expiresAt: number;
+}
+
+// A fill is never cancelled: the queue's shutdown drain lets the active one
+// finish and store, and rejects the waiting ones.
+const NEVER_ABORTED = new AbortController().signal;
 
 /**
  * Classification results for sitemap query pages, kept in Redis for about
- * 30 days. A miss runs one shared classification per key. That fill runs
- * until it finishes or the app shuts down, so a visitor who leaves does not
- * cancel it for the others waiting on the same key. A Redis failure counts
- * as a miss, and a failed write still returns the result.
+ * 30 days. A miss runs one shared classification per key, which no
+ * visitor's disconnect cancels. Waiters get the result as soon as it is
+ * classified; the key stays claimed until the Redis write settles.
+ *
+ * A result Redis does not keep, because it is incomplete or the write
+ * failed, is remembered in this process for 10 minutes. Without that, every
+ * view during an OpenRouter or Redis outage would run a classification and
+ * fill the queue that paying fragment users share.
  */
 export class SitemapResultCache {
   readonly #fills = new Map<string, Promise<SitemapLookup>>();
-  readonly #shutdown = new AbortController();
+  readonly #remembered = new Map<string, Remembered>();
   readonly #now: () => Date;
   readonly #random: () => number;
+  readonly #memoryLimit: number;
 
   constructor(
     private readonly store: ResultStore | null,
     {
       now = () => new Date(),
       random = Math.random,
+      memoryLimit = 2_000,
     }: SitemapResultCacheOptions = {},
   ) {
     this.#now = now;
     this.#random = random;
+    this.#memoryLimit = memoryLimit;
   }
 
   /**
-   * The stored result for `input`, or the result of `classify`. A rejection
-   * from `classify`, such as a full queue, reaches every waiter. Aborting
-   * `signal` rejects only this caller.
+   * The stored or remembered result for `input`, or the result of
+   * `classify`. A rejection from `classify`, such as a full queue, reaches
+   * every waiter and is not remembered. Aborting `signal` rejects only this
+   * caller.
    */
   async get(
     input: SitemapResultInput,
@@ -148,16 +180,31 @@ export class SitemapResultCache {
     classify: Classify,
   ): Promise<SitemapLookup> {
     const key = sitemapResultKey(input);
-    const filling = this.#fills.get(key);
-    if (filling) return untilAborted(filling, signal);
+    const known = this.#fills.get(key) ?? this.#recall(key);
+    if (known) return untilAborted(Promise.resolve(known), signal);
     const stored = await untilAborted(this.#read(key), signal);
     if (stored) return { result: stored, complete: true };
     return untilAborted(this.#fill(key, classify), signal);
   }
 
-  /** Aborts the running fills. */
-  close(): void {
-    this.#shutdown.abort(new Error("The application is shutting down"));
+  #recall(key: string): SitemapLookup | undefined {
+    const entry = this.#remembered.get(key);
+    if (entry === undefined) return undefined;
+    if (entry.expiresAt > this.#now().getTime()) return entry.lookup;
+    this.#remembered.delete(key);
+    return undefined;
+  }
+
+  #remember(key: string, lookup: SitemapLookup): void {
+    this.#remembered.delete(key);
+    if (this.#remembered.size >= this.#memoryLimit) {
+      const oldest = this.#remembered.keys().next().value;
+      if (oldest !== undefined) this.#remembered.delete(oldest);
+    }
+    this.#remembered.set(key, {
+      lookup,
+      expiresAt: this.#now().getTime() + MEMORY_SECONDS * 1000,
+    });
   }
 
   async #read(key: string): Promise<SitemapResult | undefined> {
@@ -176,40 +223,46 @@ export class SitemapResultCache {
   }
 
   #fill(key: string, classify: Classify): Promise<SitemapLookup> {
-    let fill = this.#fills.get(key);
-    if (fill) return fill;
-    fill = this.#classifyAndStore(key, classify).finally(() => {
-      this.#fills.delete(key);
-    });
+    const running = this.#fills.get(key);
+    if (running) return running;
+    const lookup = this.#classify(classify);
+    this.#fills.set(key, lookup);
     // Every waiter may leave before the fill settles.
-    fill.catch(() => undefined);
-    this.#fills.set(key, fill);
-    return fill;
+    lookup.catch(() => undefined);
+    void lookup
+      .then((found) => this.#keep(key, found))
+      .catch(() => undefined)
+      .finally(() => this.#fills.delete(key));
+    return lookup;
   }
 
-  async #classifyAndStore(
-    key: string,
-    classify: Classify,
-  ): Promise<SitemapLookup> {
-    const outcome = await classify(this.#shutdown.signal);
-    const result: SitemapResult = {
-      results: outcome.results,
-      versionName: outcome.versionName,
-      query: outcome.query,
-      elapsedSeconds: outcome.elapsedSeconds,
-      computedAt: this.#now().toISOString(),
+  async #classify(classify: Classify): Promise<SitemapLookup> {
+    const outcome = await classify(NEVER_ABORTED);
+    return {
+      result: {
+        results: outcome.results,
+        versionName: outcome.versionName,
+        query: outcome.query,
+        elapsedSeconds: outcome.elapsedSeconds,
+        computedAt: this.#now().toISOString(),
+      },
+      complete: isCompleteClassification(outcome),
     };
-    const complete = STORED_RERANK_STATUSES.has(outcome.rerank);
-    if (!this.store || !complete) return { result, complete };
-    try {
-      await this.store.set(
-        key,
-        JSON.stringify(result),
-        sitemapResultTtlSeconds(this.#random),
-      );
-    } catch (error) {
-      logger.warn(`Sitemap result write failed: ${String(error)}`);
+  }
+
+  async #keep(key: string, lookup: SitemapLookup): Promise<void> {
+    if (lookup.complete && this.store) {
+      try {
+        await this.store.set(
+          key,
+          JSON.stringify(lookup.result),
+          sitemapResultTtlSeconds(this.#random),
+        );
+        return;
+      } catch (error) {
+        logger.warn(`Sitemap result write failed: ${String(error)}`);
+      }
     }
-    return { result, complete };
+    this.#remember(key, lookup);
   }
 }

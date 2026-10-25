@@ -2,6 +2,7 @@ import { onTestFinished } from "vitest";
 import {
   closedRedis,
   connectTestRedis,
+  hungRedis,
   testConnection,
   uniqueId,
 } from "../../test/support/redis.js";
@@ -12,11 +13,14 @@ import {
   redisResultStore,
   sitemapResultKey,
   SitemapResultCache,
+  type ResultStore,
+  type SitemapLookup,
   type SitemapResultCacheOptions,
   type SitemapResultInput,
 } from "./sitemap-result-cache.js";
 
 const DAY_SECONDS = 24 * 60 * 60;
+const MEMORY_MS = 10 * 60 * 1000;
 const NOW = new Date("2026-10-25T12:00:00.000Z");
 
 let raw: RedisClient;
@@ -29,6 +33,10 @@ afterAll(() => {
   raw.destroy();
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 function input(): SitemapResultInput {
   return {
     collectionName: uniqueId("collection"),
@@ -37,7 +45,9 @@ function input(): SitemapResultInput {
   };
 }
 
-function outcome(rerank: RerankStatus = "applied"): ClassificationOutcome {
+function outcome(
+  overrides: Partial<ClassificationOutcome> = {},
+): ClassificationOutcome {
   return {
     results: [
       {
@@ -52,7 +62,19 @@ function outcome(rerank: RerankStatus = "applied"): ClassificationOutcome {
     version: { collectionName: "c" },
     query: "laptop computer",
     elapsedSeconds: 1.2345,
-    rerank,
+    rerank: "applied",
+    idSearch: "ok",
+    ...overrides,
+  };
+}
+
+function clock() {
+  let ms = NOW.getTime();
+  return {
+    now: () => new Date(ms),
+    advance: (byMs: number) => {
+      ms += byMs;
+    },
   };
 }
 
@@ -65,15 +87,25 @@ function connectedCache(options: SitemapResultCacheOptions = {}) {
   });
 }
 
-function counting(rerank: RerankStatus = "applied") {
+function counting(overrides: Partial<ClassificationOutcome> = {}) {
   const calls: AbortSignal[] = [];
   return {
     calls,
     classify: (signal: AbortSignal) => {
       calls.push(signal);
-      return Promise.resolve(outcome(rerank));
+      return Promise.resolve(outcome(overrides));
     },
   };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
 }
 
 const live = () => new AbortController().signal;
@@ -156,26 +188,32 @@ describe("SitemapResultCache", () => {
 
     expect(calls).toHaveLength(1);
     expect(result.results).toEqual(outcome().results);
+    await vi.waitUntil(async () =>
+      (await raw.get(sitemapResultKey(key)))?.startsWith('{"results":['),
+    );
     expect(
       JSON.parse((await raw.get(sitemapResultKey(key)))!) as unknown,
     ).toEqual(result);
   });
 
-  it.each(["failed", "skipped"] as const)(
-    "returns an incomplete result whose reranking %s without storing it",
-    async (rerank) => {
+  it.each([
+    ["a failed rerank", { rerank: "failed" as RerankStatus }],
+    ["a skipped rerank", { rerank: "skipped" as RerankStatus }],
+    ["a failed ID search", { idSearch: "failed" as const }],
+    ["no results", { results: [], rerank: "not_needed" as RerankStatus }],
+  ])(
+    "returns an incomplete result after %s without storing it",
+    async (_, overrides) => {
       const key = input();
-      const cache = connectedCache();
 
-      const lookup = await cache.get(key, live(), counting(rerank).classify);
-      const stored = await raw.exists(sitemapResultKey(key));
-      const again = counting(rerank);
-      await cache.get(key, live(), again.classify);
+      const lookup = await connectedCache().get(
+        key,
+        live(),
+        counting(overrides).classify,
+      );
 
-      expect(lookup.result.results).toEqual(outcome().results);
       expect(lookup.complete).toBe(false);
-      expect(stored).toBe(0);
-      expect(again.calls).toHaveLength(1);
+      expect(await raw.exists(sitemapResultKey(key))).toBe(0);
     },
   );
 
@@ -184,28 +222,59 @@ describe("SitemapResultCache", () => {
     const lookup = await connectedCache().get(
       key,
       live(),
-      counting("not_needed").classify,
+      counting({ rerank: "not_needed" }).classify,
     );
 
     expect(lookup.complete).toBe(true);
-    expect(await raw.exists(sitemapResultKey(key))).toBe(1);
+    await vi.waitUntil(
+      async () => (await raw.exists(sitemapResultKey(key))) === 1,
+    );
+  });
+
+  it("remembers an incomplete result for 10 minutes", async () => {
+    const key = input();
+    const time = clock();
+    const cache = connectedCache({ now: time.now });
+    const degraded = counting({ rerank: "failed" });
+
+    const first = await cache.get(key, live(), degraded.classify);
+    time.advance(MEMORY_MS - 1);
+    const second = await cache.get(key, live(), degraded.classify);
+    time.advance(1);
+    const third = await cache.get(key, live(), degraded.classify);
+
+    expect(second).toEqual(first);
+    expect(second.complete).toBe(false);
+    expect(degraded.calls).toHaveLength(2);
+    expect(third.result.computedAt).not.toBe(first.result.computedAt);
+  });
+
+  it("forgets the oldest remembered result beyond its limit", async () => {
+    const cache = new SitemapResultCache(null, { memoryLimit: 2 });
+    const keys = [input(), input(), input()];
+    const { calls, classify } = counting();
+    for (const key of keys) await cache.get(key, live(), classify);
+
+    await cache.get(keys[2]!, live(), classify);
+    await cache.get(keys[1]!, live(), classify);
+    expect(calls).toHaveLength(3);
+    await cache.get(keys[0]!, live(), classify);
+    expect(calls).toHaveLength(4);
   });
 
   it("classifies once for concurrent requests for one key", async () => {
     const key = input();
     const cache = connectedCache();
-    let finish!: (value: ClassificationOutcome) => void;
+    const result = deferred<ClassificationOutcome>();
     let calls = 0;
     const classify = () => {
       calls += 1;
-      return new Promise<ClassificationOutcome>((resolve) => {
-        finish = resolve;
-      });
+      return result.promise;
     };
 
     const requests = [1, 2, 3].map(() => cache.get(key, live(), classify));
     await vi.waitUntil(() => calls > 0);
-    finish(outcome());
+    result.resolve(outcome());
     const results = await Promise.all(requests);
 
     expect(calls).toBe(1);
@@ -213,16 +282,41 @@ describe("SitemapResultCache", () => {
     expect(results[2]).toEqual(results[0]);
   });
 
+  it("shares a classification failure with every waiter and forgets it", async () => {
+    const key = input();
+    const cache = connectedCache();
+    const failure = deferred<ClassificationOutcome>();
+    let calls = 0;
+    const failing = () => {
+      calls += 1;
+      return failure.promise;
+    };
+
+    const waiters = [1, 2, 3].map(() =>
+      cache.get(key, live(), failing).catch((error: Error) => error.message),
+    );
+    await vi.waitUntil(() => calls > 0);
+    failure.reject(new Error("queue full"));
+
+    expect(await Promise.all(waiters)).toEqual([
+      "queue full",
+      "queue full",
+      "queue full",
+    ]);
+    expect(calls).toBe(1);
+    const retry = counting();
+    await cache.get(key, live(), retry.classify);
+    expect(retry.calls).toHaveLength(1);
+  });
+
   it("finishes and stores the fill when the first requester leaves", async () => {
     const key = input();
     const cache = connectedCache();
-    let finish!: (value: ClassificationOutcome) => void;
+    const result = deferred<ClassificationOutcome>();
     let fillSignal: AbortSignal | undefined;
     const classify = (signal: AbortSignal) => {
       fillSignal = signal;
-      return new Promise<ClassificationOutcome>((resolve) => {
-        finish = resolve;
-      });
+      return result.promise;
     };
     const leaving = new AbortController();
 
@@ -232,58 +326,59 @@ describe("SitemapResultCache", () => {
     leaving.abort(new Error("client gone"));
     await expect(first).rejects.toThrow("client gone");
     expect(fillSignal!.aborted).toBe(false);
-    finish(outcome());
+    result.resolve(outcome());
 
     expect((await second).result.results).toEqual(outcome().results);
-    expect(await raw.exists(sitemapResultKey(key))).toBe(1);
+    await vi.waitUntil(
+      async () => (await raw.exists(sitemapResultKey(key))) === 1,
+    );
   });
 
-  it("aborts the fill at shutdown and stores nothing", async () => {
+  it("answers before a hung write settles and keeps the key claimed", async () => {
     const key = input();
-    const cache = connectedCache();
-    const classify = (signal: AbortSignal) =>
-      new Promise<ClassificationOutcome>((_, reject) => {
-        signal.addEventListener("abort", () => reject(signal.reason as Error));
-      });
-
-    const pending = cache.get(key, live(), classify);
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    cache.close();
-
-    await expect(pending).rejects.toThrow("shutting down");
-    expect(await raw.exists(sitemapResultKey(key))).toBe(0);
-  });
-
-  it("shares a classification failure with every waiter and retries later", async () => {
-    const key = input();
-    const cache = connectedCache();
-    const failing = () => Promise.reject(new Error("queue full"));
-
-    await expect(cache.get(key, live(), failing)).rejects.toThrow("queue full");
+    const write = deferred<void>();
+    const writes: string[] = [];
+    const store: ResultStore = {
+      get: () => Promise.resolve(null),
+      set: (written) => {
+        writes.push(written);
+        return write.promise;
+      },
+    };
+    const cache = new SitemapResultCache(store);
     const { calls, classify } = counting();
+
+    const first = await cache.get(key, live(), classify);
+    const during = await cache.get(key, live(), classify);
+
+    expect(first.complete).toBe(true);
+    expect(during).toEqual(first);
+    expect(writes).toEqual([sitemapResultKey(key)]);
+    expect(calls).toHaveLength(1);
+    write.resolve();
+  });
+
+  it("remembers a complete result that Redis could not store", async () => {
+    const key = input();
+    const time = clock();
+    const cache = new SitemapResultCache(redisResultStore(closedRedis()), {
+      now: time.now,
+    });
+    const { calls, classify } = counting();
+
+    const first = await cache.get(key, live(), classify);
+    // Let the refused write settle.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const remembered = await cache.get(key, live(), classify);
+    time.advance(MEMORY_MS);
     await cache.get(key, live(), classify);
 
-    expect(calls).toHaveLength(1);
+    expect(first.complete).toBe(true);
+    expect(remembered).toEqual(first);
+    expect(calls).toHaveLength(2);
   });
 
-  it("classifies and returns the result when Redis is down", async () => {
-    const key = input();
-    const cache = new SitemapResultCache(redisResultStore(closedRedis()), {
-      now: () => NOW,
-    });
-    const { calls, classify } = counting();
-
-    const lookup = await cache.get(key, live(), classify);
-
-    expect(calls).toHaveLength(1);
-    expect(lookup).toMatchObject({
-      result: { results: outcome().results },
-      complete: true,
-    });
-    expect(await raw.exists(sitemapResultKey(key))).toBe(0);
-  });
-
-  it("classifies without a store when Redis was unreachable at startup", async () => {
+  it("remembers results without a store when Redis was unreachable at startup", async () => {
     const key = input();
     const cache = new SitemapResultCache(null);
     const { calls, classify } = counting();
@@ -291,6 +386,24 @@ describe("SitemapResultCache", () => {
     await cache.get(key, live(), classify);
     await cache.get(key, live(), classify);
 
-    expect(calls).toHaveLength(2);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("classifies after a hung Redis read times out", async () => {
+    const hung = await hungRedis();
+    onTestFinished(() => hung.close());
+    const cache = new SitemapResultCache(redisResultStore(hung.client));
+    const { calls, classify } = counting();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+
+    const pending: Promise<SitemapLookup> = cache.get(
+      input(),
+      live(),
+      classify,
+    );
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect((await pending).complete).toBe(true);
+    expect(calls).toHaveLength(1);
   });
 });

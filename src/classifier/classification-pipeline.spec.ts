@@ -333,6 +333,38 @@ describe("performClassification failures", () => {
     );
 
     expect(ids(outcome.results)).toEqual(["semantic-1"]);
+    expect(outcome.idSearch).toBe("failed");
+  });
+
+  it("reports a failed partial ID search alone", async () => {
+    const f = await setUp({ semantic: [pumpBody] });
+    const deps = {
+      ...f.deps,
+      qdrant: {
+        scroll: (collection: string, request: { filter?: unknown }) =>
+          JSON.stringify(request.filter).includes('"must"')
+            ? f.deps.qdrant.scroll(collection, request as never)
+            : Promise.reject(new Error("partial search down")),
+        query: f.deps.qdrant.query.bind(f.deps.qdrant),
+      },
+    } as typeof f.deps;
+
+    const outcome = await performClassification(
+      deps,
+      { query: "8471 pump", classifierType: "ETIM", topK: 2 },
+      new AbortController().signal,
+    );
+
+    expect(ids(outcome.results)).toEqual(["semantic-1"]);
+    expect(outcome.idSearch).toBe("failed");
+  });
+
+  it("reports successful ID searches", async () => {
+    const f = await setUp({ semantic: [pumpBody] });
+
+    const outcome = await classify(f, { query: "8471 pump" });
+
+    expect(outcome.idSearch).toBe("ok");
   });
 });
 

@@ -200,7 +200,7 @@ export class ClassifierPageController {
       (state: SsrState, error: unknown) => {
         if (state === "overloaded") {
           logger.warn(
-            `SSR deferred for '${upperType}' page: classification queue full`,
+            `SSR deferred for '${upperType}' page: classification queue full or closed`,
           );
         } else {
           const name = error instanceof Error ? error.name : typeof error;

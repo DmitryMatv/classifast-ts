@@ -1,4 +1,4 @@
-import { Inject, Module, type BeforeApplicationShutdown } from "@nestjs/common";
+import { Module } from "@nestjs/common";
 import { ClassificationModule } from "../classifier/classification.module.js";
 import {
   redisResultStore,
@@ -42,12 +42,4 @@ import { WebModule } from "./web.module.js";
     },
   ],
 })
-export class ClassifierPageModule implements BeforeApplicationShutdown {
-  constructor(
-    @Inject(SitemapResultCache) private readonly cache: SitemapResultCache,
-  ) {}
-
-  beforeApplicationShutdown(): void {
-    this.cache.close();
-  }
-}
+export class ClassifierPageModule {}

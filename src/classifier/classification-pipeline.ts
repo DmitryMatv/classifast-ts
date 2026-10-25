@@ -13,6 +13,7 @@ import {
   useRerankScores,
   withRerankScore,
   type ClassificationResult,
+  type IdSearchStatus,
   type RankedResults,
   type RerankedResult,
   type RerankStatus,
@@ -61,6 +62,7 @@ export interface Classification {
   /** The sanitized query that the ID searches used. */
   readonly query: string;
   readonly rerank: RerankStatus;
+  readonly idSearch: IdSearchStatus;
 }
 
 export interface PreparedClassification {
@@ -70,6 +72,7 @@ export interface PreparedClassification {
   readonly version: ClassifierVersion;
   readonly query: string;
   readonly exactResults: readonly ClassificationResult[];
+  readonly exactSearch: IdSearchStatus;
   readonly exactMs: number;
 }
 
@@ -137,6 +140,7 @@ export async function prepareClassification(
 
   const exactStart = deps.clock.now();
   let exactResults: ClassificationResult[];
+  let exactSearch: IdSearchStatus = "ok";
   try {
     exactResults = await exactIdSearch(
       deps.qdrant,
@@ -146,12 +150,14 @@ export async function prepareClassification(
   } catch (error) {
     logger.warn(`Exact ID search failed: ${errorText(error)}`);
     exactResults = [];
+    exactSearch = "failed";
   }
   return {
     ...resolved,
     classifierType,
     query: sanitized.query,
     exactResults,
+    exactSearch,
     exactMs: deps.clock.now() - exactStart,
   };
 }
@@ -159,6 +165,7 @@ export async function prepareClassification(
 function classification(
   prepared: PreparedClassification,
   { results, rerank }: RankedResults,
+  idSearch: IdSearchStatus,
 ): Classification {
   return {
     results,
@@ -166,6 +173,7 @@ function classification(
     version: prepared.version,
     query: prepared.query,
     rerank,
+    idSearch,
   };
 }
 
@@ -181,28 +189,36 @@ export function exactOutcome(
   logger.log(
     `ID_SEARCH_SHORTCUT: classifier=${prepared.classifierType} query='${prepared.query}' matches=${prepared.exactResults.length}`,
   );
-  return classification(prepared, {
-    results: exactIdShortcutResults(prepared.exactResults, topK),
-    rerank: "not_needed",
-  });
+  return classification(
+    prepared,
+    {
+      results: exactIdShortcutResults(prepared.exactResults, topK),
+      rerank: "not_needed",
+    },
+    "ok",
+  );
 }
 
 async function partialIdResults(
   deps: PipelineDeps,
   collectionName: string,
   query: string,
-): Promise<ClassificationResult[]> {
+): Promise<{ results: ClassificationResult[]; status: IdSearchStatus }> {
   const normalizedIdQuery = normalizeOriginalIdForLookup(query);
-  if (!isPartialIdQuery(normalizedIdQuery)) return [];
+  if (!isPartialIdQuery(normalizedIdQuery))
+    return { results: [], status: "ok" };
   try {
-    return await partialIdSearch(
-      deps.qdrant,
-      collectionName,
-      normalizedIdQuery,
-    );
+    return {
+      results: await partialIdSearch(
+        deps.qdrant,
+        collectionName,
+        normalizedIdQuery,
+      ),
+      status: "ok",
+    };
   } catch (error) {
     logger.warn(`Partial ID search failed: ${errorText(error)}`);
-    return [];
+    return { results: [], status: "failed" };
   }
 }
 
@@ -352,11 +368,12 @@ export async function completeClassification(
   const { config, version, classifierType } = prepared;
   try {
     const partialStart = deps.clock.now();
-    const partialResults = await partialIdResults(
+    const partial = await partialIdResults(
       deps,
       version.collectionName,
       prepared.query,
     );
+    const partialResults = partial.results;
     logger.log(
       `ID_SEARCH: exact=0 partial=${partialResults.length} exact_ms=${pyFormatFixed(prepared.exactMs, 2)} partial_ms=${pyFormatFixed(deps.clock.now() - partialStart, 2)}`,
     );
@@ -417,10 +434,20 @@ export async function completeClassification(
       },
       signal,
     );
-    return classification(prepared, {
-      results: mergeClassificationResults(partialResults, ranked.results, topK),
-      rerank: ranked.rerank,
-    });
+    return classification(
+      prepared,
+      {
+        results: mergeClassificationResults(
+          partialResults,
+          ranked.results,
+          topK,
+        ),
+        rerank: ranked.rerank,
+      },
+      prepared.exactSearch === "failed" || partial.status === "failed"
+        ? "failed"
+        : "ok",
+    );
   } catch (error) {
     if (error instanceof ClassificationError || signal.aborted) throw error;
     logger.error(

@@ -59,6 +59,7 @@ function outcome(): ClassificationOutcome {
     query: "test widget",
     elapsedSeconds: 0.25,
     rerank: "applied",
+    idSearch: "ok",
   };
 }
 

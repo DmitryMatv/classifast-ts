@@ -1,7 +1,10 @@
 import { HttpException } from "@nestjs/common";
 import { CLASSIFIER_TYPES } from "../classifier/classifier-config.js";
 import { resolveClassifierType } from "../classifier/classifier-options.js";
-import { ClassificationQueueFull } from "../classifier/classification-queue.js";
+import {
+  ClassificationQueueClosed,
+  ClassificationQueueFull,
+} from "../classifier/classification-queue.js";
 import {
   cacheHeaders,
   pageHeaders,
@@ -140,7 +143,12 @@ export async function seedClassifierPageResults(
     };
   } catch (error) {
     const state =
-      error instanceof ClassificationQueueFull ? "overloaded" : "failure";
+      // A queue closed for shutdown is busy, not broken: a crawler must get
+      // 503, not a 200 marked noindex.
+      error instanceof ClassificationQueueFull ||
+      error instanceof ClassificationQueueClosed
+        ? "overloaded"
+        : "failure";
     logFailure(state, error);
     return {
       results: empty(query),

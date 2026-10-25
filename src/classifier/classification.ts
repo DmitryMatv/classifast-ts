@@ -43,6 +43,9 @@ export type EnhancementStatus = "applied" | "skipped" | "failed";
  */
 export type RerankStatus = "applied" | "not_needed" | "skipped" | "failed";
 
+/** `failed`: an exact or partial ID search failed and counted as no match. */
+export type IdSearchStatus = "ok" | "failed";
+
 export interface RankedResults {
   readonly results: ClassificationResult[];
   readonly rerank: RerankStatus;

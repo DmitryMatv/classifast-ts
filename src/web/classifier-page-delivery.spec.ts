@@ -1,5 +1,8 @@
 import type { ClassificationOutcome } from "../classifier/classification-service.js";
-import { ClassificationQueueFull } from "../classifier/classification-queue.js";
+import {
+  ClassificationQueueClosed,
+  ClassificationQueueFull,
+} from "../classifier/classification-queue.js";
 import {
   classifierPageResponse,
   matchClassifierRoute,
@@ -38,6 +41,7 @@ describe("seedClassifierPageResults", () => {
     query: "q",
     elapsedSeconds: 0.25,
     rerank: "applied",
+    idSearch: "ok",
   } satisfies ClassificationOutcome;
   const ignore = () => {};
 
@@ -90,6 +94,7 @@ describe("seedClassifierPageResults", () => {
 
   it.each([
     [new ClassificationQueueFull(), "overloaded"],
+    [new ClassificationQueueClosed(), "overloaded"],
     [new Error("boom"), "failure"],
   ])("falls back to client loading after %s", async (error, state) => {
     const logged: unknown[] = [];
