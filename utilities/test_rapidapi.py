@@ -107,7 +107,7 @@ def main():
         requests.get(f"{BASE_URL}/health", timeout=5)
     except requests.exceptions.ConnectionError:
         print(
-            "❌ Server not running. Start with: uvicorn app.main:app --reload --port 8001"
+            "❌ Server not running. Start with: npm run start:dev"
         )
         sys.exit(1)
 

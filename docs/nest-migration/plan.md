@@ -155,10 +155,9 @@ setup that the scaffold adds. The user asked to start with the scaffold.
       Run `npm run qdrant:indexes -- apply --collection <name>` for each.
 - [ ] Check whether a Cloudflare cache rule covers `/api/v1/rapid/*`. Those
       responses are public for 7 days and do not vary on the proxy secret.
-- [ ] Give the 503 status fragment its amber border. Its class lives in
-      `app/web.py`, which Tailwind never scans, so production CSS lacks
-      `border-amber-200`. The Nest port of the fragment fixes this only if the
-      pages unit adds a `@source` line for its markup in `src/`.
+- [x] Give the 503 status fragment its amber border. Its class lived in
+      `app/web.py`, which Tailwind never scanned. #24 points Tailwind's
+      `@source` at `src/web`, which generates `border-amber-200`.
 
 ## Open decisions
 
@@ -166,13 +165,12 @@ setup that the scaffold adds. The user asked to start with the scaffold.
       `src/cli/sync-payload-indexes.ts` (`npm run qdrant:indexes -- check`).
       Its ID normalization matches `app/id_lookup.py` on the golden fixture
       and on all 237,463 original IDs in the configured collections.
-- [ ] Choose what happens to the other Python utilities that import `app`
-      modules before unit 11 deletes them: `test_openrouter_reranker_live.py`
-      (`classifier`), `test_subscription_events.py` (`payments`,
-      `usage_tracker`), and `export_golden_fixtures.py` (`id_lookup`).
-- [ ] Accept that the Python Docker image's frontend stage installs the Nest
-      dependencies until unit 11 replaces the Dockerfile. Its `node_modules`
-      grows from 108 MB to 201 MB, and every Pi build installs it.
+- [x] The Python utilities that import `app` modules
+      (`test_openrouter_reranker_live.py`, `test_subscription_events.py`,
+      `export_golden_fixtures.py`) are deleted with the app in #24. The golden
+      fixtures stay frozen and are edited by hand.
+- [x] The Python Docker image's frontend stage no longer exists; #20
+      replaced the Dockerfile and #24 deletes `Dockerfile.python`.
 
 ## Decision log
 
