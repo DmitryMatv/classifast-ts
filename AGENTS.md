@@ -29,8 +29,6 @@ no `.env` and Coolify or compose supplies the variables.
 new variables to that schema instead of reading `process.env` elsewhere.
 `Dockerfile` builds the Nest image that production runs. `Dockerfile.python`
 builds the FastAPI image, kept for rollback until the Python code is deleted.
-The `Dockerfile` `CMD` raises Node's 16 KiB request-header limit to 64 KiB,
-near uvicorn's; launch Nest with the same flag when comparing the two.
 
 The `redis` project's globalSetup starts Redis 7.4.2 through
 `redis-memory-server`. Because `.npmrc` sets `ignore-scripts=true`, the first
@@ -102,8 +100,13 @@ against the server at `BASE_URL`, which is required. `npm test` does not run
 it. The suite refuses a `BASE_URL` host other than `localhost`, `127.0.0.0/8`,
 or `::1`, because its checkout probes increment Redis rate-limit counters and
 full mode charges quota and runs live classifications. Set
-`CONTRACT_ALLOW_NON_LOOPBACK=1` to target another host deliberately. Point it
-at a public-mode Python instance from the verify driver. Both modes require
+`CONTRACT_ALLOW_NON_LOOPBACK=1` to target another host deliberately.
+`npm run test:contract:nest` launches a public-mode Nest instance through the
+verify driver in a temporary run directory, runs the suite with
+`CONTRACT_TARGET=nest`, stops the instance, and exits with the suite's code.
+Its arguments go to `control.mjs launch`, such as `--env-file <path>`. For
+the Python target, point `BASE_URL` at
+`control.mjs launch <dir> --app python --mode public`. Both modes require
 `DEBUG_MODE=false`. Set
 `CONTRACT_MODE=full` only against a server with Qdrant, Redis, and
 embeddings. Full mode has not been verified against configured live
@@ -156,10 +159,42 @@ Inside test files Vitest replaces `process.env.BASE_URL` with Vite's base
 path, so the config passes the URL on as `CONTRACT_BASE_URL`.
 
 The public-mode cases expect a server without `POLAR_WEBHOOK_SECRET`,
-`RAPIDAPI_SECRET`, or Redis. The app's `load_dotenv()` searches upward from
-`app/`, so a worktree nested under the main checkout also loads the main
-checkout's `.env`. A key added there changes what a public-mode instance
-answers.
+`RAPIDAPI_SECRET`, or Redis. The verify driver's public mode
+(`.agents/skills/verify/scripts/control.mjs`) sets every credential to an
+empty value, which both apps treat as absent, and points Redis at the
+unreachable `127.0.0.1:1`. The cases therefore hold even when an env file
+supplies those keys, or when Python's `load_dotenv()`, which searches upward
+from `app/`, finds the main checkout's `.env` from a nested worktree. Nest
+public mode also starts a detached fake Qdrant; `instance.json` records it
+with the server, and `cleanup` stops both. The driver starts Nest with
+`NODE_ENV=production`, as `Dockerfile` does, because React's
+development build is not what production renders.
+
+`npm run test:parity` (`test/parity/`) launches the Python and Nest apps
+through the verify driver in one mode (`PARITY_MODE`, default `public`) with
+one env file (`PARITY_ENV_FILE`). It sends about a thousand requests that
+never classify or charge quota, with `Host: classifast.com`,
+`X-Forwarded-Proto: https` and `Accept-Encoding: gzip`, and compares status,
+an allowlist of headers, and the body: normalized HTML, bytes otherwise.
+Every difference goes to `report.json` in the run directory under
+`.cache/parity/`. `KNOWN_DIVERGENCES` in `test/parity/divergences.ts` holds
+the decided differences. Each entry names the fields allowed to differ and
+the Python and Nest values the decision produces, so a 500 or an extra
+header on a matched route still fails. No entry can excuse a security header
+or a `Set-Cookie`. An unlisted difference fails, and so does an entry that
+no probe produces. Every HEAD probe also checks that Nest answers its GET
+status with an empty body. One probe sends a 20 KB header: Node's default
+16 KiB limit answers 431 where uvicorn answers 200, so the driver starts
+Nest with `--max-http-header-size=65536`, the flag in the `Dockerfile`
+CMD. Base classifier pages `/{TYPE}/` classify their
+example through the live pipeline, so `checkedCorpus` refuses any probe for
+one, even a query-string variant that would redirect first. Full mode needs
+the driver's Redis at `127.0.0.1:16379` and, for Python, `VIRTUAL_ENV` or
+`.venv`. Python's root `FileResponse` routes ignore `If-None-Match`
+entirely, not only `*`: a matching ETag on `/favicon.ico`, `/robots.txt` or
+`/sitemap.xml` answers 200 there and 304 in Nest. The RapidAPI ping's
+`timestamp` is masked, because Python sends a `time.time()` float and Nest
+milliseconds.
 
 Python declares HEAD only on page routes. HEAD on a GET-only route, such as
 `/robots.txt` or `/health`, falls through to the classifier catch-all and
@@ -210,7 +245,9 @@ because they are ignored. If `.venv` is absent, run `python -m venv .venv` and
 `.venv/bin/pip install -r requirements-dev.txt` before `pytest`. If
 `node_modules` is absent, run `npm ci` before frontend tests or builds.
 `tests/test_asset_urls.py` and the verification driver (`.agents/skills/verify/`)
-require a frontend build (`npm run build`) in a fresh checkout.
+require a frontend build (`npm run build`) in a fresh checkout. The driver
+also needs `npm run build:server` for the Nest app, which it launches by
+default.
 
 pytest.ini scopes pytest collection to `tests/`. The `utilities/test_*.py` files are
 manual live/debug helpers, and the ignored `embedders/tests/` tree contains
@@ -220,7 +257,9 @@ separate experimental tests that are not part of the maintained backend suite.
 collect the full suite. Report that limitation when excluding this test.
 
 Activate the Python environment with `source .venv/bin/activate` before backend
-tests or the verification driver.
+tests or `--app python` in the verification driver. The driver runs
+`$VIRTUAL_ENV/bin/python`, or `.venv/bin/python` when no environment is
+active; a worktree has no `.venv` of its own.
 
 HTTP e2e tests that import `AppModule` need a fake Qdrant server with valid
 schemas for every configured collection, because startup validates them.

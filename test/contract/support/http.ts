@@ -4,6 +4,7 @@ import { contract } from "./env.js";
 import {
   cacheProfiles,
   securityHeaders,
+  varyTokenSet,
   type CacheProfileName,
 } from "./headers.js";
 
@@ -70,14 +71,8 @@ export function expectCacheProfile(reply: Reply, name: CacheProfileName) {
   });
 }
 
-// Python repeats tokens ("Accept-Encoding, Accept-Encoding") because GZip
-// middleware appends to a route-set Vary; caches treat Vary as a set.
 export function varyTokens(reply: Reply): string[] {
-  const tokens = (reply.headers.get("vary") ?? "")
-    .split(",")
-    .map((token) => token.trim().toLowerCase())
-    .filter(Boolean);
-  return [...new Set(tokens)].sort();
+  return varyTokenSet(reply.headers.get("vary"));
 }
 
 export function sameOriginPath(url: string, label: string): string {

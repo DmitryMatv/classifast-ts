@@ -19,7 +19,7 @@ A visitor enters a product description and receives ranked codes for the chosen 
 
 ## Driving it with browser preview
 
-Preconditions: use the default full-mode launch with the disposable local Redis server described in the main skill. Doctor must report `health_gate_passed: true` and `local_redis_ready: true`. The server reads the configured Qdrant, Hugging Face, and optional OpenRouter targets from `.env`. Use a quota-eligible test identity.
+Preconditions: use the default full-mode launch with the disposable local Redis server described in the main skill. Doctor must report `health_gate_passed: true` and `local_redis_ready: true`. The server reads the configured Qdrant, Hugging Face, and optional OpenRouter targets from the file passed with `--env-file`. Use a quota-eligible test identity.
 
 - Navigate to `<instance URL>/UNSPSC/`. Inspect the form. Find `role=textbox[name='Product description']`, `role=combobox[name='Classification version']`, and `role=combobox[name='Number of results to show']`.
 - Fill the description with `stainless steel office scissors` using `preview_type({"locator":"role=textbox[name='Product description']","text":"stainless steel office scissors","clear":true})`. Record the typed value before submission using a snapshot or the read-only fallback in the main skill.
@@ -30,7 +30,7 @@ Preconditions: use the default full-mode launch with the disposable local Redis 
 - To check `classify-beta-enhancement`:
   1. Start at `/UNSPSC/` and confirm `Expand query Beta` is off. Enter a short query such as `POS` and submit it. Record the URL, input value, results heading, and first result.
   2. Click the visible `Expand query Beta` label and submit the same query again. Confirm the URL includes `?enhance_query=1`, the switch is on, the input and heading still show the original query, and a completed result list appears.
-  3. Record the first result. Check `evidence/server.log` for a successful OpenRouter chat completion and rerank request using the expanded query. Live model output can vary, so do not require a particular code or score.
+  3. Record the first result. Then find the enhanced submission's `RERANK: OpenRouter reranking <n> candidates for query='<text>'` line in `evidence/server.log`, followed by `RERANK_COMPLETE`. The enhancement is proven only when `<text>` is an expanded description that differs from the submitted query, such as a sentence about point-of-sale systems for `POS`. If `<text>` equals the submitted query, the enhancement fell back, and the check fails. A fallback is often silent: Nest logs `Query enhancement unavailable` only when the OpenRouter request throws. Invalid enhancement content and a code-like query fall back without any log line. A server without `OPENROUTER_API_KEY` has no enhancer and no reranker, so it logs `RERANK_STATUS: Skipped - OpenRouter reranker not available` and no `RERANK:` line. The completed result list alone does not prove enhancement. Live model output can vary, so do not require a particular code or score.
   4. Reopen the enhanced URL and confirm it restores the switch and original query.
 
 ## Quota recovery and paid access
