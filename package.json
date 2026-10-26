@@ -23,7 +23,6 @@
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "test:contract": "vitest run --config ./test/contract/vitest.config.ts",
     "test:contract:nest": "node test/contract/run-nest.mjs",
-    "test:parity": "vitest run --config ./test/parity/vitest.config.ts",
     "qdrant:indexes": "nest build && node dist/cli/sync-payload-indexes.js"
   },
   "dependencies": {

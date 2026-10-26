@@ -11,7 +11,7 @@ function attribute(element: Element, name: string): string | undefined {
   return element.attrs.find((attr) => attr.name === name)?.value;
 }
 
-// The same groups as RegionFinder in utilities/export_golden_fixtures.py.
+// The groups the retired Python exporter selected when it recorded pages.json.
 function groupOf(element: Element): RegionGroup | undefined {
   const id = attribute(element, "id") ?? "";
   const { tagName } = element;
