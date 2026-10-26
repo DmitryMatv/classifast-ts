@@ -172,8 +172,8 @@ development build is not what production renders.
 
 `npm run test:parity` (`test/parity/`) launches the Python and Nest apps
 through the verify driver in one mode (`PARITY_MODE`, default `public`) with
-one env file (`PARITY_ENV_FILE`). It sends about a thousand requests that
-never classify or charge quota, with `Host: classifast.com`,
+one env file (`PARITY_ENV_FILE`). It sends about 200 requests that never
+classify or charge quota, with `Host: classifast.com`,
 `X-Forwarded-Proto: https` and `Accept-Encoding: gzip`, and compares status,
 an allowlist of headers, and the body: normalized HTML, bytes otherwise.
 Every difference goes to `report.json` in the run directory under
@@ -183,7 +183,9 @@ the Python and Nest values the decision produces, so a 500 or an extra
 header on a matched route still fails. No entry can excuse a security header
 or a `Set-Cookie`. An unlisted difference fails, and so does an entry that
 no probe produces. Every HEAD probe also checks that Nest answers its GET
-status with an empty body. One probe sends a 20 KB header: Node's default
+status with an empty body. The corpus skips the sitemap query pages, because
+a GET there renders results through the live pipeline;
+`test/pages.e2e-spec.ts` pins them. One probe sends a 20 KB header: Node's default
 16 KiB limit answers 431 where uvicorn answers 200, so the driver starts
 Nest with `--max-http-header-size=65536`, the flag in the `Dockerfile`
 CMD. Base classifier pages `/{TYPE}/` classify their
