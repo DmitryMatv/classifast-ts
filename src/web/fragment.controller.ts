@@ -206,12 +206,7 @@ export class FragmentController {
         );
         res
           .status(200)
-          .set(
-            resultsFragmentHeaders(
-              pushUrl,
-              outcome.enhancementStatus === "failed",
-            ),
-          )
+          .set(resultsFragmentHeaders(pushUrl, outcome))
           .send(html);
         return;
       }

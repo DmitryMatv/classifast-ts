@@ -1,10 +1,11 @@
 import { Logger } from "@nestjs/common";
 import { ClassificationQueueFull } from "../classifier/classification-queue.js";
-import type {
-  Authorize,
-  ClassificationOutcome,
-  ClassificationRequest,
-  ClassificationService,
+import {
+  isCacheableClassification,
+  type Authorize,
+  type ClassificationOutcome,
+  type ClassificationRequest,
+  type ClassificationService,
 } from "../classifier/classification-service.js";
 import {
   cacheHeaders,
@@ -200,14 +201,13 @@ export async function classifyFragment(
 
 export function resultsFragmentHeaders(
   pushUrl: string | undefined,
-  enhancementFailed: boolean,
+  outcome: ClassificationOutcome,
 ): HeaderRecord {
   return {
     ...classificationResultHeaders(),
     "Cache-Tag": "classification-results",
     ...(pushUrl === undefined ? {} : { "HX-Push-Url": pushUrl }),
-    // A failed enhancement must not pin the plain results in the cache.
-    ...(enhancementFailed ? cacheHeaders("NO_STORE") : {}),
+    ...(isCacheableClassification(outcome) ? {} : cacheHeaders("NO_STORE")),
   };
 }
 
