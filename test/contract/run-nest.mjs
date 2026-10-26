@@ -36,16 +36,7 @@ function run(command, args, options = {}) {
 
 const launch = await run(
   process.execPath,
-  [
-    control,
-    "launch",
-    runDir,
-    "--app",
-    "nest",
-    "--mode",
-    "public",
-    ...process.argv.slice(2),
-  ],
+  [control, "launch", runDir, "--mode", "public", ...process.argv.slice(2)],
   { stdio: ["ignore", "pipe", "inherit"] },
 );
 if (launch.code !== 0) {
@@ -69,7 +60,6 @@ try {
         env: {
           ...process.env,
           BASE_URL: JSON.parse(launch.stdout).url,
-          CONTRACT_TARGET: "nest",
           CONTRACT_MODE: "public",
         },
       },

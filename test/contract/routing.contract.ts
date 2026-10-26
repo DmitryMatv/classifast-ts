@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { contract } from "./support/env.js";
 import {
   expectStatus,
   locationOf,
@@ -252,46 +251,24 @@ describe("URL validation", () => {
   });
 });
 
-const headOnGetOnlyRoutes: {
-  path: string;
-  status: number;
-  location?: string;
-}[] = [
-  { path: "/robots.txt", status: 404 },
-  { path: "/sitemap.xml", status: 404 },
-  { path: "/favicon.ico", status: 404 },
-  { path: "/health", status: 404 },
-  { path: "/mapping/unspsc-to-cpv-mapping/sample", status: 404 },
-  { path: "/api/v1/rapid/ping", status: 404 },
-  {
-    path: "/UNSPSC/fragment?product_description=",
-    status: 301,
-    location: "/UNSPSC/fragment/?product_description=",
-  },
+const headOnGetOnlyRoutes = [
+  "/robots.txt",
+  "/sitemap.xml",
+  "/favicon.ico",
+  "/health",
+  "/mapping/unspsc-to-cpv-mapping/sample",
+  "/api/v1/rapid/ping",
+  "/UNSPSC/fragment?product_description=",
 ];
 
-// Python declares HEAD only on page routes, so HEAD elsewhere falls through
-// to the classifier catch-all. Nest answers HEAD like GET on every GET route.
-describe(`HEAD on GET-only routes (target: ${contract.target})`, () => {
-  it.each(headOnGetOnlyRoutes)(
-    "HEAD $path -> $status",
-    async ({ path, status, location }) => {
-      const reply = await send(path, { method: "HEAD" });
-      if (contract.target === "nest") {
-        const get = await send(path);
-        expectStatus(reply, get.status);
-        expect(locationOf(reply), `${reply.label} Location`).toBe(
-          locationOf(get),
-        );
-        expect(reply.body).toBe("");
-        return;
-      }
-      expectStatus(reply, status);
-      expect(locationOf(reply), `${reply.label} Location`).toBe(
-        location ?? null,
-      );
-    },
-  );
+describe("HEAD on GET-only routes", () => {
+  it.each(headOnGetOnlyRoutes)("HEAD %s answers like GET", async (path) => {
+    const reply = await send(path, { method: "HEAD" });
+    const get = await send(path);
+    expectStatus(reply, get.status);
+    expect(locationOf(reply), `${reply.label} Location`).toBe(locationOf(get));
+    expect(reply.body).toBe("");
+  });
 });
 
 const methodNotAllowed = [

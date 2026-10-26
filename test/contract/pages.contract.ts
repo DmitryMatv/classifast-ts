@@ -31,13 +31,11 @@ const site = "https://classifast.com";
 const both = ["GET", "HEAD"] as const;
 
 /**
- * Nest renders a sitemap query page's results for every visitor (unit 12, a
- * decided divergence); Python leaves them to the client. A public-mode
+ * A sitemap query page renders its results for every visitor. A public-mode
  * server cannot classify, so the page is the uncached failure shell there.
  * HEAD never classifies, so it answers HTML_PAGE without a Cache-Tag.
  */
 function sitemapQueryPage(path: string, canonical: string): PageCase[] {
-  if (contract.target === "python") return [{ path, canonical, methods: both }];
   return [
     { path, canonical, methods: ["HEAD"] },
     {
@@ -178,7 +176,7 @@ function renderedResults(reply: Reply) {
   };
 }
 
-describe.runIf(fullMode && contract.target === "nest")(
+describe.runIf(fullMode)(
   "sitemap query page results come from the result cache",
   { timeout: classificationTimeout(1) },
   () => {

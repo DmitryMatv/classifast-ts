@@ -94,11 +94,10 @@ const resultCases: ResultCase[] = [
   },
 ];
 
-// Nest keeps semantic-only results out of every cache; Python caches them.
-const resultProfile =
-  contract.target === "nest" && contract.noOpenRouterKey
-    ? "NO_STORE"
-    : "CLASSIFICATION_RESULT";
+// Semantic-only results stay out of every cache.
+const resultProfile = contract.noOpenRouterKey
+  ? "NO_STORE"
+  : "CLASSIFICATION_RESULT";
 
 describe.runIf(fullMode)(
   "result fragments",

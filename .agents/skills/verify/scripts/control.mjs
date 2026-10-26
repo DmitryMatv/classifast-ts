@@ -28,8 +28,8 @@ const STOP_GRACE_MS = 10_000;
 const LAUNCH_SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"];
 
 // Public mode answers like a server with no credentials and no Redis, even
-// when an env file or the repository-root .env supplies them. Both apps
-// treat an empty value as absent.
+// when an env file or the repository-root .env supplies them. The app
+// treats an empty value as absent.
 const CREDENTIALS = [
   "HF_TOKEN",
   "OPENROUTER_API_KEY",
@@ -189,7 +189,6 @@ async function inspect(state) {
   }
   return {
     url: base,
-    app: state.app,
     mode: state.mode,
     env_file: state.env_file,
     processes: state.processes,
@@ -199,17 +198,6 @@ async function inspect(state) {
     health_gate_passed: healthReady,
     local_redis_ready: redisReady,
   };
-}
-
-function pythonExecutable() {
-  const venv = process.env.VIRTUAL_ENV ?? join(ROOT, ".venv");
-  const python = join(venv, "bin", "python");
-  if (!existsSync(python)) {
-    fail(
-      `No Python at ${python}; activate the virtualenv or create ${join(ROOT, ".venv")}`,
-    );
-  }
-  return python;
 }
 
 function readEnvFile(path) {
@@ -327,39 +315,16 @@ async function waitFor(child, label, log, probe) {
   fail(`${label} did not become ready; see ${log}`);
 }
 
-function serverCommand(app, mode, port, envFile) {
-  if (app === "nest") {
-    return {
-      command: process.execPath,
-      args: [
-        ...(envFile ? [`--env-file=${envFile}`] : []),
-        // Matches the CMD in Dockerfile; uvicorn accepts request
-        // headers well past Node's 16 KiB default.
-        "--max-http-header-size=65536",
-        "dist/main.js",
-      ],
-    };
-  }
-  return {
-    command: pythonExecutable(),
-    args: [
-      "-m",
-      "uvicorn",
-      "app.main:app",
-      "--host",
-      "127.0.0.1",
-      "--port",
-      String(port),
-      "--forwarded-allow-ips",
-      "*",
-      "--lifespan",
-      mode === "full" ? "on" : "off",
-      ...(envFile ? ["--env-file", envFile] : []),
-    ],
-  };
+function serverArgs(envFile) {
+  return [
+    ...(envFile ? [`--env-file=${envFile}`] : []),
+    // Matches the CMD in Dockerfile.
+    "--max-http-header-size=65536",
+    "dist/main.js",
+  ];
 }
 
-function checkPrerequisites(app, envFile) {
+function checkPrerequisites(envFile) {
   for (const asset of [
     "app/static/js/common.js",
     "app/static/css/styles.css",
@@ -368,17 +333,17 @@ function checkPrerequisites(app, envFile) {
       fail(`Missing ${asset}; run npm run build first`);
     }
   }
-  if (app === "nest" && !existsSync(join(ROOT, "dist/main.js"))) {
+  if (!existsSync(join(ROOT, "dist/main.js"))) {
     fail("Missing dist/main.js; run npm run build:server first");
   }
   if (envFile && !existsSync(envFile)) fail(`No env file at ${envFile}`);
 }
 
-async function launch(runDir, { app, mode, envFile }) {
+async function launch(runDir, { mode, envFile }) {
   if (existsSync(stateFile(runDir))) {
     fail(`Instance state already exists: ${stateFile(runDir)}`);
   }
-  checkPrerequisites(app, envFile);
+  checkPrerequisites(envFile);
   if (mode === "full" && !(await localRedisReady())) {
     fail(
       `Start disposable Redis at ${LOCAL_REDIS.host}:${LOCAL_REDIS.port} before full verification`,
@@ -389,7 +354,6 @@ async function launch(runDir, { app, mode, envFile }) {
   const port = await freePort();
   const state = {
     instance: randomUUID(),
-    app,
     mode,
     url: `http://127.0.0.1:${port}`,
     env_file: envFile ?? null,
@@ -430,9 +394,9 @@ async function launch(runDir, { app, mode, envFile }) {
     HOST: "127.0.0.1",
     PORT: String(port),
     NO_COLOR: "1",
+    // Dockerfile sets it; React's development build renders differently.
+    NODE_ENV: "production",
   };
-  // Dockerfile sets it; React's development build renders differently.
-  if (app === "nest") serverEnv.NODE_ENV = "production";
   if (mode === "full") {
     Object.assign(serverEnv, {
       REDIS_HOST: LOCAL_REDIS.host,
@@ -450,7 +414,7 @@ async function launch(runDir, { app, mode, envFile }) {
   }
 
   try {
-    if (app === "nest" && mode === "public") {
+    if (mode === "public") {
       const qdrantPort = await freePort();
       const specPath = join(runDir, "fake-qdrant.json");
       const spec = await fakeQdrantSpec(nestEffectiveEnv(serverEnv, envFile));
@@ -468,8 +432,10 @@ async function launch(runDir, { app, mode, envFile }) {
     }
 
     const log = join(evidence, "server.log");
-    const { command, args } = serverCommand(app, mode, port, envFile);
-    const server = start("server", command, args, { env: serverEnv, log });
+    const server = start("server", process.execPath, serverArgs(envFile), {
+      env: serverEnv,
+      log,
+    });
     return await waitFor(server, "Server", log, () => inspect(state));
   } catch (error) {
     await abort();
@@ -491,13 +457,12 @@ async function cleanup(runDir) {
 
 const usage =
   "Usage: control.mjs launch|doctor|cleanup <run_dir> " +
-  "[--app nest|python] [--mode full|public] [--env-file <path>]";
+  "[--mode full|public] [--env-file <path>]";
 
 async function main() {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
     options: {
-      app: { type: "string", default: "nest" },
       mode: { type: "string", default: "full" },
       "env-file": { type: "string" },
       port: { type: "string" },
@@ -509,13 +474,11 @@ async function main() {
     return;
   }
   if (!["launch", "doctor", "cleanup"].includes(action) || !target) fail(usage);
-  if (!["nest", "python"].includes(values.app)) fail(usage);
   if (!["full", "public"].includes(values.mode)) fail(usage);
   const runDir = resolve(target);
   let result;
   if (action === "launch") {
     result = await launch(runDir, {
-      app: values.app,
       mode: values.mode,
       envFile: values["env-file"] && resolve(values["env-file"]),
     });

@@ -97,43 +97,6 @@ async def test_title_functionality():
     except Exception as e:
         print(f"✗ Embedding comparison failed: {e}")
 
-    # Test 4: Test our implementation from classifier.py
-    try:
-        print("\n4. Testing our get_embeddings_batch implementation...")
-        from app.classifier import get_embeddings_batch
-
-        # Test with titles
-        embeddings_with_titles = await get_embeddings_batch(
-            embed_client=client,
-            model_name="gemini-embedding-001",
-            task_type="RETRIEVAL_DOCUMENT",
-            texts=test_texts,
-            titles=test_titles,
-        )
-
-        # Test without titles
-        embeddings_without_titles = await get_embeddings_batch(
-            embed_client=client,
-            model_name="gemini-embedding-001",
-            task_type="RETRIEVAL_DOCUMENT",
-            texts=test_texts,
-        )
-
-        print(f"✓ get_embeddings_batch works")
-        print(f"  With titles: {len(embeddings_with_titles)} embeddings")
-        print(f"  Without titles: {len(embeddings_without_titles)} embeddings")
-
-        if embeddings_with_titles and embeddings_without_titles:
-            # Compare first embeddings
-            similarity = sum(
-                a * b
-                for a, b in zip(embeddings_with_titles[0], embeddings_without_titles[0])
-            )
-            print(f"  First embedding similarity: {similarity:.4f}")
-
-    except Exception as e:
-        print(f"✗ get_embeddings_batch test failed: {e}")
-
     print("\n--- Test completed ---")
 
 

@@ -24,7 +24,6 @@ const contractEnvSchema = z
       })
       .transform((value) => new URL(value)),
     CONTRACT_ALLOW_NON_LOOPBACK: z.literal("1").optional(),
-    CONTRACT_TARGET: z.enum(["python", "nest"]).default("python"),
     CONTRACT_MODE: z.enum(["public", "full"]).default("public"),
     CONTRACT_POLAR_WEBHOOK_SECRET: optionalSecret,
     CONTRACT_RAPIDAPI_SECRET: optionalSecret,
@@ -58,7 +57,6 @@ export type ContractMode = typeof env.CONTRACT_MODE;
 
 export const contract = {
   baseUrl: env.CONTRACT_BASE_URL,
-  target: env.CONTRACT_TARGET,
   mode: env.CONTRACT_MODE,
   polarWebhookSecret: env.CONTRACT_POLAR_WEBHOOK_SECRET,
   rapidApiSecret: env.CONTRACT_RAPIDAPI_SECRET,

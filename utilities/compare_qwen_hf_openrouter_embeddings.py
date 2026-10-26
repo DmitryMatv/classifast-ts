@@ -142,7 +142,7 @@ def get_openrouter_embedding(
     except ModuleNotFoundError as exc:
         raise RuntimeError(
             "The openai package is not installed. Run: "
-            "source .venv/bin/activate && pip install -r requirements.txt"
+            "pip install -r utilities/requirements.txt"
         ) from exc
 
     client = OpenAI(

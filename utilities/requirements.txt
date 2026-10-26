@@ -1,0 +1,9 @@
+google-genai
+huggingface_hub>=1.21.0,<2.0.0
+openai
+openpyxl>=3.1.0,<3.2.0
+pandas
+pyarrow
+python-dotenv
+qdrant-client>=1.16.0,<2.0.0
+requests

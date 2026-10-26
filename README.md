@@ -7,7 +7,7 @@ originally built with Python/FastAPI.
 
 ### Get the right category codes from the most widely used classification standards.
 
-Classifast is a web application that provides easy classification of any text input according to international product and service standards like UNSPSC, NAICS, ISIC, ETIM, HS, CN. Built with FastAPI and modern web technologies, it offers fast, accurate semantic search capabilities for automated yet intelligent categorization.
+Classifast is a web application that provides easy classification of any text input according to international product and service standards like UNSPSC, NAICS, ISIC, ETIM, HS, CN. Built with NestJS and server-rendered React, it offers fast, accurate semantic search capabilities for automated yet intelligent categorization.
 
 <a href="https://www.producthunt.com/products/classifast-com?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-classifast-com-2-0" target="_blank" rel="noopener noreferrer"><img alt="Classifast.com 2.0 - Introducing Mappings + More accurate results (re-ranking) | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1189360&amp;theme=light&amp;t=1783342139980"></a>
 
@@ -42,7 +42,7 @@ Classifast is a web application that provides easy classification of any text in
 
 ## Stack
 
-- **Backend**: FastAPI with Python
+- **Backend**: NestJS (TypeScript) with server-rendered React pages
 - **Frontend**: TypeScript, Tailwind CSS, HTMX
 - **Vector Database**: Qdrant for semantic search
 - **Embedding Models**: Hugging Face Inference with Qwen embeddings
@@ -59,8 +59,8 @@ Visit the working instance at [classifast.com](https://classifast.com) to try.
 3. Set environment variables for embedding inference, API keys, and payments/quota behavior
 4. Run the frontend watcher and the NestJS app: `npm run dev`
 
-The Python app in `app/` is kept for rollback. To run it, install
-`requirements.txt` and run `uvicorn app.main:app --reload --port 8001`.
+The offline Python scripts in `utilities/` need their own virtualenv with
+`utilities/requirements.txt`.
 
 Relevant embedding environment variables:
 
@@ -114,18 +114,16 @@ frontend assets and the server, and the runtime stage receives only `dist/`,
 `node dist/main.js` as the `node` user with `NODE_ENV=production`. Its
 `HEALTHCHECK` requests `/health` every 10 minutes.
 
-`Dockerfile.python` builds the previous FastAPI image. It stays in the
-repository for rollback until the Nest release has soaked.
-
-For Coolify, use these settings. The switch to Nest does not change them:
+For Coolify, use these settings:
 
 - Source directory: repo root
 - Build pack: Dockerfile
 - Dockerfile path: `./Dockerfile`
 - Include Source Commit in Build: disabled
 
-The image contains no `.env` file, so set every variable in Coolify. The Nest
-app reads the same variable names as the Python app, with these differences:
+The image contains no `.env` file, so set every variable in Coolify. The app
+reads the same variable names as the Python app it replaced, with these
+differences:
 
 - The app listens on `HOST` and `PORT`, which default to `0.0.0.0` and `8001`.
   The Python image hard-coded both and ignored the variables. Leave them unset,
@@ -148,14 +146,9 @@ app reads the same variable names as the Python app, with these differences:
 It pins `HOST` and `PORT`, because its port mapping and health check expect
 port 8001. The recommended Coolify production path is the Dockerfile build directly.
 
-To roll back to the Python app, use one of these methods:
-
-- In Coolify, open the application's Rollback tab and redeploy the image of
-  the last Python deployment. This works while Coolify still keeps that image.
-- Set the Dockerfile path to `./Dockerfile.python` and redeploy. Set it back
-  to `./Dockerfile` to return to Nest.
-
-For a compose deployment, add `dockerfile: Dockerfile.python` under `build`.
+To roll back, open the application's Rollback tab in Coolify and redeploy
+an earlier image. The repository no longer contains the Python app; its last
+version is in the git history before the commit that deleted it.
 
 Application startup validates every configured Qdrant collection, vector size,
 and required payload index without modifying Qdrant. Startup fails when the
@@ -179,21 +172,20 @@ repository `.env`; values already exported by the shell or supplied by the
 container take precedence. It exits 0 on success, 1 on a schema violation or a
 failed Qdrant operation, and 2 on invalid arguments.
 
-Synchronous classification stages run on one dedicated background worker per
-application process. Each process admits one active classification and up to
+Each application process runs one classification at a time and admits up to
 four waiting classifications. When the queue is full, fragment and RapidAPI
 requests receive HTTP 503. Fragment callers already over quota receive the
 paywall instead, without taking a queue slot. Server-rendered pages still return
 200 to visitors and load results in the browser, while verified Google crawlers
 receive HTTP 503 with `Retry-After`. An active classification retains its turn
-through query enhancement and every synchronous stage. This bounds queued work
+through query enhancement and every pipeline stage. This bounds queued work
 and keeps health checks, webhooks, and cached-page handling responsive.
 
 ## API
 
 - `GET /` Homepage
 - `GET /{classifier_type}` Classification page (unspsc, etim, naics)
-- `POST /{classifier_type}` Submit classification request
+- `GET /{classifier_type}/fragment` Classification results fragment
 - `GET /health` Health check endpoint
 
 ## Testing
@@ -201,9 +193,9 @@ and keeps health checks, webhooks, and cached-page handling responsive.
 - Run the unit tests (frontend and NestJS): `npm test`
 - Run the NestJS end-to-end tests: `npm run test:e2e`
 - Run the typecheck: `npm run typecheck`
-
-The Python app's tests live under `tests/` and use pytest. Run them with
-`pytest`, and the Python typecheck with `python -m mypy`.
+- Run the HTTP contract suite against a public-mode instance:
+  `npm run test:contract:nest` (needs `npm run build` and
+  `npm run build:server` first)
 
 `utilities/test_*.py` scripts are manual smoke/debug helpers for live integrations and are intentionally separate from the main regression suite.
 

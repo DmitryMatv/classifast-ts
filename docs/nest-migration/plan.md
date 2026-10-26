@@ -97,14 +97,17 @@ setup that the scaffold adds. The user asked to start with the scaffold.
 9. [x] Port the pages and fragments as React components rendered to static
        HTML. Keep the ids, `data-` and `hx-` attributes that the scripts use.
 10. [x] Port the RapidAPI routes.
-11. [ ] Cut over. Switch the Dockerfile and compose file to Node, port the
+11. [x] Cut over. Switch the Dockerfile and compose file to Node, port the
         verify driver, run the side-by-side diff, deploy, and keep the Python
         image for rollback. After the soak, delete the Python runtime code and
         update AGENTS.md and the README.
         Repo side: #17 (client host parity), #19 (verify driver, contract
         runner, parity diff), #20 (Dockerfile switch; merging it deploys).
-        Open: the deploy, the soak, and deleting the Python code.
-12. [ ] Render results for every visitor on sitemap query pages (decision 3),
+        The deploy and soak followed #20. #24 deletes the Python runtime
+        code, its tests, `Dockerfile.python` and the parity suite. The
+        golden fixtures stay as frozen records; their exporter went with
+        the app. The offline scripts in `utilities/` stay.
+12. [x] Render results for every visitor on sitemap query pages (decision 3),
         backed by a result cache. Deploy this unit on its own after the
         cutover soak, with contract cases for the new page output and a check
         of Cloudflare cache behavior for those URLs.
@@ -114,8 +117,9 @@ setup that the scaffold adds. The user asked to start with the scaffold.
         crawlers get the same page and no quota charge. A page from complete
         results carries `Cache-Tag: sitemap-results`; a degraded one is
         `NO_STORE` without the tag. When the queue is full, a verified
-        crawler gets 503 and a visitor a loading shell. Open: the deploy and
-        the Cloudflare check.
+        crawler gets 503 and a visitor a loading shell. Merged as #22, with
+        #23 applying the same cacheability rule to result fragments. Open:
+        the Cloudflare MISS-then-HIT check after the deploy.
 
 ## Phase 2. Replace HTMX with React
 
@@ -151,10 +155,9 @@ setup that the scaffold adds. The user asked to start with the scaffold.
       Run `npm run qdrant:indexes -- apply --collection <name>` for each.
 - [ ] Check whether a Cloudflare cache rule covers `/api/v1/rapid/*`. Those
       responses are public for 7 days and do not vary on the proxy secret.
-- [ ] Give the 503 status fragment its amber border. Its class lives in
-      `app/web.py`, which Tailwind never scans, so production CSS lacks
-      `border-amber-200`. The Nest port of the fragment fixes this only if the
-      pages unit adds a `@source` line for its markup in `src/`.
+- [x] Give the 503 status fragment its amber border. Its class lived in
+      `app/web.py`, which Tailwind never scanned. #24 points Tailwind's
+      `@source` at `src/web`, which generates `border-amber-200`.
 
 ## Open decisions
 
@@ -162,13 +165,12 @@ setup that the scaffold adds. The user asked to start with the scaffold.
       `src/cli/sync-payload-indexes.ts` (`npm run qdrant:indexes -- check`).
       Its ID normalization matches `app/id_lookup.py` on the golden fixture
       and on all 237,463 original IDs in the configured collections.
-- [ ] Choose what happens to the other Python utilities that import `app`
-      modules before unit 11 deletes them: `test_openrouter_reranker_live.py`
-      (`classifier`), `test_subscription_events.py` (`payments`,
-      `usage_tracker`), and `export_golden_fixtures.py` (`id_lookup`).
-- [ ] Accept that the Python Docker image's frontend stage installs the Nest
-      dependencies until unit 11 replaces the Dockerfile. Its `node_modules`
-      grows from 108 MB to 201 MB, and every Pi build installs it.
+- [x] The Python utilities that import `app` modules
+      (`test_openrouter_reranker_live.py`, `test_subscription_events.py`,
+      `export_golden_fixtures.py`) are deleted with the app in #24. The golden
+      fixtures stay frozen and are edited by hand.
+- [x] The Python Docker image's frontend stage no longer exists; #20
+      replaced the Dockerfile and #24 deletes `Dockerfile.python`.
 
 ## Decision log
 
