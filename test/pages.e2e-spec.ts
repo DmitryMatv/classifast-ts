@@ -8,6 +8,7 @@ import { z } from "zod";
 import { AppModule } from "../src/app.module.js";
 import {
   ClassificationError,
+  type IdSearchStatus,
   type RerankStatus,
 } from "../src/classifier/classification.js";
 import { ClassificationQueueFull } from "../src/classifier/classification-queue.js";
@@ -138,6 +139,13 @@ const golden = readGolden(
 type PageCase = (typeof golden.cases)[number];
 
 const sitemapQueryPaths = loadSitemapQueryPaths();
+const FRAGMENT_ROUTE = /^\/[^/]+\/fragment$/;
+const noStoreHeaders = Object.fromEntries(
+  Object.entries(cacheHeaders("NO_STORE")).map(([name, value]) => [
+    name.toLowerCase(),
+    value,
+  ]),
+);
 const crawlerCases = new Map(
   golden.cases
     .filter((page) => page.crawler)
@@ -152,9 +160,21 @@ const crawlerCases = new Map(
  * page, except that a full queue still gives a visitor a 200 shell that
  * loads results itself. A rendered page carries a Cache-Tag. The page
  * charges no quota either way.
+ *
+ * Decided divergence: a fragment whose classification a shared cache may
+ * not keep (`isCacheableClassification`) answers NO_STORE, where Python
+ * caches every result fragment. The parity cases reach that only with an
+ * empty result list.
  */
 function nestCase(page: PageCase): PageCase {
   const route = page.path.split("?")[0]!;
+  if (
+    FRAGMENT_ROUTE.test(route) &&
+    page.status === 200 &&
+    page.classify === "empty"
+  ) {
+    return { ...page, headers: { ...page.headers, ...noStoreHeaders } };
+  }
   if (
     page.method !== "GET" ||
     page.path !== route ||
@@ -234,6 +254,7 @@ const fake = {
   verify: undefined as
     ((crawler: CrawlerRequest) => Promise<boolean>) | undefined,
   rerank: "applied" as RerankStatus,
+  idSearch: "ok" as IdSearchStatus,
   /** Holds every classification until it settles. */
   gate: Promise.resolve(),
 };
@@ -278,7 +299,7 @@ async function fakeClassify(
     query,
     elapsedSeconds: golden.fake.elapsedSeconds,
     rerank: fake.rerank,
-    idSearch: "ok",
+    idSearch: fake.idSearch,
     enhancementStatus:
       fake.mode === "enhancement_failed" ? "failed" : "applied",
   };
@@ -741,6 +762,56 @@ describe("sitemap query pages (decided divergence from Python)", () => {
     expect(events).toEqual([]);
     expect(response.headers["cache-tag"]).toBe("sitemap-results");
   });
+});
+
+describe("result fragment caching (decided divergence from Python)", () => {
+  const parity = golden.cases.find(
+    (page) =>
+      page.method === "GET" &&
+      page.path === "/UNSPSC/fragment?product_description=laptop%20computer" &&
+      page.classify === "success" &&
+      page.quota === "allowed" &&
+      page.crawler === false,
+  )!;
+
+  afterEach(() => {
+    fake.rerank = "applied";
+    fake.idSearch = "ok";
+  });
+
+  it.each([
+    ["applied", "ok", "CLASSIFICATION_RESULT"],
+    ["not_needed", "ok", "CLASSIFICATION_RESULT"],
+    ["failed", "ok", "NO_STORE"],
+    ["skipped", "ok", "NO_STORE"],
+    ["applied", "failed", "NO_STORE"],
+  ] as const)(
+    "rerank %s with ID search %s answers %s and still renders the results",
+    async (rerank, idSearch, profile) => {
+      fake.rerank = rerank;
+      fake.idSearch = idSearch;
+
+      const response = await send(parity);
+
+      expect(response.status).toBe(200);
+      expect(response.headers["cache-control"]).toBe(
+        cacheHeaders(profile)["Cache-Control"],
+      );
+      expect(response.headers["cloudflare-cdn-cache-control"]).toBe(
+        cacheHeaders(profile)["Cloudflare-CDN-Cache-Control"],
+      );
+      expect(response.headers["cache-tag"]).toBe("classification-results");
+      expect(response.headers["hx-push-url"]).toBe(
+        parity.headers["hx-push-url"],
+      );
+      expect(fake.events).toEqual(parity.events);
+      if (parity.body.kind !== "fragment") throw new Error("expected fragment");
+      const html = (response.body as Buffer).toString("utf8");
+      const expected = golden.regions[parity.body.region]!;
+      expect(normalizeFragment(html)).toBe(normalizeFragment(expected));
+      expect(oobTitle(html)).toBe(oobTitle(expected));
+    },
+  );
 });
 
 describe("the base classifier page", () => {

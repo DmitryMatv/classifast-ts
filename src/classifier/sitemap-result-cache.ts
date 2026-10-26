@@ -1,19 +1,16 @@
 import { Logger } from "@nestjs/common";
 import { z } from "zod";
 import type { RedisConnection } from "../redis/redis-client.js";
-import type { ClassificationResult, RerankStatus } from "./classification.js";
-import type { ClassificationOutcome } from "./classification-service.js";
+import type { ClassificationResult } from "./classification.js";
+import {
+  isCacheableClassification,
+  type ClassificationOutcome,
+} from "./classification-service.js";
 
 const KEY_PREFIX = "ssr-result:v1";
 const TTL_SECONDS = 30 * 24 * 60 * 60;
 const TTL_JITTER = 0.2;
 const MEMORY_SECONDS = 10 * 60;
-
-/** A degraded result would stay on the page for a month. */
-const STORED_RERANK_STATUSES: ReadonlySet<RerankStatus> = new Set([
-  "applied",
-  "not_needed",
-]);
 
 const logger = new Logger("SitemapResultCache");
 
@@ -117,15 +114,6 @@ export interface SitemapResultCacheOptions {
   readonly random?: () => number;
   /** Results remembered in memory at most; the sitemap lists about 420. */
   readonly memoryLimit?: number;
-}
-
-/** Whether Redis may keep a classification for a month. */
-function isCompleteClassification(outcome: ClassificationOutcome) {
-  return (
-    STORED_RERANK_STATUSES.has(outcome.rerank) &&
-    outcome.idSearch === "ok" &&
-    outcome.results.length > 0
-  );
 }
 
 interface Remembered {
@@ -246,7 +234,7 @@ export class SitemapResultCache {
         elapsedSeconds: outcome.elapsedSeconds,
         computedAt: this.#now().toISOString(),
       },
-      complete: isCompleteClassification(outcome),
+      complete: isCacheableClassification(outcome),
     };
   }
 

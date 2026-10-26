@@ -1,4 +1,4 @@
-import type { EnhancementStatus } from "./classification.js";
+import type { EnhancementStatus, RerankStatus } from "./classification.js";
 import {
   completeClassification,
   exactOutcome,
@@ -23,6 +23,29 @@ export interface ClassificationOutcome extends Classification {
   readonly elapsedSeconds: number;
   /** Undefined unless the request asked for enhancement. */
   readonly enhancementStatus?: EnhancementStatus;
+}
+
+const CACHEABLE_RERANK_STATUSES: ReadonlySet<RerankStatus> = new Set([
+  "applied",
+  "not_needed",
+]);
+
+/**
+ * Whether a shared cache may keep a classification: the fragment at the
+ * edge for a week, a sitemap result in Redis for a month. A degraded one
+ * (semantic-only ranking, a failed ID search or enhancement) or an empty
+ * one, which an unfiltered nearest-neighbour search returns only for an
+ * empty collection, is shown but not kept.
+ */
+export function isCacheableClassification(
+  outcome: ClassificationOutcome,
+): boolean {
+  return (
+    CACHEABLE_RERANK_STATUSES.has(outcome.rerank) &&
+    outcome.idSearch === "ok" &&
+    outcome.enhancementStatus !== "failed" &&
+    outcome.results.length > 0
+  );
 }
 
 export type Authorize = () => Promise<void>;

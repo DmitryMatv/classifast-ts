@@ -94,6 +94,12 @@ const resultCases: ResultCase[] = [
   },
 ];
 
+// Nest keeps semantic-only results out of every cache; Python caches them.
+const resultProfile =
+  contract.target === "nest" && contract.noOpenRouterKey
+    ? "NO_STORE"
+    : "CLASSIFICATION_RESULT";
+
 describe.runIf(fullMode)(
   "result fragments",
   { timeout: classificationTimeout(1) },
@@ -102,7 +108,7 @@ describe.runIf(fullMode)(
       const reply = await fragment("laptop computer", query);
       expectStatus(reply, 200);
       expectHtmlFragment(reply);
-      expectCacheProfile(reply, "CLASSIFICATION_RESULT");
+      expectCacheProfile(reply, resultProfile);
       expect(reply.headers.get("cache-tag")).toBe("classification-results");
       expect(reply.headers.get("hx-push-url")).toBe(pushUrl);
 

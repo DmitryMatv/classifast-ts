@@ -151,7 +151,8 @@ render its results and cannot classify there. In full mode it expects
 `HTML_PAGE` with `Cache-Tag: sitemap-results`, and two GETs must render the
 same results and "Finished in" time. With `CONTRACT_NO_OPENROUTER_KEY=1` the
 results are degraded, so the full-mode GET expects `NO_STORE`,
-`index, follow` and no `Cache-Tag`, and the two-GET case skips. HEAD on a
+`index, follow` and no `Cache-Tag`, and the two-GET case skips; the
+full-mode result fragments expect `NO_STORE` too. HEAD on a
 sitemap query page never classifies and answers `HTML_PAGE` without a
 `Cache-Tag`; that is accepted. These are decided divergences.
 
@@ -327,7 +328,8 @@ path. Do not regenerate the fixtures to match Nest. The results come from
   instructions, so bump `v1` after changing them or the value shape; the
   old keys expire by TTL.
 - Only complete results are stored: `rerank` is `applied` or `not_needed`,
-  `idSearch` is `ok`, and at least one result was found. An incomplete
+  `idSearch` is `ok`, and at least one result was found
+  (`isCacheableClassification`, which the fragment also uses). An incomplete
   result still renders, but with `NO_STORE` on both cache headers, no
   `Cache-Tag`, and `index, follow`, so neither Redis nor Cloudflare keeps
   it.
@@ -373,6 +375,19 @@ React 19 hoists a `<title>` to the front of markup rendered without
 `<html>`, so the fragment's out-of-band `<title>` is appended as a string
 escaped by `jinjaEscape`. Python's fragment never sets `results_loaded`, so a
 classification with no results renders `Loading...`; the port copies that.
+
+A result fragment sends `NO_STORE` on both cache headers, instead of
+`CLASSIFICATION_RESULT` (a week at Cloudflare), when its classification is
+not cacheable: the rerank `failed` or was `skipped`, an ID search `failed`,
+the requested enhancement `failed`, or the list is empty. It still renders
+the results and keeps `Cache-Tag` and `HX-Push-Url`. Python caches every
+result fragment except a failed enhancement; this is a decided divergence.
+An empty list is not a genuine answer: the semantic search has no filter or
+score threshold, so it returns nothing only for an empty collection, such as
+one being rebuilt. `isCacheableClassification` in
+`src/classifier/classification-service.ts` is the one rule for the fragment
+and the sitemap result store. The parity case with `classify: "empty"`
+expects `NO_STORE` through `nestCase`.
 
 The contract suite's static and DOM cases need a frontend build
 (`npm run build`) in the checkout the Nest server runs from.
