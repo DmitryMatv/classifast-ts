@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { CLASSIFIER_TYPES } from "../../src/classifier/classifier-config.js";
+import { parseSitemapQueryPaths } from "../../src/classifier/sitemap-query-paths.js";
 
 export const APPS = ["python", "nest"] as const;
 export type App = (typeof APPS)[number];
@@ -26,16 +27,21 @@ export function probeLabel(probe: Probe): string {
 const root = resolve(import.meta.dirname, "../..");
 const staticRoot = join(root, "app/static");
 
-// Base classifier pages server-render the example through the live
-// pipeline; pages.json pins them instead.
-export function isBaseClassifierPage(path: string): boolean {
+const sitemapXml = readFileSync(join(staticRoot, "sitemap.xml"), "utf8");
+const sitemapQueryPaths = parseSitemapQueryPaths(sitemapXml, CLASSIFIER_TYPES);
+
+// A GET on a base classifier page server-renders the example, and one on a
+// sitemap query page renders its lookup's results, through the live
+// pipeline; pages.json pins both instead. A HEAD probe counts too, because
+// routes.parity.ts compares it with Nest's GET.
+export function classifiesOnGet(path: string): boolean {
   const match = /^\/([^/?]+)\/(?:\?.*)?$/.exec(path);
-  return match !== null && CLASSIFIER_TYPES.has(match[1]!);
+  if (match !== null && CLASSIFIER_TYPES.has(match[1]!)) return true;
+  return sitemapQueryPaths.has(path);
 }
 
 function sitemapPaths(): string[] {
-  const xml = readFileSync(join(staticRoot, "sitemap.xml"), "utf8");
-  return [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(
+  return [...sitemapXml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(
     (match) => new URL(match[1]!).pathname,
   );
 }
@@ -160,7 +166,7 @@ const redirectAndErrorPaths = [
 export function staticCorpus(): Probe[] {
   const probes: Probe[] = [
     ...sitemapPaths()
-      .filter((path) => !isBaseClassifierPage(path))
+      .filter((path) => !classifiesOnGet(path))
       .flatMap(both),
     ...staticFiles().flatMap((path): Probe[] => [
       { method: "GET", path },
@@ -192,8 +198,8 @@ export function staticCorpus(): Probe[] {
 export function checkedCorpus(probes: readonly Probe[]): Probe[] {
   const unique = new Map(probes.map((probe) => [probeLabel(probe), probe]));
   for (const probe of unique.values()) {
-    if (isBaseClassifierPage(probe.path)) {
-      throw new Error(`${probeLabel(probe)} would classify the example`);
+    if (classifiesOnGet(probe.path)) {
+      throw new Error(`${probeLabel(probe)} would classify`);
     }
   }
   return [...unique.values()];

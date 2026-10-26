@@ -13,7 +13,10 @@ import {
   useRerankScores,
   withRerankScore,
   type ClassificationResult,
+  type IdSearchStatus,
+  type RankedResults,
   type RerankedResult,
+  type RerankStatus,
 } from "./classification.js";
 import type {
   ClassifierConfig,
@@ -58,6 +61,8 @@ export interface Classification {
   readonly version: ClassifierVersion;
   /** The sanitized query that the ID searches used. */
   readonly query: string;
+  readonly rerank: RerankStatus;
+  readonly idSearch: IdSearchStatus;
 }
 
 export interface PreparedClassification {
@@ -67,6 +72,7 @@ export interface PreparedClassification {
   readonly version: ClassifierVersion;
   readonly query: string;
   readonly exactResults: readonly ClassificationResult[];
+  readonly exactSearch: IdSearchStatus;
   readonly exactMs: number;
 }
 
@@ -134,6 +140,7 @@ export async function prepareClassification(
 
   const exactStart = deps.clock.now();
   let exactResults: ClassificationResult[];
+  let exactSearch: IdSearchStatus = "ok";
   try {
     exactResults = await exactIdSearch(
       deps.qdrant,
@@ -143,25 +150,30 @@ export async function prepareClassification(
   } catch (error) {
     logger.warn(`Exact ID search failed: ${errorText(error)}`);
     exactResults = [];
+    exactSearch = "failed";
   }
   return {
     ...resolved,
     classifierType,
     query: sanitized.query,
     exactResults,
+    exactSearch,
     exactMs: deps.clock.now() - exactStart,
   };
 }
 
 function classification(
   prepared: PreparedClassification,
-  results: readonly ClassificationResult[],
+  { results, rerank }: RankedResults,
+  idSearch: IdSearchStatus,
 ): Classification {
   return {
     results,
     versionName: prepared.versionName,
     version: prepared.version,
     query: prepared.query,
+    rerank,
+    idSearch,
   };
 }
 
@@ -179,7 +191,11 @@ export function exactOutcome(
   );
   return classification(
     prepared,
-    exactIdShortcutResults(prepared.exactResults, topK),
+    {
+      results: exactIdShortcutResults(prepared.exactResults, topK),
+      rerank: "not_needed",
+    },
+    "ok",
   );
 }
 
@@ -187,18 +203,22 @@ async function partialIdResults(
   deps: PipelineDeps,
   collectionName: string,
   query: string,
-): Promise<ClassificationResult[]> {
+): Promise<{ results: ClassificationResult[]; status: IdSearchStatus }> {
   const normalizedIdQuery = normalizeOriginalIdForLookup(query);
-  if (!isPartialIdQuery(normalizedIdQuery)) return [];
+  if (!isPartialIdQuery(normalizedIdQuery))
+    return { results: [], status: "ok" };
   try {
-    return await partialIdSearch(
-      deps.qdrant,
-      collectionName,
-      normalizedIdQuery,
-    );
+    return {
+      results: await partialIdSearch(
+        deps.qdrant,
+        collectionName,
+        normalizedIdQuery,
+      ),
+      status: "ok",
+    };
   } catch (error) {
     logger.warn(`Partial ID search failed: ${errorText(error)}`);
-    return [];
+    return { results: [], status: "failed" };
   }
 }
 
@@ -248,8 +268,8 @@ export async function rerankCandidates(
   candidates: readonly ClassificationResult[],
   { topK, rerankTopN, instruction, queryFormat, timeoutSeconds }: RerankOptions,
   signal: AbortSignal,
-): Promise<ClassificationResult[]> {
-  if (candidates.length === 0) return [];
+): Promise<RankedResults> {
+  if (candidates.length === 0) return { results: [], rerank: "not_needed" };
   const toRerank = candidates.slice(0, rerankTopN);
   const remaining = candidates.slice(toRerank.length);
   let reranked: RerankedResult[];
@@ -274,9 +294,12 @@ export async function rerankCandidates(
     logger.warn(
       `RERANK_FAILED: OpenRouter reranking failed: ${errorText(error)}, using semantic search scores`,
     );
-    return candidates.slice(0, topK);
+    return { results: candidates.slice(0, topK), rerank: "failed" };
   }
-  return [...reranked, ...withRerankScore(remaining, 0.0)].slice(0, topK);
+  return {
+    results: [...reranked, ...withRerankScore(remaining, 0.0)].slice(0, topK),
+    rerank: "applied",
+  };
 }
 
 export async function rankSemanticResults(
@@ -286,35 +309,41 @@ export async function rankSemanticResults(
   idMatches: readonly ClassificationResult[],
   options: Omit<RerankOptions, "timeoutSeconds"> & { deadline: number },
   signal: AbortSignal,
-): Promise<ClassificationResult[]> {
+): Promise<RankedResults> {
   const { topK, deadline } = options;
+  const unranked = (rerank: RerankStatus): RankedResults => ({
+    results: withRerankScore(semantic.slice(0, topK), 0.0),
+    rerank,
+  });
   if (deps.reranker && idMatches.length === 0 && semantic.length > 0) {
     const remainingSeconds = (deadline - deps.clock.now()) / 1000;
     if (remainingSeconds < MIN_RERANK_BUDGET_SECONDS) {
       logger.warn(
         `RERANK_STATUS: Skipped - outbound budget exhausted (${pyFormatFixed(Math.max(0, remainingSeconds), 2)}s left)`,
       );
-      return withRerankScore(semantic.slice(0, topK), 0.0);
+      return unranked("failed");
     }
     logger.log(
       `RERANK_STATUS: Using OpenRouter for ${semantic.length} semantic candidates`,
     );
-    return useRerankScores(
-      await rerankCandidates(
-        deps.reranker,
-        query,
-        semantic,
-        { ...options, timeoutSeconds: remainingSeconds },
-        signal,
-      ),
+    const ranked = await rerankCandidates(
+      deps.reranker,
+      query,
+      semantic,
+      { ...options, timeoutSeconds: remainingSeconds },
+      signal,
     );
+    return { ...ranked, results: useRerankScores(ranked.results) };
   }
   if (idMatches.length > 0) {
     logger.log("RERANK_STATUS: Skipped - ID matches present");
-  } else if (!deps.reranker) {
-    logger.log("RERANK_STATUS: Skipped - OpenRouter reranker not available");
+    return unranked("not_needed");
   }
-  return withRerankScore(semantic.slice(0, topK), 0.0);
+  if (!deps.reranker) {
+    logger.log("RERANK_STATUS: Skipped - OpenRouter reranker not available");
+    return unranked("skipped");
+  }
+  return unranked("not_needed");
 }
 
 export async function completeClassification(
@@ -339,11 +368,12 @@ export async function completeClassification(
   const { config, version, classifierType } = prepared;
   try {
     const partialStart = deps.clock.now();
-    const partialResults = await partialIdResults(
+    const partial = await partialIdResults(
       deps,
       version.collectionName,
       prepared.query,
     );
+    const partialResults = partial.results;
     logger.log(
       `ID_SEARCH: exact=0 partial=${partialResults.length} exact_ms=${pyFormatFixed(prepared.exactMs, 2)} partial_ms=${pyFormatFixed(deps.clock.now() - partialStart, 2)}`,
     );
@@ -406,7 +436,17 @@ export async function completeClassification(
     );
     return classification(
       prepared,
-      mergeClassificationResults(partialResults, ranked, topK),
+      {
+        results: mergeClassificationResults(
+          partialResults,
+          ranked.results,
+          topK,
+        ),
+        rerank: ranked.rerank,
+      },
+      prepared.exactSearch === "failed" || partial.status === "failed"
+        ? "failed"
+        : "ok",
     );
   } catch (error) {
     if (error instanceof ClassificationError || signal.aborted) throw error;

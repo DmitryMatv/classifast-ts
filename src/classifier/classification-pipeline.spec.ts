@@ -83,6 +83,7 @@ describe("performClassification ID shortcuts", () => {
         rerankRelevanceScore: 0.0,
       },
     ]);
+    expect(outcome.rerank).toBe("not_needed");
     expect(f.requests("partial")).toHaveLength(0);
     expect(f.embedCalls).toHaveLength(0);
     expect(f.requests("semantic")).toHaveLength(0);
@@ -108,6 +109,7 @@ describe("performClassification ID shortcuts", () => {
     expect(f.embedCalls).toHaveLength(1);
     expect(f.requests("semantic")[0]!.limit).toBe(10);
     expect(f.rerankCalls).toHaveLength(0);
+    expect(outcome.rerank).toBe("not_needed");
   });
 
   it("drops semantic hits that an ID search already returned", async () => {
@@ -161,6 +163,7 @@ describe("performClassification semantic search", () => {
 
     expect(ids(outcome.results)).toEqual(["semantic-2", "semantic-1"]);
     expect(outcome.results[0]!.score).toBe(0.91);
+    expect(outcome.rerank).toBe("applied");
     expect(outcome.query).toBe("industrial pump");
     expect(f.embedCalls[0]!.text).toBe(
       buildQueryEmbeddingText("industrial pump", CONFIG.ETIM!.queryInstruction),
@@ -183,6 +186,7 @@ describe("performClassification semantic search", () => {
 
     expect(ids(outcome.results)).toEqual(["semantic-1", "semantic-2"]);
     expect(outcome.results.map((result) => result.score)).toEqual([0.41, 0.39]);
+    expect(outcome.rerank).toBe("skipped");
     expect(f.requests("semantic")[0]!.limit).toBe(2);
   });
 
@@ -198,6 +202,7 @@ describe("performClassification semantic search", () => {
     expect(
       outcome.results.every((r) => r.rerankRelevanceScore === undefined),
     ).toBe(true);
+    expect(outcome.rerank).toBe("failed");
   });
 
   it.each([
@@ -328,6 +333,38 @@ describe("performClassification failures", () => {
     );
 
     expect(ids(outcome.results)).toEqual(["semantic-1"]);
+    expect(outcome.idSearch).toBe("failed");
+  });
+
+  it("reports a failed partial ID search alone", async () => {
+    const f = await setUp({ semantic: [pumpBody] });
+    const deps = {
+      ...f.deps,
+      qdrant: {
+        scroll: (collection: string, request: { filter?: unknown }) =>
+          JSON.stringify(request.filter).includes('"must"')
+            ? f.deps.qdrant.scroll(collection, request as never)
+            : Promise.reject(new Error("partial search down")),
+        query: f.deps.qdrant.query.bind(f.deps.qdrant),
+      },
+    } as typeof f.deps;
+
+    const outcome = await performClassification(
+      deps,
+      { query: "8471 pump", classifierType: "ETIM", topK: 2 },
+      new AbortController().signal,
+    );
+
+    expect(ids(outcome.results)).toEqual(["semantic-1"]);
+    expect(outcome.idSearch).toBe("failed");
+  });
+
+  it("reports successful ID searches", async () => {
+    const f = await setUp({ semantic: [pumpBody] });
+
+    const outcome = await classify(f, { query: "8471 pump" });
+
+    expect(outcome.idSearch).toBe("ok");
   });
 });
 
@@ -357,6 +394,7 @@ describe("performClassification outbound budget", () => {
     const outcome = await classify(f);
 
     expect(f.rerankCalls).toHaveLength(0);
+    expect(outcome.rerank).toBe("failed");
     expect(outcome.results).toEqual([
       expect.objectContaining({
         id: "semantic-1",

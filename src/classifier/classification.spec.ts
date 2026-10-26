@@ -2,12 +2,14 @@ import { classificationGolden as golden } from "../../test/support/classificatio
 import { FakeClock } from "../../test/support/fake-http.js";
 import {
   DEFAULT_RERANK_CANDIDATE_LIMIT,
+  MIN_RERANK_BUDGET_SECONDS,
   excludeIdMatches,
   mergeClassificationResults,
   partialIdMatches,
   semanticRetrieveLimit,
   sortByScoreDesc,
   type ClassificationResult,
+  type RerankStatus,
 } from "./classification.js";
 import {
   rankSemanticResults,
@@ -92,7 +94,12 @@ describe("rerankCandidates matches Python", () => {
       );
 
       expect(recording.calls).toEqual(calls);
-      expect(reranked.map(record)).toEqual(results);
+      expect(reranked.results.map(record)).toEqual(results);
+      // A score list of the wrong length is a reranker failure.
+      const scored = Math.min(rerankTopN, candidates.length);
+      expect(reranked.rerank).toBe(
+        scores?.length === scored ? "applied" : "failed",
+      );
     },
   );
 
@@ -107,10 +114,10 @@ describe("rerankCandidates matches Python", () => {
       signal,
     );
 
-    expect(reranked.map(record)).toEqual([
-      { id: "semantic-1", score: 0.41 },
-      { id: "semantic-2", score: 0.39 },
-    ]);
+    expect(reranked).toEqual({
+      results: semantic,
+      rerank: "failed",
+    });
   });
 
   it("wraps the query in the instruction and keeps only the top results", async () => {
@@ -144,12 +151,32 @@ describe("rerankCandidates matches Python", () => {
     expect(recording.calls[0]!.documents).toHaveLength(
       DEFAULT_RERANK_CANDIDATE_LIMIT,
     );
-    expect(reranked.map(record)).toEqual([
+    expect(reranked.results.map(record)).toEqual([
       { id: "semantic-1", score: 0.5, rerankRelevanceScore: 0.91 },
       { id: "semantic-0", score: 0.5, rerankRelevanceScore: 0.52 },
     ]);
   });
 });
+
+// Only a ranking that a healthy reranker produced, or one no reranker could
+// change, is complete.
+function expectedRerankStatus(
+  reranker: boolean,
+  idMatches: number,
+  semantic: number,
+  remainingSeconds: number | null,
+): RerankStatus {
+  if (idMatches > 0) return "not_needed";
+  if (!reranker) return "skipped";
+  if (semantic === 0) return "not_needed";
+  if (
+    remainingSeconds !== null &&
+    remainingSeconds < MIN_RERANK_BUDGET_SECONDS
+  ) {
+    return "failed";
+  }
+  return "applied";
+}
 
 describe("rankSemanticResults matches Python", () => {
   it.each(golden.ranking)(
@@ -194,10 +221,18 @@ describe("rankSemanticResults matches Python", () => {
       );
 
       expect(recording.calls).toHaveLength(rerankCalls);
-      expect(actual.map(record)).toEqual(ranked);
+      expect(actual.results.map(record)).toEqual(ranked);
       expect(
-        mergeClassificationResults(idResults, actual, 3).map(record),
+        mergeClassificationResults(idResults, actual.results, 3).map(record),
       ).toEqual(merged);
+      expect(actual.rerank).toBe(
+        expectedRerankStatus(
+          reranker,
+          idMatches.length,
+          semantic.length,
+          remainingSeconds,
+        ),
+      );
     },
   );
 });

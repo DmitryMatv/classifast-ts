@@ -145,7 +145,15 @@ Python's status, HEAD on a GET-only route must answer like GET with an empty
 body, and `.gif` and `.webmanifest` static files expect `STATIC_MEDIA`, which
 Python's `get_static_cache_profile` omits. The public-mode RapidAPI ping
 expects `database: "healthy"`, because Nest refuses to boot without Qdrant.
-These are decided divergences.
+A GET of a sitemap query page such as `/UNSPSC/laptop_computer/` expects
+`NO_STORE` and `noindex, nofollow` in public mode, because Nest tries to
+render its results and cannot classify there. In full mode it expects
+`HTML_PAGE` with `Cache-Tag: sitemap-results`, and two GETs must render the
+same results and "Finished in" time. With `CONTRACT_NO_OPENROUTER_KEY=1` the
+results are degraded, so the full-mode GET expects `NO_STORE`,
+`index, follow` and no `Cache-Tag`, and the two-GET case skips. HEAD on a
+sitemap query page never classifies and answers `HTML_PAGE` without a
+`Cache-Tag`; that is accepted. These are decided divergences.
 
 Inside test files Vitest replaces `process.env.BASE_URL` with Vite's base
 path, so the config passes the URL on as `CONTRACT_BASE_URL`.
@@ -164,8 +172,8 @@ development build is not what production renders.
 
 `npm run test:parity` (`test/parity/`) launches the Python and Nest apps
 through the verify driver in one mode (`PARITY_MODE`, default `public`) with
-one env file (`PARITY_ENV_FILE`). It sends about a thousand requests that
-never classify or charge quota, with `Host: classifast.com`,
+one env file (`PARITY_ENV_FILE`). It sends about 200 requests that never
+classify or charge quota, with `Host: classifast.com`,
 `X-Forwarded-Proto: https` and `Accept-Encoding: gzip`, and compares status,
 an allowlist of headers, and the body: normalized HTML, bytes otherwise.
 Every difference goes to `report.json` in the run directory under
@@ -175,7 +183,9 @@ the Python and Nest values the decision produces, so a 500 or an extra
 header on a matched route still fails. No entry can excuse a security header
 or a `Set-Cookie`. An unlisted difference fails, and so does an entry that
 no probe produces. Every HEAD probe also checks that Nest answers its GET
-status with an empty body. One probe sends a 20 KB header: Node's default
+status with an empty body. The corpus skips the sitemap query pages, because
+a GET there renders results through the live pipeline;
+`test/pages.e2e-spec.ts` pins them. One probe sends a 20 KB header: Node's default
 16 KiB limit answers 431 where uvicorn answers 200, so the driver starts
 Nest with `--max-http-header-size=65536`, the flag in the `Dockerfile`
 CMD. Base classifier pages `/{TYPE}/` classify their
@@ -300,6 +310,53 @@ fixture's `regions` table), which `test/support/page-regions.ts` and
 `RegionFinder` in the exporter select the same way. Run
 `python utilities/export_golden_fixtures.py pages.json` to regenerate one
 fixture; without arguments the exporter writes all of them.
+
+Nest renders a sitemap query page's results for every visitor; Python
+renders them only for a verified Google crawler. This is a decided
+divergence (plan unit 12). `nestCase` in `test/pages.e2e-spec.ts` rewrites
+the golden visitor cases for those pages from the crawler case at the same
+path. Do not regenerate the fixtures to match Nest. The results come from
+`SitemapResultCache` (`src/classifier/sitemap-result-cache.ts`) in Redis:
+
+- The key is `ssr-result:v1:{collectionName}:{topK}:{query}`, with the
+  whitespace-collapsed query. The value is JSON
+  `{results, versionName, query, elapsedSeconds, computedAt}`, parsed with
+  zod on read. A malformed value or a Redis error is a miss.
+- The TTL is 30 days, plus or minus 20%. Never flush these keys. The key
+  does not include the embedding model or the rerank and query
+  instructions, so bump `v1` after changing them or the value shape; the
+  old keys expire by TTL.
+- Only complete results are stored: `rerank` is `applied` or `not_needed`,
+  `idSearch` is `ok`, and at least one result was found. An incomplete
+  result still renders, but with `NO_STORE` on both cache headers, no
+  `Cache-Tag`, and `index, follow`, so neither Redis nor Cloudflare keeps
+  it.
+- The process remembers an incomplete result, and a complete one that Redis
+  could not store, for 10 minutes (at most 2,000 keys). A view in that window
+  does not classify. Without this, an OpenRouter or Redis outage would make
+  every crawler view a free classification that fills the queue paying
+  fragment users share. A remembered result keeps the headers of its first
+  view.
+- A miss runs one fill per key through `ClassificationQueue`. No signal
+  cancels a fill: a visitor who leaves does not stop it, and at shutdown the
+  queue rejects waiting fills and lets the active one finish and store.
+  Waiters get the result when it is classified, not when the Redis write
+  settles; the key stays claimed until then.
+- A full queue or a queue closed for shutdown is `overloaded`, not a
+  failure: a verified crawler gets 503 with `Retry-After` and a visitor a
+  200 `NO_STORE` loading shell. Only genuine failures send `noindex`.
+- These views charge no quota. The page verifies a crawler only when the
+  queue is full or closed, the one case where a crawler gets a different
+  answer. The base `/{TYPE}/` page follows the same rule. It never uses the
+  result cache, but Cloudflare still caches it as `HTML_PAGE`.
+- A page rendered from complete results sends `Cache-Tag: sitemap-results`,
+  so a Cloudflare purge by tag drops every such page.
+- A stored result keeps the "Finished in" time of the classification that
+  filled it, so every view of the page shows the same time. This is a
+  decided choice.
+
+`test/pages.e2e-spec.ts` replaces the store with an in-memory map
+(`SITEMAP_RESULT_STORE`) and clears it before each parity case.
 
 `FragmentController` registers before `ClassifierPageController` in the same
 module with the pattern `:classifierType/:leaf`; it checks the decoded path

@@ -242,7 +242,8 @@ const autoloadCases: { path: string; seeded: Record<ContractMode, boolean> }[] =
     { path: "/UNSPSC/", seeded: { public: false, full: true } },
     {
       path: "/UNSPSC/laptop_computer/",
-      seeded: { public: false, full: false },
+      // Only Nest renders sitemap query pages for every visitor (unit 12).
+      seeded: { public: false, full: contract.target === "nest" },
     },
   ];
 

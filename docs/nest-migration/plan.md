@@ -108,6 +108,14 @@ setup that the scaffold adds. The user asked to start with the scaffold.
         backed by a result cache. Deploy this unit on its own after the
         cutover soak, with contract cases for the new page output and a check
         of Cloudflare cache behavior for those URLs.
+        Repo side: `SitemapResultCache` stores results in Redis under
+        `ssr-result:v1:{collection}:{topK}:{query}` for 30 days, plus or
+        minus 20%, and only when the results are complete. Visitors and
+        crawlers get the same page and no quota charge. A page from complete
+        results carries `Cache-Tag: sitemap-results`; a degraded one is
+        `NO_STORE` without the tag. When the queue is full, a verified
+        crawler gets 503 and a visitor a loading shell. Open: the deploy and
+        the Cloudflare check.
 
 ## Phase 2. Replace HTMX with React
 

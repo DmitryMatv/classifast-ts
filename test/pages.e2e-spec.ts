@@ -6,8 +6,15 @@ import request from "supertest";
 import { vi } from "vitest";
 import { z } from "zod";
 import { AppModule } from "../src/app.module.js";
-import { ClassificationError } from "../src/classifier/classification.js";
+import {
+  ClassificationError,
+  type RerankStatus,
+} from "../src/classifier/classification.js";
 import { ClassificationQueueFull } from "../src/classifier/classification-queue.js";
+import {
+  SITEMAP_RESULT_STORE,
+  type ResultStore,
+} from "../src/classifier/sitemap-result-cache.js";
 import {
   ClassificationService,
   type Authorize,
@@ -33,6 +40,7 @@ import {
   HTTP_APP_OPTIONS,
 } from "../src/http-app.js";
 import { REDIS_CONNECTION } from "../src/redis/redis-client.js";
+import { loadSitemapQueryPaths } from "../src/web/sitemap.js";
 import {
   Quota,
   QuotaUnavailableError,
@@ -129,6 +137,56 @@ const golden = readGolden(
 
 type PageCase = (typeof golden.cases)[number];
 
+const sitemapQueryPaths = loadSitemapQueryPaths();
+const crawlerCases = new Map(
+  golden.cases
+    .filter((page) => page.crawler)
+    .map((page) => [`${page.method} ${page.path}`, page]),
+);
+
+/**
+ * Decided divergence (unit 12): Nest renders a sitemap query page's results
+ * for every visitor, from a result cache, where Python renders them only
+ * for a verified crawler. Nest verifies the crawler only after a full queue,
+ * the one outcome where the answers differ. A visitor gets the crawler's
+ * page, except that a full queue still gives a visitor a 200 shell that
+ * loads results itself. A rendered page carries a Cache-Tag. The page
+ * charges no quota either way.
+ */
+function nestCase(page: PageCase): PageCase {
+  const route = page.path.split("?")[0]!;
+  if (
+    page.method !== "GET" ||
+    page.path !== route ||
+    route.split("/").length !== 4 ||
+    !sitemapQueryPaths.has(route)
+  ) {
+    return page;
+  }
+  const crawler = crawlerCases.get(`GET ${route}`);
+  if (crawler === undefined) {
+    throw new Error(`no crawler case answers the visitor for ${route}`);
+  }
+  const mode = page.classify ?? "success";
+  const events = mode === "queue_full" ? ["classify", "crawler"] : ["classify"];
+  switch (mode) {
+    case "success":
+      return {
+        ...crawler,
+        crawler: page.crawler,
+        headers: { ...crawler.headers, "cache-tag": "sitemap-results" },
+        events,
+      };
+    case "queue_full": {
+      if (page.crawler) return { ...page, events };
+      const { "retry-after": _, ...headers } = crawler.headers;
+      return { ...page, calls: crawler.calls, headers, events };
+    }
+    default:
+      return { ...page, events };
+  }
+}
+
 // Python's stacked @router.get/@router.head routes answer 405 with
 // "Allow: HEAD"; Nest lists every method of the path. Unit 8 owns that.
 const IGNORED_HEADERS = new Set(["allow"]);
@@ -156,6 +214,15 @@ function rawBody(
   res.on("end", () => done(null, Buffer.concat(chunks)));
 }
 
+const sitemapResults = new Map<string, string>();
+const memoryResultStore: ResultStore = {
+  get: (key) => Promise.resolve(sitemapResults.get(key) ?? null),
+  set: (key, value) => {
+    sitemapResults.set(key, value);
+    return Promise.resolve();
+  },
+};
+
 // The exporter's fake classification service, crawler switch and quota, at
 // the ClassificationService, GoogleCrawlerVerifier and Quota interfaces.
 const fake = {
@@ -166,6 +233,9 @@ const fake = {
   events: [] as string[],
   verify: undefined as
     ((crawler: CrawlerRequest) => Promise<boolean>) | undefined,
+  rerank: "applied" as RerankStatus,
+  /** Holds every classification until it settles. */
+  gate: Promise.resolve(),
 };
 const fakeClassifiers = classifierConfigFor({ model: "fake", dims: 1 });
 
@@ -187,6 +257,7 @@ async function fakeClassify(
   });
   fake.events.push("classify");
   if (fake.mode === "queue_full") throw new ClassificationQueueFull();
+  await fake.gate;
   await authorize?.();
   if (fake.mode === "failure") throw new Error("fake classification failure");
   const { versions } = fakeClassifiers[classifierType]!;
@@ -206,6 +277,8 @@ async function fakeClassify(
     },
     query,
     elapsedSeconds: golden.fake.elapsedSeconds,
+    rerank: fake.rerank,
+    idSearch: "ok",
     enhancementStatus:
       fake.mode === "enhancement_failed" ? "failed" : "applied",
   };
@@ -292,6 +365,8 @@ beforeAll(async () => {
     .useValue(fakeQuota)
     .overrideProvider(REDIS_CONNECTION)
     .useValue(null)
+    .overrideProvider(SITEMAP_RESULT_STORE)
+    .useValue(memoryResultStore)
     .compile();
   app = moduleRef.createNestApplication<NestExpressApplication>(
     createHttpAdapter(),
@@ -314,6 +389,7 @@ async function send(page: PageCase): Promise<request.Response> {
   fake.quota = page.quota ?? "allowed";
   fake.calls = [];
   fake.events = [];
+  sitemapResults.clear();
   const agent = request(app.getHttpServer());
   const method = page.method.toLowerCase() as "get" | "head" | "post";
   return agent[method](page.path)
@@ -324,79 +400,82 @@ async function send(page: PageCase): Promise<request.Response> {
 }
 
 describe("pages match the FastAPI app (parity)", () => {
-  it.each(golden.cases)("$method $path -> $status", async (page) => {
-    const response = await send(page);
-    expect(response.status).toBe(page.status);
-    if (page.calls !== undefined) expect(fake.calls).toEqual(page.calls);
-    if (page.events !== undefined) expect(fake.events).toEqual(page.events);
-    expect(response.headers["set-cookie"]).toBeUndefined();
+  it.each(golden.cases.map(nestCase))(
+    "$method $path -> $status",
+    async (page) => {
+      const response = await send(page);
+      expect(response.status).toBe(page.status);
+      if (page.calls !== undefined) expect(fake.calls).toEqual(page.calls);
+      if (page.events !== undefined) expect(fake.events).toEqual(page.events);
+      expect(response.headers["set-cookie"]).toBeUndefined();
 
-    for (const [name, value] of Object.entries(page.headers)) {
-      if (IGNORED_HEADERS.has(name)) continue;
-      if (name === "vary") {
-        expect(varyTokens(response.headers[name]), name).toEqual(
-          varyTokens(value),
-        );
-      } else {
-        expect(response.headers[name], name).toBe(value);
+      for (const [name, value] of Object.entries(page.headers)) {
+        if (IGNORED_HEADERS.has(name)) continue;
+        if (name === "vary") {
+          expect(varyTokens(response.headers[name]), name).toEqual(
+            varyTokens(value),
+          );
+        } else {
+          expect(response.headers[name], name).toBe(value);
+        }
       }
-    }
-    for (const name of [
-      "cache-tag",
-      "content-disposition",
-      "hx-push-url",
-      "link",
-      "location",
-      "retry-after",
-      "x-ratelimit-limit",
-      "x-ratelimit-remaining",
-    ]) {
-      if (!(name in page.headers)) {
-        expect(response.headers[name], name).toBeUndefined();
+      for (const name of [
+        "cache-tag",
+        "content-disposition",
+        "hx-push-url",
+        "link",
+        "location",
+        "retry-after",
+        "x-ratelimit-limit",
+        "x-ratelimit-remaining",
+      ]) {
+        if (!(name in page.headers)) {
+          expect(response.headers[name], name).toBeUndefined();
+        }
       }
-    }
 
-    const body = Buffer.isBuffer(response.body)
-      ? response.body
-      : Buffer.alloc(0);
-    switch (page.body.kind) {
-      case "empty":
-        expect(body.length).toBe(0);
-        break;
-      case "html":
-        expect(normalizeHtml(body.toString("utf8"))).toBe(
-          normalizeHtml(readFixtureHtml(page.body.file)),
-        );
-        break;
-      case "json":
-        expect(JSON.parse(body.toString("utf8"))).toEqual(page.body.value);
-        break;
-      case "regions":
-        expect(
-          normalizeRegions(
-            pageRegions(body.toString("utf8"), page.body.groups),
-          ),
-        ).toEqual(
-          normalizeRegions(
-            page.body.regions.map((index) => golden.regions[index]!),
-          ),
-        );
-        break;
-      case "sha256":
-        expect(createHash("sha256").update(body).digest("hex")).toBe(
-          page.body.value,
-        );
-        break;
-      case "fragment": {
-        const expected = golden.regions[page.body.region]!;
-        expect(normalizeFragment(body.toString("utf8"))).toBe(
-          normalizeFragment(expected),
-        );
-        expect(oobTitle(body.toString("utf8"))).toBe(oobTitle(expected));
-        break;
+      const body = Buffer.isBuffer(response.body)
+        ? response.body
+        : Buffer.alloc(0);
+      switch (page.body.kind) {
+        case "empty":
+          expect(body.length).toBe(0);
+          break;
+        case "html":
+          expect(normalizeHtml(body.toString("utf8"))).toBe(
+            normalizeHtml(readFixtureHtml(page.body.file)),
+          );
+          break;
+        case "json":
+          expect(JSON.parse(body.toString("utf8"))).toEqual(page.body.value);
+          break;
+        case "regions":
+          expect(
+            normalizeRegions(
+              pageRegions(body.toString("utf8"), page.body.groups),
+            ),
+          ).toEqual(
+            normalizeRegions(
+              page.body.regions.map((index) => golden.regions[index]!),
+            ),
+          );
+          break;
+        case "sha256":
+          expect(createHash("sha256").update(body).digest("hex")).toBe(
+            page.body.value,
+          );
+          break;
+        case "fragment": {
+          const expected = golden.regions[page.body.region]!;
+          expect(normalizeFragment(body.toString("utf8"))).toBe(
+            normalizeFragment(expected),
+          );
+          expect(oobTitle(body.toString("utf8"))).toBe(oobTitle(expected));
+          break;
+        }
       }
-    }
-  });
+    },
+  );
 });
 
 describe("classifier page lifecycle", () => {
@@ -404,10 +483,7 @@ describe("classifier page lifecycle", () => {
     fake.verify = undefined;
   });
 
-  it.each([
-    ["page", "/UNSPSC/", true],
-    ["fragment", "/UNSPSC/fragment?product_description=laptop", false],
-  ])(
+  it.each([["fragment", "/UNSPSC/fragment?product_description=laptop", false]])(
     "skips the %s's quota and classification when the client leaves during crawler verification",
     async (_, path, verified) => {
       let started!: () => void;
@@ -457,6 +533,246 @@ describe("classifier page lifecycle", () => {
     );
     expect(fake.calls).toEqual([]);
     expect(fake.events).toEqual([]);
+  });
+});
+
+describe("sitemap query pages (decided divergence from Python)", () => {
+  const path = "/UNSPSC/laptop_computer/";
+  const crawlerPage = crawlerCases.get(`GET ${path}`)!;
+
+  beforeEach(() => {
+    sitemapResults.clear();
+    fake.crawler = false;
+    fake.mode = "success";
+    fake.quota = "denied_anonymous";
+    fake.rerank = "applied";
+    fake.calls = [];
+    fake.events = [];
+  });
+
+  afterEach(() => {
+    fake.verify = undefined;
+    fake.gate = Promise.resolve();
+  });
+
+  async function visit(
+    method: "get" | "head" = "get",
+    target = path,
+  ): Promise<{ response: request.Response; events: string[] }> {
+    fake.events = [];
+    const response = await request(app.getHttpServer())
+      [method](target)
+      .set("Host", new URL(golden.origin).host)
+      .set("Accept-Encoding", "identity");
+    return { response, events: fake.events };
+  }
+
+  function regions(html: string): string[] {
+    if (crawlerPage.body.kind !== "regions")
+      throw new Error("expected regions");
+    return normalizeRegions(pageRegions(html, crawlerPage.body.groups));
+  }
+
+  it("renders a visitor the crawler's results, then serves them from the cache", async () => {
+    const first = await visit();
+    const second = await visit();
+
+    expect(first.events).toEqual(["classify"]);
+    expect(second.events).toEqual([]);
+    for (const { response } of [first, second]) {
+      expect(response.status).toBe(200);
+      expect(response.headers["cache-control"]).toBe(
+        cacheHeaders("HTML_PAGE")["Cache-Control"],
+      );
+      expect(response.headers["x-robots-tag"]).toBe("index, follow");
+      expect(response.headers["cache-tag"]).toBe("sitemap-results");
+    }
+    expect(regions(first.response.text)).toEqual(
+      normalizeRegions(
+        crawlerPage.body.kind === "regions"
+          ? crawlerPage.body.regions.map((index) => golden.regions[index]!)
+          : [],
+      ),
+    );
+    expect(second.response.text).toBe(first.response.text);
+    expect(second.response.text).toContain("Finished in 0.46 seconds.");
+    // The client does not fetch the fragment, so no quota is charged.
+    expect(first.response.text).toContain('data-autoload-enabled="false"');
+  });
+
+  it("serves a verified crawler the cached page without verifying it", async () => {
+    await visit();
+    fake.crawler = true;
+
+    const { response, events } = await visit();
+
+    expect(events).toEqual([]);
+    expect(response.status).toBe(200);
+    expect(response.headers["cache-tag"]).toBe("sitemap-results");
+  });
+
+  it("gives a visitor a loading shell and a verified crawler 503 when the queue is full", async () => {
+    fake.mode = "queue_full";
+
+    const visitor = await visit();
+    fake.crawler = true;
+    const crawler = await visit();
+
+    expect(visitor.events).toEqual(["classify", "crawler"]);
+    expect(visitor.response.status).toBe(200);
+    expect(visitor.response.headers["cache-control"]).toBe(
+      cacheHeaders("NO_STORE")["Cache-Control"],
+    );
+    expect(visitor.response.headers["x-robots-tag"]).toBe("index, follow");
+    expect(visitor.response.headers["retry-after"]).toBeUndefined();
+    expect(visitor.response.headers["cache-tag"]).toBeUndefined();
+    expect(visitor.response.text).toContain('data-autoload-enabled="true"');
+    expect(crawler.response.status).toBe(503);
+    expect(crawler.response.headers["retry-after"]).toBe("120");
+  });
+
+  it("marks a failed classification noindex and does not store it", async () => {
+    fake.mode = "failure";
+    const failed = await visit();
+    fake.mode = "success";
+    const retried = await visit();
+
+    expect(failed.response.status).toBe(200);
+    expect(failed.response.headers["cache-control"]).toBe(
+      cacheHeaders("NO_STORE")["Cache-Control"],
+    );
+    expect(failed.response.headers["x-robots-tag"]).toBe("noindex, nofollow");
+    expect(failed.response.headers["cache-tag"]).toBeUndefined();
+    expect(retried.events).toEqual(["classify"]);
+  });
+
+  // The process remembers a degraded result for 10 minutes, so each case
+  // takes a sitemap page that no other case visits.
+  it.each([
+    ["failed", "/UNSPSC/laser_printer/"],
+    ["skipped", "/UNSPSC/label_printer/"],
+  ] as const)(
+    "renders a ranking whose rerank %s, but keeps it out of every cache",
+    async (rerank, degradedPath) => {
+      fake.rerank = rerank;
+      const degraded = await visit("get", degradedPath);
+      const again = await visit("get", degradedPath);
+
+      expect(degraded.events).toEqual(["classify"]);
+      expect(again.events).toEqual([]);
+      expect(sitemapResults.size).toBe(0);
+      expect(again.response.text).toBe(degraded.response.text);
+      expect(again.response.headers["cache-control"]).toBe(
+        cacheHeaders("NO_STORE")["Cache-Control"],
+      );
+      expect(degraded.response.status).toBe(200);
+      expect(degraded.response.headers["cache-control"]).toBe(
+        cacheHeaders("NO_STORE")["Cache-Control"],
+      );
+      expect(degraded.response.headers["cloudflare-cdn-cache-control"]).toBe(
+        cacheHeaders("NO_STORE")["Cloudflare-CDN-Cache-Control"],
+      );
+      expect(degraded.response.headers["cache-tag"]).toBeUndefined();
+      expect(degraded.response.headers["x-robots-tag"]).toBe("index, follow");
+      expect(degraded.response.text).toContain('data-autoload-enabled="false"');
+      expect(
+        degraded.response.text.match(/role="listitem"/g) ?? [],
+      ).toHaveLength(golden.fake.results.length);
+    },
+  );
+
+  it.each(["applied", "not_needed"] as const)(
+    "lets the edge cache a ranking whose rerank is %s",
+    async (rerank) => {
+      fake.rerank = rerank;
+      const { response } = await visit();
+
+      expect(response.headers["cloudflare-cdn-cache-control"]).toBe(
+        cacheHeaders("HTML_PAGE")["Cloudflare-CDN-Cache-Control"],
+      );
+      expect(response.headers["cache-tag"]).toBe("sitemap-results");
+    },
+  );
+
+  it("answers HEAD without classifying", async () => {
+    const { response, events } = await visit("head");
+
+    expect(events).toEqual([]);
+    expect(response.status).toBe(200);
+    expect(response.headers["cache-control"]).toBe(
+      cacheHeaders("HTML_PAGE")["Cache-Control"],
+    );
+  });
+
+  it("keys results by query", async () => {
+    await visit();
+    const other = await visit("get", "/UNSPSC/office_chair/");
+
+    expect(other.events).toEqual(["classify"]);
+    expect(fake.calls.map((call) => call.query)).toEqual([
+      "laptop computer",
+      "office chair",
+    ]);
+  });
+
+  it("finishes and stores the classification after the visitor leaves", async () => {
+    let release!: () => void;
+    fake.gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    const server: Server = app.getHttpServer();
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    try {
+      const { port } = server.address() as AddressInfo;
+      const client = httpGet({ host: "127.0.0.1", port, path });
+      client.on("error", () => {});
+      await vi.waitUntil(() => fake.events.includes("classify"));
+      client.destroy();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      release();
+      await vi.waitUntil(() => sitemapResults.size > 0);
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
+
+    const { response, events } = await visit();
+    expect(events).toEqual([]);
+    expect(response.headers["cache-tag"]).toBe("sitemap-results");
+  });
+});
+
+describe("the base classifier page", () => {
+  beforeEach(() => {
+    fake.crawler = true;
+    fake.calls = [];
+    fake.events = [];
+  });
+
+  afterEach(() => {
+    fake.mode = "success";
+  });
+
+  it("verifies a crawler only when the queue is full", async () => {
+    fake.mode = "success";
+    await request(app.getHttpServer()).get("/UNSPSC/");
+    const rendered = fake.events;
+    fake.events = [];
+    fake.mode = "queue_full";
+    const full = await request(app.getHttpServer()).get("/UNSPSC/");
+
+    expect(rendered).toEqual(["classify"]);
+    expect(fake.events).toEqual(["classify", "crawler"]);
+    expect(full.status).toBe(503);
+  });
+
+  it("classifies the example on every visit", async () => {
+    fake.mode = "success";
+    await request(app.getHttpServer()).get("/UNSPSC/");
+    await request(app.getHttpServer()).get("/UNSPSC/");
+
+    expect(fake.events).toEqual(["classify", "classify"]);
   });
 });
 

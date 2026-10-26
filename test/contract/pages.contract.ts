@@ -1,5 +1,7 @@
 import {
   classificationTimeout,
+  contract,
+  fullMode,
   readRepoFile,
   runsInMode,
   type ContractMode,
@@ -21,11 +23,49 @@ type PageCase = {
   methods: readonly Method[];
   profile?: CacheProfileName;
   robots?: string;
+  cacheTag?: string;
   modes?: readonly ContractMode[];
 };
 
 const site = "https://classifast.com";
 const both = ["GET", "HEAD"] as const;
+
+/**
+ * Nest renders a sitemap query page's results for every visitor (unit 12, a
+ * decided divergence); Python leaves them to the client. A public-mode
+ * server cannot classify, so the page is the uncached failure shell there.
+ * HEAD never classifies, so it answers HTML_PAGE without a Cache-Tag.
+ */
+function sitemapQueryPage(path: string, canonical: string): PageCase[] {
+  if (contract.target === "python") return [{ path, canonical, methods: both }];
+  return [
+    { path, canonical, methods: ["HEAD"] },
+    {
+      path,
+      canonical,
+      methods: ["GET"],
+      profile: "NO_STORE",
+      robots: "noindex, nofollow",
+      modes: ["public"],
+    },
+    // Without a reranker the results are degraded: shown, never cached.
+    contract.noOpenRouterKey
+      ? {
+          path,
+          canonical,
+          methods: ["GET"],
+          profile: "NO_STORE",
+          modes: ["full"],
+        }
+      : {
+          path,
+          canonical,
+          methods: ["GET"],
+          cacheTag: "sitemap-results",
+          modes: ["full"],
+        },
+  ];
+}
 
 const pages: PageCase[] = [
   { path: "/", canonical: `${site}/`, methods: both },
@@ -40,11 +80,10 @@ const pages: PageCase[] = [
     canonical: `${site}/mapping/cpv-to-unspsc-mapping/`,
     methods: both,
   },
-  {
-    path: "/UNSPSC/laptop_computer/",
-    canonical: `${site}/UNSPSC/laptop_computer/`,
-    methods: both,
-  },
+  ...sitemapQueryPage(
+    "/UNSPSC/laptop_computer/",
+    `${site}/UNSPSC/laptop_computer/`,
+  ),
   {
     path: "/UNSPSC/laptop_computer/?top_k=5",
     canonical: `${site}/UNSPSC/laptop_computer/`,
@@ -102,13 +141,16 @@ function expectPageHeaders(
 describe("HTML pages", { timeout: classificationTimeout(1) }, () => {
   it.each(pageRequests)(
     "$method $path",
-    async ({ path, method, canonical, profile, robots }) => {
+    async ({ path, method, canonical, profile, robots, cacheTag }) => {
       const reply = await send(path, { method });
       expectPageHeaders(
         reply,
         canonical,
         profile ?? "HTML_PAGE",
         robots ?? "index, follow",
+      );
+      expect(reply.headers.get("cache-tag"), `${reply.label} Cache-Tag`).toBe(
+        cacheTag ?? null,
       );
       if (method === "HEAD") {
         expect(reply.body).toBe("");
@@ -123,6 +165,43 @@ describe("HTML pages", { timeout: classificationTimeout(1) }, () => {
     },
   );
 });
+
+function renderedResults(reply: Reply) {
+  const document = parseHtml(reply);
+  return {
+    codes: [
+      ...document.querySelectorAll('#results-container [role="listitem"]'),
+    ].map((item) => item.textContent?.replace(/\s+/g, " ").trim()),
+    finished: [...document.querySelectorAll("#results-container span")]
+      .map((span) => span.textContent ?? "")
+      .find((text) => text.startsWith("Finished in ")),
+  };
+}
+
+describe.runIf(fullMode && contract.target === "nest")(
+  "sitemap query page results come from the result cache",
+  { timeout: classificationTimeout(1) },
+  () => {
+    it("two GETs render the same results and time", async ({ skip }) => {
+      skip(
+        contract.noOpenRouterKey,
+        "the server has no reranker, and the cache stores only reranked results",
+      );
+      const path = "/UNSPSC/laptop_computer/";
+      const first = await send(path);
+      const second = await send(path);
+      for (const reply of [first, second]) {
+        expectStatus(reply, 200);
+        expect(reply.headers.get("cache-tag")).toBe("sitemap-results");
+      }
+
+      const rendered = renderedResults(first);
+      expect(rendered.codes.length).toBeGreaterThan(0);
+      expect(rendered.finished).toMatch(/^Finished in \d+\.\d\d seconds\.$/);
+      expect(renderedResults(second)).toEqual(rendered);
+    });
+  },
+);
 
 const sitemapLocations = [
   ...readRepoFile("app/static/sitemap.xml")

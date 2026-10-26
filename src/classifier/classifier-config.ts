@@ -283,6 +283,14 @@ export function classifierPage(classifierType: string): ClassifierPage {
   };
 }
 
+/** A version's collection and result links, which no environment changes. */
+export function classifierVersion(
+  classifierType: string,
+  versionName: string,
+): ClassifierVersion {
+  return CLASSIFIERS[classifierType]!.versions[versionName]!;
+}
+
 export function getAllCollectionNames(config: CollectionLayout): string[] {
   const names = new Set(
     Object.values(config).flatMap((classifier) =>

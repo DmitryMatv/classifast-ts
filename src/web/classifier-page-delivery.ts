@@ -1,8 +1,10 @@
 import { HttpException } from "@nestjs/common";
-import type { ClassificationOutcome } from "../classifier/classification-service.js";
 import { CLASSIFIER_TYPES } from "../classifier/classifier-config.js";
 import { resolveClassifierType } from "../classifier/classifier-options.js";
-import { ClassificationQueueFull } from "../classifier/classification-queue.js";
+import {
+  ClassificationQueueClosed,
+  ClassificationQueueFull,
+} from "../classifier/classification-queue.js";
 import {
   cacheHeaders,
   pageHeaders,
@@ -13,6 +15,8 @@ import type { ClassifierPageResults } from "./classifier-page.js";
 
 export const DEFAULT_TOP_K = 10;
 export const QUEUE_FULL_RETRY_AFTER_SECONDS = 120;
+/** Purges every cached sitemap query page at Cloudflare. */
+export const SITEMAP_RESULTS_CACHE_TAG = "sitemap-results";
 
 export function removedClassifier(classifierType: string): HttpException {
   return new HttpException(
@@ -69,7 +73,9 @@ export function starletteUrlPath(decodedPath: string): string {
   return decodedPath.replace(/[\t\r\n]/g, "").replace(/[?#].*$/s, "");
 }
 
-export type SsrState = "not_attempted" | "success" | "failure" | "overloaded";
+/** `degraded`: results rendered, but their ranking is too weak to cache. */
+export type SsrState =
+  "not_attempted" | "success" | "degraded" | "failure" | "overloaded";
 
 export interface SeededResults {
   readonly results: ClassifierPageResults;
@@ -80,12 +86,20 @@ export interface SeededResults {
 
 export type SsrFailureLogger = (state: SsrState, error: unknown) => void;
 
+export type PageClassification = Pick<
+  ClassifierPageResults,
+  "results" | "version" | "elapsedSeconds"
+> & {
+  /** False when the ranking is too degraded to cache. */
+  readonly complete?: boolean;
+};
+
 /**
  * Port of maybe_seed_classifier_page_results. A base page classifies the
- * example for every visitor; a query page classifies only when allowed.
+ * example; a query page classifies only when `allowQuerySsr` is set.
  */
 export async function seedClassifierPageResults(
-  classify: (query: string) => Promise<ClassificationOutcome>,
+  classify: (query: string) => Promise<PageClassification>,
   decodedQuery: string,
   exampleQuery: string,
   allowQuerySsr: boolean,
@@ -125,11 +139,16 @@ export async function seedClassifierPageResults(
       },
       defaultExamplePrefill: !decodedQuery,
       triggerSearchOnLoad: false,
-      state: "success",
+      state: outcome.complete === false ? "degraded" : "success",
     };
   } catch (error) {
     const state =
-      error instanceof ClassificationQueueFull ? "overloaded" : "failure";
+      // A queue closed for shutdown is busy, not broken: a crawler must get
+      // 503, not a 200 marked noindex.
+      error instanceof ClassificationQueueFull ||
+      error instanceof ClassificationQueueClosed
+        ? "overloaded"
+        : "failure";
     logFailure(state, error);
     return {
       results: empty(query),
@@ -143,16 +162,19 @@ export async function seedClassifierPageResults(
 /**
  * A failed SSR attempt is not cached. A verified crawler that met a full
  * queue gets 503 with Retry-After, because Google retries a 503 but drops a
- * 200 marked noindex; only a genuine failure sends noindex.
+ * 200 marked noindex; only a genuine failure sends noindex. `cacheTag` marks
+ * a page whose results rendered.
  */
 export function classifierPageResponse(
   state: SsrState,
   isVerifiedCrawler: boolean,
   canonicalUrl: string,
+  cacheTag?: string,
 ): { readonly status: number; readonly headers: HeaderRecord } {
   const retryLater = state === "overloaded" && isVerifiedCrawler;
   const headers = pageHeaders(canonicalUrl);
-  if (state === "failure" || state === "overloaded") {
+  if (state === "success" && cacheTag) headers["Cache-Tag"] = cacheTag;
+  if (state === "degraded" || state === "failure" || state === "overloaded") {
     Object.assign(headers, cacheHeaders("NO_STORE"));
   }
   if (state === "failure") headers["X-Robots-Tag"] = "noindex, nofollow";
