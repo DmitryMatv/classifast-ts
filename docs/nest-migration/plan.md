@@ -97,14 +97,17 @@ setup that the scaffold adds. The user asked to start with the scaffold.
 9. [x] Port the pages and fragments as React components rendered to static
        HTML. Keep the ids, `data-` and `hx-` attributes that the scripts use.
 10. [x] Port the RapidAPI routes.
-11. [ ] Cut over. Switch the Dockerfile and compose file to Node, port the
+11. [x] Cut over. Switch the Dockerfile and compose file to Node, port the
         verify driver, run the side-by-side diff, deploy, and keep the Python
         image for rollback. After the soak, delete the Python runtime code and
         update AGENTS.md and the README.
         Repo side: #17 (client host parity), #19 (verify driver, contract
         runner, parity diff), #20 (Dockerfile switch; merging it deploys).
-        Open: the deploy, the soak, and deleting the Python code.
-12. [ ] Render results for every visitor on sitemap query pages (decision 3),
+        The deploy and soak followed #20. #24 deletes the Python runtime
+        code, its tests, `Dockerfile.python` and the parity suite. The
+        golden fixtures stay as frozen records; their exporter went with
+        the app. The offline scripts in `utilities/` stay.
+12. [x] Render results for every visitor on sitemap query pages (decision 3),
         backed by a result cache. Deploy this unit on its own after the
         cutover soak, with contract cases for the new page output and a check
         of Cloudflare cache behavior for those URLs.
@@ -114,8 +117,9 @@ setup that the scaffold adds. The user asked to start with the scaffold.
         crawlers get the same page and no quota charge. A page from complete
         results carries `Cache-Tag: sitemap-results`; a degraded one is
         `NO_STORE` without the tag. When the queue is full, a verified
-        crawler gets 503 and a visitor a loading shell. Open: the deploy and
-        the Cloudflare check.
+        crawler gets 503 and a visitor a loading shell. Merged as #22, with
+        #23 applying the same cacheability rule to result fragments. Open:
+        the Cloudflare MISS-then-HIT check after the deploy.
 
 ## Phase 2. Replace HTMX with React
 

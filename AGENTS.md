@@ -12,12 +12,18 @@ Run the Nest e2e tests with `npm run test:e2e`. `npm run typecheck` checks both 
 (Nest, `src/` and `test/`) and `app/assets/tsconfig.json` (frontend and the
 Vite and Vitest configs).
 
-The NestJS app in `src/` ports every route of the FastAPI app and is what
-production runs. Start it with `npm run start:dev`. The root `test/` directory
-holds Nest e2e specs for Vitest; the Python suite lives in `tests/`.
+The NestJS app in `src/` is what production runs. Start it with
+`npm run start:dev`. The root `test/` directory holds the e2e specs, the
+contract suite and the golden fixtures.
 
-The Nest app listens on `HOST` and `PORT` (default `0.0.0.0:8001`), the same
-port as the Python app. Set `PORT` to run both at once. Like Python's
+The app is a port of a FastAPI app, deleted after the cutover. "Python" in
+this file and in `src/` comments means that app. The fixtures in
+`test/fixtures/golden/` recorded its answers and are now frozen: the exporter
+went with it. When you change behavior on purpose, edit the fixture's
+expected values by hand or override the case in the spec, as `nestCase` in
+`test/pages.e2e-spec.ts` does, and say why in the commit.
+
+The Nest app listens on `HOST` and `PORT` (default `0.0.0.0:8001`). Like Python's
 `load_dotenv()`, it loads the repository-root `.env` when the file exists, and
 variables already in the environment win. A worktree has no `.env`, so pass
 `node --env-file=<path> dist/main.js` there. Node's `.env` grammar differs
@@ -25,10 +31,9 @@ from python-dotenv: it does not expand `${VAR}`, and it treats `#` as a
 comment start in more places. On 2026-10-08 every key in the local `.env`
 parsed the same under both. Production is unaffected, because the image has
 no `.env` and Coolify or compose supplies the variables.
-`src/config/app-config.ts` parses every variable the Python app reads; add
-new variables to that schema instead of reading `process.env` elsewhere.
-`Dockerfile` builds the Nest image that production runs. `Dockerfile.python`
-builds the FastAPI image, kept for rollback until the Python code is deleted.
+`src/config/app-config.ts` parses every variable the app reads; add new
+variables to that schema instead of reading `process.env` elsewhere.
+`Dockerfile` builds the image that production runs.
 
 The `redis` project's globalSetup starts Redis 7.4.2 through
 `redis-memory-server`. Because `.npmrc` sets `ignore-scripts=true`, the first
@@ -70,15 +75,13 @@ comma-separated string, while Starlette's `headers.get` returns the first
 value. Read `req.headersDistinct`, not `req.headers`, to read the first value
 as Python does; `clientIp` in `src/usage/client-identity.ts` does.
 
-Production uvicorn runs with `--forwarded-allow-ips "*"`, so Python's
-`request.client.host` is the first X-Forwarded-For entry. The TCP peer counts
-only when that entry has no host. Behind Coolify's proxy the peer is the proxy,
-and `TestClient` skips uvicorn, so the page fixtures cannot show this. Where
-Python reads `request.client.host`, call `clientHost` in
-`src/usage/client-identity.ts`; never read `req.socket.remoteAddress`.
-`proxy-client.json` replays uvicorn's real `ProxyHeadersMiddleware`. Rerun
-`python utilities/export_golden_fixtures.py proxy-client.json` after a uvicorn
-upgrade.
+Production ran uvicorn with `--forwarded-allow-ips "*"`, so Python's
+`request.client.host` was the first X-Forwarded-For entry. The TCP peer counts
+only when that entry has no host. Behind Coolify's proxy the peer is the
+proxy. For the client host, such as in crawler verification, call
+`clientHost` in `src/usage/client-identity.ts`; never read
+`req.socket.remoteAddress`. `proxy-client.json` recorded uvicorn's
+`ProxyHeadersMiddleware`.
 
 The Qdrant JS client requests `GET /` to check the server version when it is
 constructed, and logs a warning when that fails. Fake Qdrant servers in tests
@@ -101,12 +104,10 @@ it. The suite refuses a `BASE_URL` host other than `localhost`, `127.0.0.0/8`,
 or `::1`, because its checkout probes increment Redis rate-limit counters and
 full mode charges quota and runs live classifications. Set
 `CONTRACT_ALLOW_NON_LOOPBACK=1` to target another host deliberately.
-`npm run test:contract:nest` launches a public-mode Nest instance through the
-verify driver in a temporary run directory, runs the suite with
-`CONTRACT_TARGET=nest`, stops the instance, and exits with the suite's code.
-Its arguments go to `control.mjs launch`, such as `--env-file <path>`. For
-the Python target, point `BASE_URL` at
-`control.mjs launch <dir> --app python --mode public`. Both modes require
+`npm run test:contract:nest` launches a public-mode instance through the
+verify driver in a temporary run directory, runs the suite, stops the
+instance, and exits with the suite's code. Its arguments go to
+`control.mjs launch`, such as `--env-file <path>`. Both modes require
 `DEBUG_MODE=false`. Set
 `CONTRACT_MODE=full` only against a server with Qdrant, Redis, and
 embeddings. Full mode has not been verified against configured live
@@ -119,8 +120,8 @@ missing variable as its skip reason:
 - `CONTRACT_POLAR_WEBHOOK_SECRET` holds the server's `POLAR_WEBHOOK_SECRET`.
   It enables the unsigned and signed webhook cases.
 - `CONTRACT_POLAR_PRO_PRODUCT_ID` holds the server's `POLAR_PRO_PRODUCT_ID`.
-  It enables the signed event for another product, which Python answers with
-  500 when the server has no Pro product.
+  It enables the signed event for another product, which the server answers
+  with 500 when it has no Pro product.
 - `CONTRACT_NO_OPENROUTER_KEY=1` declares a server without
   `OPENROUTER_API_KEY`. It enables the failed query enhancement case. That
   server has no enhancer, so every enhanced lookup fails without calling
@@ -140,12 +141,13 @@ the capacity and the refusal; `ClassificationQueue`'s specs pin them. The
 signed non-Pro webhook carries no user, so it cannot show that a missing
 product filter would grant Pro.
 
-With `CONTRACT_TARGET=nest`, the `retiredRoutes` table expects 404 instead of
-Python's status, HEAD on a GET-only route must answer like GET with an empty
-body, and `.gif` and `.webmanifest` static files expect `STATIC_MEDIA`, which
-Python's `get_static_cache_profile` omits. The public-mode RapidAPI ping
-expects `database: "healthy"`, because Nest refuses to boot without Qdrant.
-A GET of a sitemap query page such as `/UNSPSC/laptop_computer/` expects
+Some cases pin decisions where Nest departed from Python. FastAPI's `/docs`,
+`/redoc`, `/openapi.json` and `/llms.txt` answer 404 (`retiredRoutes`).
+HEAD on a GET-only route answers like GET with an empty body; Python sent it
+to the classifier catch-all. `.gif` and `.webmanifest` static files are
+`STATIC_MEDIA`, where Python served them as `STATIC_TEXT`. The public-mode
+RapidAPI ping expects `database: "healthy"`, because Nest refuses to boot
+without Qdrant. A GET of a sitemap query page such as `/UNSPSC/laptop_computer/` expects
 `NO_STORE` and `noindex, nofollow` in public mode, because Nest tries to
 render its results and cannot classify there. In full mode it expects
 `HTML_PAGE` with `Cache-Tag: sitemap-results`, and two GETs must render the
@@ -154,7 +156,7 @@ results are degraded, so the full-mode GET expects `NO_STORE`,
 `index, follow` and no `Cache-Tag`, and the two-GET case skips; the
 full-mode result fragments expect `NO_STORE` too. HEAD on a
 sitemap query page never classifies and answers `HTML_PAGE` without a
-`Cache-Tag`; that is accepted. These are decided divergences.
+`Cache-Tag`; that is accepted.
 
 Inside test files Vitest replaces `process.env.BASE_URL` with Vite's base
 path, so the config passes the URL on as `CONTRACT_BASE_URL`.
@@ -162,49 +164,16 @@ path, so the config passes the URL on as `CONTRACT_BASE_URL`.
 The public-mode cases expect a server without `POLAR_WEBHOOK_SECRET`,
 `RAPIDAPI_SECRET`, or Redis. The verify driver's public mode
 (`.agents/skills/verify/scripts/control.mjs`) sets every credential to an
-empty value, which both apps treat as absent, and points Redis at the
+empty value, which the app treats as absent, and points Redis at the
 unreachable `127.0.0.1:1`. The cases therefore hold even when an env file
-supplies those keys, or when Python's `load_dotenv()`, which searches upward
-from `app/`, finds the main checkout's `.env` from a nested worktree. Nest
-public mode also starts a detached fake Qdrant; `instance.json` records it
-with the server, and `cleanup` stops both. The driver starts Nest with
-`NODE_ENV=production`, as `Dockerfile` does, because React's
-development build is not what production renders.
+supplies those keys. Public mode also starts a detached fake Qdrant;
+`instance.json` records it with the server, and `cleanup` stops both. The
+driver starts the app with `NODE_ENV=production` and
+`--max-http-header-size=65536`, as `Dockerfile` does. React's development
+build is not what production renders, and Node's default 16 KiB header limit
+answers 431 to requests uvicorn accepted.
 
-`npm run test:parity` (`test/parity/`) launches the Python and Nest apps
-through the verify driver in one mode (`PARITY_MODE`, default `public`) with
-one env file (`PARITY_ENV_FILE`). It sends about 200 requests that never
-classify or charge quota, with `Host: classifast.com`,
-`X-Forwarded-Proto: https` and `Accept-Encoding: gzip`, and compares status,
-an allowlist of headers, and the body: normalized HTML, bytes otherwise.
-Every difference goes to `report.json` in the run directory under
-`.cache/parity/`. `KNOWN_DIVERGENCES` in `test/parity/divergences.ts` holds
-the decided differences. Each entry names the fields allowed to differ and
-the Python and Nest values the decision produces, so a 500 or an extra
-header on a matched route still fails. No entry can excuse a security header
-or a `Set-Cookie`. An unlisted difference fails, and so does an entry that
-no probe produces. Every HEAD probe also checks that Nest answers its GET
-status with an empty body. The corpus skips the sitemap query pages, because
-a GET there renders results through the live pipeline;
-`test/pages.e2e-spec.ts` pins them. One probe sends a 20 KB header: Node's default
-16 KiB limit answers 431 where uvicorn answers 200, so the driver starts
-Nest with `--max-http-header-size=65536`, the flag in the `Dockerfile`
-CMD. Base classifier pages `/{TYPE}/` classify their
-example through the live pipeline, so `checkedCorpus` refuses any probe for
-one, even a query-string variant that would redirect first. Full mode needs
-the driver's Redis at `127.0.0.1:16379` and, for Python, `VIRTUAL_ENV` or
-`.venv`. Python's root `FileResponse` routes ignore `If-None-Match`
-entirely, not only `*`: a matching ETag on `/favicon.ico`, `/robots.txt` or
-`/sitemap.xml` answers 200 there and 304 in Nest. The RapidAPI ping's
-`timestamp` is masked, because Python sends a `time.time()` float and Nest
-milliseconds.
-
-Python declares HEAD only on page routes. HEAD on a GET-only route, such as
-`/robots.txt` or `/health`, falls through to the classifier catch-all and
-answers 404. HEAD on `/{TYPE}/fragment` answers 301. The contract suite pins
-this behavior for the Python target.
-
-Starlette's `add_vary_header` appends without deduplicating, so Python sends
+Starlette's `add_vary_header` appends without deduplicating, so Python sent
 `Vary: Accept-Encoding, Accept-Encoding` on gzipped static files. The Nest
 port matches it; compare `Vary` as a token set.
 
@@ -221,60 +190,43 @@ The exception filter renders `{"detail": ...}` from an error's `detail`.
 `HttpStatusError` exposes its message as `detail`; before that, unit 6's
 errors (rate limit, Clerk, quota) rendered only the reason phrase.
 
-The Polar webhook port (`src/payments/`) mirrors `polar.v2026_10`, not just
-`app/payments.py`. The SDK decodes the body as UTF-8 before it checks the
+The Polar webhook port (`src/payments/`) mirrors Python's `polar.v2026_10`
+SDK module, not just the FastAPI route. The SDK decodes the body as UTF-8 before it checks the
 signature, so an unsigned non-UTF-8 body gets 400, not 403. The SDK drops
 payload keys that `Subscription` does not declare. Python's product-id probes
 of `items`, `products`, `subscriptions`, and `order_items` therefore never see
 data; only `product_id`, `product.id`, `prices`, and the metadata keys count.
 The zod schema checks nested objects only as far as the fields it reads, and
 known non-subscription events only by envelope. Python rejects deeper schema
-errors in those with 400. `test/fixtures/golden/payments.json` replays 83
-webhook requests through the FastAPI route. After you change `app/payments.py`
-or the Polar SDK, rerun `python utilities/export_golden_fixtures.py`.
-Python's payment routes send no cache headers; the Nest routes send
-`NO_STORE` on every answer.
+errors in those with 400. `test/fixtures/golden/payments.json` holds 83
+webhook requests and the FastAPI route's answers. Python's payment routes
+sent no cache headers; the Nest routes send `NO_STORE` on every answer.
 
 Nest answers `If-None-Match: *` on `/favicon.ico`, `/robots.txt`, and
-`/sitemap.xml` with 304, as `/static` files do in both apps. Python's
-`FileResponse` routes ignore the header and answer 200. HTTP allows both, so
-this divergence is deliberate.
+`/sitemap.xml` with 304, as `/static` files do. Python's `FileResponse`
+routes ignored the header and answered 200. HTTP allows both.
 
-Always use `pytest` for backend tests. The suite retains `unittest`-compatible
-test classes and standard-library mocks, but pytest is the official runner.
+Fresh checkouts may lack `node_modules` and the generated frontend assets
+because they are ignored. Run `npm ci` before tests or builds. The
+verification driver (`.agents/skills/verify/`) and the contract suite's
+static and DOM cases need `npm run build`, and the driver also needs
+`npm run build:server`.
 
-Fresh checkouts may lack `.venv`, `node_modules`, and generated frontend assets
-because they are ignored. If `.venv` is absent, run `python -m venv .venv` and
-`.venv/bin/pip install -r requirements-dev.txt` before `pytest`. If
-`node_modules` is absent, run `npm ci` before frontend tests or builds.
-`tests/test_asset_urls.py` and the verification driver (`.agents/skills/verify/`)
-require a frontend build (`npm run build`) in a fresh checkout. The driver
-also needs `npm run build:server` for the Nest app, which it launches by
-default.
-
-pytest.ini scopes pytest collection to `tests/`. The `utilities/test_*.py` files are
-manual live/debug helpers, and the ignored `embedders/tests/` tree contains
-separate experimental tests that are not part of the maintained backend suite.
-`tests/test_emdn_embedder.py` imports the ignored
-`embedders/embedder_remote_EMDN_hf.py`; a checkout without that local file cannot
-collect the full suite. Report that limitation when excluding this test.
-
-Activate the Python environment with `source .venv/bin/activate` before backend
-tests or `--app python` in the verification driver. The driver runs
-`$VIRTUAL_ENV/bin/python`, or `.venv/bin/python` when no environment is
-active; a worktree has no `.venv` of its own.
+The scripts in `utilities/` are offline Python tools. Install
+`utilities/requirements.txt` into a virtualenv to run them. The
+`utilities/test_*.py` files are manual live or debug helpers, not a test
+suite. The ignored `embedders/` tree holds separate experiments.
 
 HTTP e2e tests that import `AppModule` need a fake Qdrant server with valid
 schemas for every configured collection, because startup validates them.
 Use `test/support/qdrant-server.ts` and clear inherited Qdrant and
 embedding-dimension configuration.
 
-The Nest pages in `src/web/` are React components that port the Jinja
+The pages in `src/web/` are React components that ported the Jinja
 templates. `test/pages.e2e-spec.ts` compares each page, redirect and error
 with responses recorded from the FastAPI app in
-`test/fixtures/golden/pages.json` and `pages/*.html`. After changing a ported
-template, rerun `python utilities/export_golden_fixtures.py`; the exporter
-uses `TestClient` without its lifespan and a fixed date. Compare HTML with
+`test/fixtures/golden/pages.json` and `pages/*.html`, which the exporter
+rendered without the app's lifespan and with a fixed date. Compare HTML with
 `test/support/html-normalizer.ts`, which accounts for these React 19
 behaviors:
 
@@ -303,20 +255,17 @@ in a classifier slug splits the path there: `/UNSPSC/a%3Fb/` redirects to
 request's own query string. This is a decided divergence.
 
 Classifier page parity cases use a recording fake classification service and
-a crawler switch, on both sides: the exporter patches the FastAPI app and
-`test/pages.e2e-spec.ts` overrides `ClassificationService` and
-`GoogleCrawlerVerifier`. Five base pages keep full HTML; the other cases keep
-only selected element groups (`body.kind == "regions"`, stored once in the
-fixture's `regions` table), which `test/support/page-regions.ts` and
-`RegionFinder` in the exporter select the same way. Run
-`python utilities/export_golden_fixtures.py pages.json` to regenerate one
-fixture; without arguments the exporter writes all of them.
+a crawler switch: `test/pages.e2e-spec.ts` overrides `ClassificationService`
+and `GoogleCrawlerVerifier`, as the exporter patched the FastAPI app. Five
+base pages keep full HTML; the other cases keep only selected element groups
+(`body.kind == "regions"`, stored once in the fixture's `regions` table),
+which `test/support/page-regions.ts` selects.
 
 Nest renders a sitemap query page's results for every visitor; Python
 renders them only for a verified Google crawler. This is a decided
 divergence (plan unit 12). `nestCase` in `test/pages.e2e-spec.ts` rewrites
 the golden visitor cases for those pages from the crawler case at the same
-path. Do not regenerate the fixtures to match Nest. The results come from
+path. The results come from
 `SitemapResultCache` (`src/classifier/sitemap-result-cache.ts`) in Redis:
 
 - The key is `ssr-result:v1:{collectionName}:{topK}:{query}`, with the
@@ -365,11 +314,10 @@ module with the pattern `:classifierType/:leaf`; it checks the decoded path
 for `/{type}/fragment` and calls `next()` for every other two-segment path.
 HEAD answers like GET there for validation errors and empty descriptions, but
 answers 405 `Allow: GET` where GET would classify, so a probe never takes a
-queue turn or charges quota. Python sends HEAD to the classifier page (301). Fragment
-parity cases (`body.kind == "fragment"`) also fake the quota at Python's
-`resolve_signed_in_caller`, `check_usage` and `reserve_usage` and at Nest's
-`Quota`, and record an `events` list (crawler, caller, check, classify,
-charge) that pins the order of quota checks and queue admission.
+queue turn or charges quota. Python sent HEAD to the classifier page (301).
+Fragment parity cases (`body.kind == "fragment"`) also fake `Quota` and
+record an `events` list (crawler, caller, check, classify, charge) that pins
+the order of quota checks and queue admission.
 
 React 19 hoists a `<title>` to the front of markup rendered without
 `<html>`, so the fragment's out-of-band `<title>` is appended as a string
@@ -380,22 +328,14 @@ A result fragment sends `NO_STORE` on both cache headers, instead of
 `CLASSIFICATION_RESULT` (a week at Cloudflare), when its classification is
 not cacheable: the rerank `failed` or was `skipped`, an ID search `failed`,
 the requested enhancement `failed`, or the list is empty. It still renders
-the results and keeps `Cache-Tag` and `HX-Push-Url`. Python caches every
-result fragment except a failed enhancement; this is a decided divergence.
+the results and keeps `Cache-Tag` and `HX-Push-Url`. Python cached every
+result fragment except a failed enhancement.
 An empty list is not a genuine answer: the semantic search has no filter or
 score threshold, so it returns nothing only for an empty collection, such as
 one being rebuilt. `isCacheableClassification` in
 `src/classifier/classification-service.ts` is the one rule for the fragment
 and the sitemap result store. The parity case with `classify: "empty"`
 expects `NO_STORE` through `nestCase`.
-
-The contract suite's static and DOM cases need a frontend build
-(`npm run build`) in the checkout the Nest server runs from.
-
-Tailwind does not scan `src/`. The class names in `src/web/*.tsx` are copies
-of the ones in `app/templates`, so they are generated only while those
-templates exist. Add a `@source` line for `src/web` before deleting a
-template.
 
 Git rerere may automatically stage an old conflict resolution. Inspect every
 conflicted file even when no conflict markers remain.
@@ -414,11 +354,11 @@ collections. Runtime startup must validate Qdrant without creating, replacing,
 or deleting indexes. The CLI lives in `src/cli/sync-payload-indexes.ts`; the
 Python `utilities/sync_payload_indexes.py` no longer exists.
 
-The ID normalization that `apply` writes into Qdrant
-(`src/qdrant/id-lookup.ts`) must match `app/id_lookup.py` exactly. Python
-casefolds, so `ß` becomes `ss`; JavaScript's `toLowerCase` does not. After
-changing either side, rerun `python utilities/export_golden_fixtures.py` and
-`npm test`. The fixture covers every code point that Python folds to ASCII.
+The ID normalization in `src/qdrant/id-lookup.ts` must keep producing what
+Python's did, because the payloads already in Qdrant hold Python's values
+and the runtime looks IDs up with the same function that `apply` writes.
+Python casefolds, so `ß` becomes `ss`; JavaScript's `toLowerCase` does not.
+The fixture covers every code point that Python folds to ASCII.
 Python normalizes `str()` of any `original_id` payload value.
 `originalIdLookupText` converts only the JSON values whose `String()` matches
 it after normalization, and `apply` fails on the rest, including `0`, because
@@ -428,13 +368,7 @@ Ports of Python text, URL and number logic must use `src/python/` (`str.ts`,
 `urllib.ts`, `numbers.ts`) instead of JavaScript built-ins. JavaScript's `\s`,
 `\w`, `\d`, `trim`, `encodeURIComponent`, `Number()` and `toFixed` all
 disagree with Python on some inputs. Each ported function has a spec that
-reads a fixture written by `python utilities/export_golden_fixtures.py`
-(about 45 seconds, one file per area). The exporter disables Hugging Face
-telemetry before imports; recent SDKs otherwise add a harness-detection
-`GET /api/agent-harnesses` request to the first embedding fixture. The exporter
-refuses to run if its source contains a non-ASCII character, because editors
-can NFC-normalize literals such as `e` plus U+0301; write such inputs as escapes.
-Parity with
+reads a fixture recorded from Python, one file per area. Parity with
 Python holds only where Node and Python implement the same Unicode version.
 The fixtures record Python's Unicode 16.0, while Node 24.21 (the `node:24`
 line in `Dockerfile`, verified locally) and Node 26 ship Unicode 17.0
@@ -457,8 +391,9 @@ Classifast is a classification service web application that uses embeddings and 
 
 ## Tech Stack
 
-- Backend: NestJS (`src/`), built by `Dockerfile`. The Python FastAPI app
-  (`app/`, `Dockerfile.python`) remains for rollback.
+- Backend: NestJS (`src/`), built by `Dockerfile`. `app/` holds only the
+  frontend sources (`app/assets`) and the static files (`app/static`).
+- Offline tools: Python scripts in `utilities/`.
 - Frontend: TypeScript with Tailwind CSS (built with Node/npm and Vite, served by the backend)
 - Infrastructure: Redis (usage tracking), Qdrant (vector database), Hugging Face Inference (embeddings), OpenRouter (deployed-service reranking and opt-in query enhancement), Clerk (authentication), Polar (payments)
 
@@ -468,7 +403,7 @@ Self-hosted from Raspberry Pi 4 (4GB) via Coolify behind Cloudflare Tunnel (Full
 
 ## When Modifying Cache Behaviour
 
-Cache headers are defined in `src/http/cache-profiles.ts` - edit the profiles there instead of hand-rolling headers. `app/cache_profiles.py` is the rollback image's copy.
+Cache headers are defined in `src/http/cache-profiles.ts` - edit the profiles there instead of hand-rolling headers.
 
 - Never add `Set-Cookie` to fragment responses - breaks CDN caching
 - Paywalls must use `no-store` - prevents serving cached paywall to allowed users
@@ -492,27 +427,27 @@ from `app/assets/ts/` and `app/assets/css/`. Never hand-edit them; edit the TS
 sources and run `npm run build`.
 
 `app/assets/css/input.css` limits Tailwind's class scan to `app/assets/ts` and
-`app/templates`, the only markup the Docker frontend stage copies. Local and
-Docker builds therefore produce the same `styles.css`. A Tailwind class written
-anywhere else, such as in `app/web.py` or `src/`, is not generated. When
-markup moves to a new directory, add a `@source` line for it.
+`src/web`, the only markup the Docker frontend stage copies. Local and Docker
+builds therefore produce the same `styles.css`. A Tailwind class written
+anywhere else in `src/` is not generated. When markup moves to a new
+directory, add a `@source` line for it and a `COPY` to the frontend stage.
 
-## Rapid API (API.py)
+## Rapid API
 
-`app/api.py` is specifically made for the Rapid API platform. It contains endpoints that make the classification service accessible on that platform. Ignore api.py unless explicitly asked to work on Rapid API service integration.
+`src/rapidapi/` serves the `/api/v1/rapid/` endpoints for the Rapid API
+platform. Ignore it unless explicitly asked to work on Rapid API service
+integration.
 
-The Nest port lives in `src/rapidapi/`. `rapidapi-query.json` drives
-`app/api.py`'s real router, so it pins FastAPI's 422 bodies and pydantic's
-lax `top_k` parsing: `3.0`, `1_0` and `3` padded with any Unicode
-`White_Space` are accepted, while `3.`, `1e1`, a zero-width space and
-fullwidth digits are rejected. Regenerate the fixture
-after changing `app/api.py` or `app/classifier_config.py`.
+`rapidapi-query.json` recorded the FastAPI router, so it pins FastAPI's 422
+bodies and pydantic's lax `top_k` parsing: `3.0`, `1_0` and `3` padded with
+any Unicode `White_Space` are accepted, while `3.`, `1e1`, a zero-width space
+and fullwidth digits are rejected.
 `classifier-config.json` pins the display and link fields of the classifier
 table in `src/classifier/classifier-config.ts`. `FastApiErrorFilter` writes
 only the status and the `detail` body. To send a header with an error, such as
 `WWW-Authenticate` or the no-store profile, set it on the response before
 throwing. The canonical-query middleware answers 308 to `?query=%20a` before
-the route strips the value, in both apps. The Nest app cannot boot without
+the route strips the value. The app cannot boot without
 Qdrant, so `/ping` reports the database as `healthy` or `unhealthy` and never
 as `unavailable`.
 
@@ -522,46 +457,40 @@ as `unavailable`.
   GET the entire remaining outbound budget, even when the configured embedding
   timeout is shorter. Provider-mapping GETs and embedding POSTs use the smaller
   limit. Keep the task-discovery timeout exception and its regression test.
-- Clerk JWKS refresh behavior depends on the PyJWT version. Versions through
-  2.13.0 refreshed immediately for unknown key IDs. PyJWT 2.14.0 introduced a
-  30-second cooldown after every successful fetch to prevent unauthenticated
-  JWKS request amplification. Locally installed PyJWT 2.15.1 and
-  `src/auth/clerk.ts` both use that cooldown. The deployed PyJWT version remains
-  unverified, and `requirements.txt` does not pin it. The owner has adopted
-  the cooldown as the Nest policy, including brief rejection of newly rotated
-  keys. `src/auth/clerk.spec.ts` covers rotation and cached-key reuse.
-- Polar SDK version range is declared in `requirements.txt`.
-  SDK 1.x uses versioned `polar` imports, direct checkout keyword arguments, and
-  webhook dataclasses with `event.type` instead of `event.TYPE`.
-  The `polar.v2026_10` webhook parser requires `api_version` and complete
+- `src/auth/clerk.ts` refetches Clerk's JWKS for an unknown key ID at most
+  once per 30 seconds after a successful fetch, as PyJWT 2.14 and later do,
+  to prevent unauthenticated JWKS request amplification. The owner adopted
+  this cooldown, including brief rejection of newly rotated keys.
+  `src/auth/clerk.spec.ts` covers rotation and cached-key reuse.
+- The `polar.v2026_10` webhook schema requires `api_version` and complete
   subscription fields even when their values are null. Check the dashboard
   endpoint version when migrating older webhook payloads.
   Invalid signatures return 403. Verified unknown event types are acknowledged
   without changing entitlements; malformed webhook payloads return 400.
 - `data/`, `embedders/`, and `mapping/` are gitignored and may be absent from
   a checkout. Ripgrep silently returns zero hits inside them because it
-  respects `.gitignore`; use `--no-ignore` or explicit paths. If `embedders/`
-  is absent, `pytest` fails while collecting `tests/test_emdn_embedder.py`.
-  Run `pytest --ignore=tests/test_emdn_embedder.py` for the remaining suite.
+  respects `.gitignore`; use `--no-ignore` or explicit paths.
 - `groupOriginalIdTokens` accepts a narrower parsed-scalar domain than Python's
   object helper: strings, null, booleans, safe integers and ordinary fractions
   with absolute values in [1e-4, 1e16). Other types and numbers throw.
   Parsed integral numbers mean integer IDs; JSON parsing cannot recover the
   distinction between `12` and `12.0`, or `0` and `0.0`. Preserve source numeric
   metadata or Python display text if a future decoder needs that distinction.
-- `app/classifier_page_delivery.py` parses `app/static/sitemap.xml` at import
-  time to build `SITEMAP_QUERY_PATHS`, which gates SSR eligibility and homepage
-  anchor links. Editing the sitemap only changes app behavior after a restart.
-- `asset_url` hashes are cached per process (`app/dependencies.py`). After
-  `npm run build`, restart the FastAPI process or the browser keeps loading
-  the old JS with stale `?v=` values.
+- `loadSitemapQueryPaths` (`src/web/sitemap.ts`) parses
+  `app/static/sitemap.xml` at startup to build `SITEMAP_QUERY_PATHS`, which
+  gates SSR eligibility and homepage anchor links. Editing the sitemap only
+  changes app behavior after a restart.
+- Asset `?v=` hashes are cached per process (`src/web/asset-url.ts`). After
+  `npm run build`, restart the server or the browser keeps loading the old
+  JS with stale `?v=` values.
 - The server never sets cookies on any response, cacheable or not. `cf_track`
   is set by client-side JavaScript. On HTML or fragment routes a server-side
   cookie additionally breaks the `HTML_PAGE`/`CLASSIFICATION_RESULT` CDN cache
   profiles; on other routes it is still forbidden by design, so use
   client-side JavaScript for any per-user state.
-- Two client-IP trust policies coexist: `app/usage_tracker.py` always trusts
-  `CF-Connecting-IP`; `app/google_crawlers.py` requires the explicit
+- Two client-IP trust policies coexist: `clientIp` in
+  `src/usage/client-identity.ts` always trusts `CF-Connecting-IP`;
+  `src/crawlers/google-crawlers.ts` requires the explicit
   `GOOGLE_CRAWLER_TRUST_CF_CONNECTING_IP` opt-in. Pick one policy deliberately
   for new IP-dependent code.
 - `paywall.ts` is wrapped in a parse guard on purpose (class declarations
@@ -587,24 +516,25 @@ as `unavailable`.
   application scripts. An unversioned URL can pair cached HTMX with incompatible
   event handlers after an upgrade. `emptyOutDir: false` in `vite.config.ts`
   protects it from build cleanup.
-- The app assumes a single uvicorn worker. The JWKS client, asset versions,
+- The app assumes a single Node process. The JWKS client, asset versions,
   crawler IP ranges, and the classification queue capacity are all
   process-local. Scaling workers changes their semantics.
-- There is no integration test suite. Most tests use mocks, including the checkout
-  rate-limit tests. The suite does not prove deployed Qdrant, Redis, or Hugging
-  Face connectivity. Manual live helpers live in `utilities/test_*.py`, which
-  pytest excludes from collection.
+- No test proves deployed Qdrant, Redis, or Hugging Face connectivity. The
+  e2e specs use fakes, and the contract suite's full mode has not run
+  against live dependencies. Manual live helpers live in
+  `utilities/test_*.py`.
 - `/health` requires initialized embedding and Qdrant clients, then probes
   Qdrant only. If `HF_TOKEN` is missing, public pages can still serve while
   `/health` returns 503, provided Qdrant startup succeeds. It does not check
   Redis or live Hugging Face requests. A Qdrant startup failure stops the app.
 - `.env` is a personal cross-project secrets file (it contains keys unrelated
   to classifast too). Never print, copy, or commit it.
-- Checkout endpoints are rate limited per IP via `app/rate_limit.py`
+- Checkout endpoints are rate limited per IP via
+  `src/rate-limit/checkout-rate-limit.ts`
   (fixed-window Redis counter, fails closed with 503). Checkout grace
   (`checkout_grace:*` in Redis) is activated only by the signature-verified
   Polar webhook; the success URL carries no token and grants nothing.
-- The homepage and classifier templates load production Clerk scripts and
+- The homepage and classifier pages load production Clerk scripts and
   Google Analytics. Production Clerk rejects localhost, while analytics may
   still send traffic. The UI can render a fallback `Sign In` link when Clerk
   fails; that link does not prove authentication works. Use a Clerk test
@@ -612,14 +542,10 @@ as `unavailable`.
   On localhost the page renders the signed-out Clerk buttons rather than the
   fallback links, and their Sign In opens an empty Clerk modal backdrop. To see
   the fallback locally, block the `clerk.browser.js` request.
-- Template `url_for` links render as absolute URLs with the request origin.
+- Page links render as absolute URLs with the request origin, as the
+  templates' `url_for` did.
   Browser checks should use accessible names or inspect the URL pathname,
   rather than match an exact relative `href`.
-- `CachedStaticFiles` must not replace the `ETag` that Starlette sets.
-  Starlette compares `If-None-Match` with its own ETag inside `file_response`,
-  before `CachedStaticFiles.get_response` adds headers. A replaced ETag turns
-  every revalidation into a 200. `tests/test_static_headers.py` covers 304
-  responses and changed-file revalidation on the real mount.
 - Checkout rate limiting requires Redis 7+ for `EXPIRE NX`. Queue `INCR` and
   `EXPIRE NX` in one transactional pipeline. This assigns missing TTLs, including
   on stranded counters, while preserving existing deadlines. Redis errors must
@@ -628,41 +554,31 @@ as `unavailable`.
   Webhook tier updates use authoritative `SETEX`; a lookup completing afterward
   must preserve and return that tier. Upgrade and downgrade overlap tests also
   verify quota behavior without checkout grace.
-- `ClassificationExecutor` holds one turn per complete classification, not per
-  thread stage. Asynchronous query enhancement between stages keeps the turn.
-  Each process admits one active and four waiting classifications
-  (`QUEUE_CAPACITY`). The next request raises `ClassificationQueueFull`. The
+- `ClassificationQueue` (`src/classifier/classification-queue.ts`) holds one
+  turn per complete classification, query enhancement included. Each process
+  admits one active and four waiting classifications (`QUEUE_CAPACITY`). The
+  next request fails with `ClassificationQueueFull`. The
   fragment and RapidAPI routes log a warning and return 503 with `no-store`.
   An overloaded SSR page falls back to client-side loading with `no-store`
   but stays indexable. Verified Google crawlers get that page as a 503 with
   `Retry-After` instead. Only genuine SSR failures send `noindex`, because
   Google drops a 200 page marked `noindex` but retries a 503.
 - A fragment request runs crawler verification, Clerk caller resolution, a
-  read-only quota check (`check_usage`), queue admission, the turn, the quota
-  charge (`authorize`), and the pipeline. Over-quota callers get the paywall
-  without a queue slot. Racing requests can all pass the check, so the charge
-  decides. Overflowed and cancelled waiting requests are never charged. Keep
-  networked checks out of `authorize`, which holds the only turn. A Clerk key
-  fetch can take 30 seconds.
+  read-only quota check (`Quota.check`), queue admission, the turn, the quota
+  charge (`Quota.charge`), and the pipeline. Over-quota callers get the
+  paywall without a queue slot. Racing requests can all pass the check, so
+  the charge decides. Overflowed and cancelled waiting requests are never
+  charged. Keep networked checks out of the charge, which holds the only
+  turn. A Clerk key fetch can take 30 seconds.
 - Cancelling a waiting classification frees its slot without running it.
-  Cancelling the active one returns immediately, but the job keeps its slot
-  until the running thread stage finishes. Shutdown cancels waiting jobs and
-  drains the active one before shared clients close.
-- The Nest port of the executor is `ClassificationQueue`
-  (`src/classifier/classification-queue.ts`). It cancels through an
-  `AbortSignal` and has no threads, so it cannot see stage boundaries. An
-  aborted active job keeps its slot until the promise returned by `work`
-  settles. Pass the signal to every abortable call, such as `fetch`, and call
-  `signal.throwIfAborted()` between stages. A stage that ignores the signal
-  holds the slot until it finishes, as a Python thread stage does. Waiting
-  jobs rejected at shutdown and `run` calls made after shutdown begins both
-  fail with `ClassificationQueueClosed`. Python raises `CancelledError` for
-  the first case and `RuntimeError` for the second.
-- Python 3.14's `asyncio.shield` logs a late failure of the shielded future
-  after its waiter is cancelled, even when code retrieves that failure. The
-  executor waits with `_wait_through_cancellation` (`asyncio.wait` plus
-  explicit retrieval) instead. Keep the raced worker-error regression tests
-  when changing these waits.
+  `ClassificationQueue` cancels through an `AbortSignal` and cannot see stage
+  boundaries. An aborted active job returns immediately but keeps its slot
+  until the promise returned by `work` settles. Pass the signal to every
+  abortable call, such as `fetch`, and call `signal.throwIfAborted()` between
+  stages; a stage that ignores the signal holds the slot until it finishes.
+  Shutdown rejects waiting jobs and drains the active one before shared
+  clients close. Waiting jobs rejected at shutdown and `run` calls made after
+  shutdown begins both fail with `ClassificationQueueClosed`.
 - Checkout recovery retries two seconds after each completed request and has a
   60-second deadline. An input or change inside the form cancels recovery,
   switches to the existing manual-retry message, and enables Try again.

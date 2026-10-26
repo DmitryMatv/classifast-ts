@@ -7,8 +7,6 @@ description: Drive Classifast's web pages and classification flow in an isolated
 
 Read [the feature map](features/README.md) and the feature file for the path you are checking. The primary product is the web UI. The HTTP routes are useful for checking downloads and response status. The RapidAPI integration (`src/rapidapi/`) is outside these recipes.
 
-The driver launches the NestJS app by default. `--app python` launches the FastAPI app instead, with production's `--forwarded-allow-ips "*"`. Use it only to compare the two apps; the Python app goes away when production switches to Nest.
-
 ## Launch
 
 From the repo root, build the frontend assets and the Nest server:
@@ -21,9 +19,9 @@ RUN_DIR=$(mktemp -d "$PWD/.cache/verify/run-XXXXXX")
 node .agents/skills/verify/scripts/control.mjs launch "$RUN_DIR" --env-file /path/to/.env
 ```
 
-The command prints the instance URL and `run_dir`. Copy the printed `run_dir` into `RUN_DIR` at the start of every later shell tool call; shell variables do not persist between calls. The server binds to a free `127.0.0.1` port and writes `instance.json` under `RUN_DIR`. That file records the PID and `/proc` start time of every process the launch started. Launch refuses a run directory that already has `instance.json`. Run one launch or cleanup per run directory at a time; the script does not lock the directory. Nest starts with `--max-http-header-size=65536`, as the `Dockerfile` CMD does, because uvicorn accepts request headers past Node's 16 KiB default.
+The command prints the instance URL and `run_dir`. Copy the printed `run_dir` into `RUN_DIR` at the start of every later shell tool call; shell variables do not persist between calls. The server binds to a free `127.0.0.1` port and writes `instance.json` under `RUN_DIR`. That file records the PID and `/proc` start time of every process the launch started. Launch refuses a run directory that already has `instance.json`. Run one launch or cleanup per run directory at a time; the script does not lock the directory. The app starts with `NODE_ENV=production` and `--max-http-header-size=65536`, as the `Dockerfile` does.
 
-`--env-file <path>` passes the file to the app: `node --env-file` for Nest and `uvicorn --env-file` for Python. Variables already in the environment win over the file. Nest also loads the checkout's own `.env` when one exists. A worktree has none, so pass the main checkout's `.env` explicitly. Python's `load_dotenv()` searches upward from `app/`, so a worktree nested under the main checkout loads the main checkout's `.env` even without `--env-file`. Never print, copy, or commit the env file.
+`--env-file <path>` passes the file to the app through `node --env-file`. Variables already in the environment win over the file. The app also loads the checkout's own `.env` when one exists. A worktree has none, so pass the main checkout's `.env` explicitly. Never print, copy, or commit the env file.
 
 Full mode is the default. It loads the configured Qdrant, Hugging Face, and OpenRouter targets from the environment, and startup validates the Qdrant collections read-only. Do not run `utilities/qdrant_config.py` or `npm run qdrant:indexes -- apply` as part of verification. Full mode requires a Redis `PING` at `127.0.0.1:16379` and points the app there, even if the env file names a different Redis host. `health_gate_passed: true` and `local_redis_ready: true` are required before a lookup; only a completed lookup proves the external classification path. Concurrent full-mode runs share Redis quota keys and external service credentials.
 
@@ -40,7 +38,7 @@ ss -ltnp | grep ':16379 '
 
 Record the PID that `ss` reports and its start time (`cut -d' ' -f22 /proc/<pid>/stat`). After the run, check that the start time still matches, then stop only that PID with `kill <pid>`. The Redis lives outside any run directory, so several runs can share it. With Docker, `sudo docker run --rm -d --name classifast-verify-redis -p 127.0.0.1:16379:6379 redis:7.4 redis-server --save "" --appendonly no` works too; Docker may ask for a sudo password, so never copy credentials into a tool call. If a Redis already answers on 16379, check that it is a disposable instance before you use it.
 
-For page and download checks without live classification, launch a fresh run directory with `--mode public`. Public mode answers like a server with no credentials and no Redis, even when an env file supplies them: it sets `HF_TOKEN`, `OPENROUTER_API_KEY`, `QDRANT_API_KEY`, `CLERK_SECRET_KEY`, `POLAR_ACCESS_TOKEN`, `POLAR_WEBHOOK_SECRET`, `RAPIDAPI_SECRET`, `REDIS_USERNAME` and `REDIS_PASSWORD` to empty values, which both apps treat as absent, and points Redis at the unreachable `127.0.0.1:1`. Nest refuses to boot without Qdrant, so public mode first starts a detached fake Qdrant (`control.mjs fake-qdrant`) that serves the configured collections and logs every request to `evidence/fake-qdrant.log`. Python public mode disables the FastAPI lifespan instead and connects to nothing. Public mode cannot prove classification results or checkout; a fragment with a description answers 503 `Usage tracking is temporarily unavailable`. `npm run test:contract:nest` runs the contract suite against this mode. Do not drive another instance or use the deployed site as a substitute.
+For page and download checks without live classification, launch a fresh run directory with `--mode public`. Public mode answers like a server with no credentials and no Redis, even when an env file supplies them: it sets `HF_TOKEN`, `OPENROUTER_API_KEY`, `QDRANT_API_KEY`, `CLERK_SECRET_KEY`, `POLAR_ACCESS_TOKEN`, `POLAR_WEBHOOK_SECRET`, `RAPIDAPI_SECRET`, `REDIS_USERNAME` and `REDIS_PASSWORD` to empty values, which the app treats as absent, and points Redis at the unreachable `127.0.0.1:1`. The app refuses to boot without Qdrant, so public mode first starts a detached fake Qdrant (`control.mjs fake-qdrant`) that serves the configured collections and logs every request to `evidence/fake-qdrant.log`. Public mode cannot prove classification results or checkout; a fragment with a description answers 503 `Usage tracking is temporarily unavailable`. `npm run test:contract:nest` runs the contract suite against this mode. Do not drive another instance or use the deployed site as a substitute.
 
 ## Doctor
 
@@ -50,7 +48,7 @@ Run this read-only check before a browser session and whenever a page looks wron
 node .agents/skills/verify/scripts/control.mjs doctor "$RUN_DIR" | tee "$RUN_DIR/evidence/doctor.json"
 ```
 
-It checks every recorded process identity, the mapping page, and `/health`. Full mode also requires a local Redis `PING`, `/health` 200, and `health_gate_passed: true`. Public mode expects the mapping page to work and reports `/health` as 503 `{"detail":"Service Unavailable"}`. In Nest that is because public mode clears `HF_TOKEN`, so no embedding client exists and the health check fails before it probes the fake Qdrant; in Python no clients start. If a process is gone or the port shows the wrong app, launch a new run rather than driving an existing process.
+It checks every recorded process identity, the mapping page, and `/health`. Full mode also requires a local Redis `PING`, `/health` 200, and `health_gate_passed: true`. Public mode expects the mapping page to work and reports `/health` as 503 `{"detail":"Service Unavailable"}`. Public mode clears `HF_TOKEN`, so no embedding client exists and the health check fails before it probes the fake Qdrant. If a process is gone or the port shows the wrong app, launch a new run rather than driving an existing process.
 
 ## Drive
 
