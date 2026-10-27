@@ -1,4 +1,5 @@
 import { Logger } from "@nestjs/common";
+import type { Request, Response } from "express";
 import { ClassificationQueueFull } from "../classifier/classification-queue.js";
 import {
   isCacheableClassification,
@@ -7,6 +8,13 @@ import {
   type ClassificationRequest,
   type ClassificationService,
 } from "../classifier/classification-service.js";
+import { classifierPage } from "../classifier/classifier-config.js";
+import { resolveClassifierOptions } from "../classifier/classifier-options.js";
+import { buildFragmentPushUrl } from "../classifier/classifier-urls.js";
+import {
+  crawlerRequestOf,
+  type GoogleCrawlerVerifier,
+} from "../crawlers/google-crawlers.js";
 import {
   cacheHeaders,
   classificationResultHeaders,
@@ -20,6 +28,7 @@ import {
   queryValidationFailed,
   type QueryValidationError,
 } from "../http/query-params.js";
+import { collapseWhitespace } from "../python/str.js";
 import {
   QuotaUnavailableError,
   quotaHeaders,
@@ -27,6 +36,11 @@ import {
   type Quota,
   type UsageStatus,
 } from "../usage/quota.js";
+import { callerCredentialsOf } from "./caller-credentials.js";
+import {
+  classifierTypeOr404,
+  DEFAULT_TOP_K,
+} from "./classifier-page-delivery.js";
 import type { QueryItem } from "./request-url.js";
 
 const logger = new Logger("Web");
@@ -128,6 +142,72 @@ export function resolveFragmentPushUrl(
   return pushUrl ?? urlChange ?? true;
 }
 
+export interface FragmentRequest {
+  readonly query: FragmentQuery;
+  readonly upperType: string;
+  readonly description: string;
+  readonly enhance: boolean;
+  readonly version: string;
+  readonly topK: number;
+  readonly firstVersion: string;
+}
+
+/**
+ * The classification a fragment request asks for. FastAPI validates the
+ * query parameters (422) before the handler looks up the type (404 or 410).
+ */
+export function resolveFragmentRequest(
+  classifierType: string,
+  items: readonly QueryItem[],
+): FragmentRequest {
+  const query = parseFragmentQuery(items);
+  const upperType = classifierTypeOr404(classifierType);
+  const { version, topK, firstVersion } = resolveClassifierOptions(
+    classifierPage(upperType).versions,
+    query.version,
+    query.topK,
+    DEFAULT_TOP_K,
+    { allowInvalidVersion: true },
+  );
+  return {
+    query,
+    upperType,
+    description: collapseWhitespace(query.productDescription),
+    enhance: query.enhanceQuery === "1",
+    version,
+    topK,
+    firstVersion,
+  };
+}
+
+/** The classifier page URL that shows the request's results. */
+export function fragmentPageUrl(
+  request: FragmentRequest,
+  sitemapQueryPaths: ReadonlySet<string>,
+): string {
+  return buildFragmentPushUrl(
+    request.upperType,
+    request.description,
+    {
+      version: request.version,
+      defaultVersion: request.firstVersion,
+      topK: request.topK,
+      defaultTopK: DEFAULT_TOP_K,
+      enhanceQuery: request.enhance,
+    },
+    sitemapQueryPaths,
+  );
+}
+
+// HEAD never classifies or charges quota: a probe must not spend a queue
+// turn or a paid lookup.
+export function refuseHead(res: Response): void {
+  res
+    .status(405)
+    .set({ Allow: "GET", ...cacheHeaders("NO_STORE") })
+    .end();
+}
+
 export interface FragmentDeps {
   readonly isVerifiedCrawler: () => Promise<boolean>;
   readonly resolveCaller: () => Promise<Caller>;
@@ -197,6 +277,37 @@ export async function classifyFragment(
     }
     return { kind: "error", error };
   }
+}
+
+export interface FragmentServices {
+  readonly crawlers: Pick<GoogleCrawlerVerifier, "isVerified">;
+  readonly quota: Pick<Quota, "resolveCaller" | "check" | "charge">;
+  readonly classifier: Pick<ClassificationService, "classify">;
+}
+
+export function classifyFragmentRequest(
+  req: Request,
+  services: FragmentServices,
+  request: FragmentRequest,
+  signal: AbortSignal,
+): Promise<FragmentOutcome> {
+  const { crawlers, quota, classifier } = services;
+  return classifyFragment(
+    {
+      isVerifiedCrawler: () => crawlers.isVerified(crawlerRequestOf(req)),
+      resolveCaller: () => quota.resolveCaller(callerCredentialsOf(req)),
+      quota,
+      classify: (...args) => classifier.classify(...args),
+    },
+    {
+      query: request.description,
+      classifierType: request.upperType,
+      version: request.version,
+      topK: request.topK,
+      enhance: request.enhance,
+    },
+    signal,
+  );
 }
 
 export function resultsFragmentHeaders(
