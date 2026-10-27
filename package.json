@@ -5,9 +5,9 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && vite build --config vite.legacy.config.ts",
     "build:server": "nest build",
-    "watch": "vite build --watch",
+    "watch": "vite build --watch & vite build --watch --config vite.legacy.config.ts",
     "dev": "npm run watch & nest start --watch",
     "start": "nest start",
     "start:dev": "nest start --watch",

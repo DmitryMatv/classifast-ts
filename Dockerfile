@@ -9,7 +9,7 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 
 FROM deps AS frontend-builder
 
-COPY tsconfig.json vite.config.ts ./
+COPY tsconfig.json vite.config.ts vite.legacy.config.ts ./
 COPY app/assets ./app/assets
 COPY src/web ./src/web
 RUN npm run build
