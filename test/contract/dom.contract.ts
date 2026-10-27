@@ -48,6 +48,18 @@ const islandShell: Region[] = [
   { selector: "body:not([data-auth-ui])" },
 ];
 
+// The home header island renders the auth slots empty and injects Clerk's
+// scripts itself.
+const islandAuth: Region[] = [
+  {
+    selector: 'header[data-island="header"]',
+    islandProps: { variant: "home" },
+  },
+  { selector: 'header[data-island="header"] #desktop-auth-container:empty' },
+  { selector: 'header[data-island="header"] #mobile-auth-container:empty' },
+  { selector: 'script[src*="clerk"]', count: 0 },
+];
+
 const clerkAuth: Region[] = [
   { selector: "#desktop-auth-container" },
   { selector: "#mobile-auth-container" },
@@ -139,7 +151,7 @@ function sampleLink(slug: string): Region {
 }
 
 const pageDoms: PageDom[] = [
-  { path: "/", regions: [...shell, ...clerkAuth] },
+  { path: "/", regions: [...islandShell, ...islandAuth] },
   {
     path: "/UNSPSC/",
     regions: [
