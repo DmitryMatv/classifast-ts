@@ -123,8 +123,9 @@ setup that the scaffold adds. The user asked to start with the scaffold.
 
 ## Phase 2. Replace HTMX with React
 
-1. [ ] Add a JSON results endpoint. Keep it a cacheable GET with canonical query
+1. [x] Add a JSON results endpoint. Keep it a cacheable GET with canonical query
        parameters. Return a typed union of results, paywall, busy and error.
+       `GET /api/results/{TYPE}`, #26.
 2. [ ] Hydrate the classifier page: the form, the results and Clerk auth.
 3. [ ] Port the paywall and checkout recovery as a reducer.
 4. [ ] Hydrate only the interactive parts of the home and mapping pages.

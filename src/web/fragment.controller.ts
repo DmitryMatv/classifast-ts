@@ -9,16 +9,8 @@ import {
 } from "@nestjs/common";
 import type { NextFunction, Request, Response } from "express";
 import { ClassificationService } from "../classifier/classification-service.js";
-import { classifierPage } from "../classifier/classifier-config.js";
-import { resolveClassifierOptions } from "../classifier/classifier-options.js";
-import {
-  buildFragmentPageTitle,
-  buildFragmentPushUrl,
-} from "../classifier/classifier-urls.js";
-import {
-  crawlerRequestOf,
-  GoogleCrawlerVerifier,
-} from "../crawlers/google-crawlers.js";
+import { buildFragmentPageTitle } from "../classifier/classifier-urls.js";
+import { GoogleCrawlerVerifier } from "../crawlers/google-crawlers.js";
 import {
   cacheHeaders,
   classificationResultHeaders,
@@ -29,22 +21,19 @@ import {
   sendJson,
 } from "../http/error-filter.js";
 import { splitRequestTarget } from "../http/middleware.js";
-import { collapseWhitespace } from "../python/str.js";
 import { unquote } from "../python/urllib.js";
 import { Quota } from "../usage/quota.js";
-import { callerCredentialsOf } from "./caller-credentials.js";
+import { starletteUrlPath } from "./classifier-page-delivery.js";
 import {
-  classifierTypeOr404,
-  DEFAULT_TOP_K,
-  starletteUrlPath,
-} from "./classifier-page-delivery.js";
-import {
-  classifyFragment,
-  parseFragmentQuery,
+  classifyFragmentRequest,
+  fragmentPageUrl,
   paywallHeaders,
+  refuseHead,
   resolveFragmentPushUrl,
+  resolveFragmentRequest,
   resultsFragmentHeaders,
   type FragmentOutcome,
+  type FragmentServices,
 } from "./fragment-delivery.js";
 import {
   renderPaywall,
@@ -53,6 +42,7 @@ import {
 } from "./fragments.js";
 import { parseQueryString } from "./request-url.js";
 import { disconnectSignal, rawQuery } from "./responses.js";
+import { toResultsView } from "./results-view.js";
 import { SITEMAP_QUERY_PATHS } from "./sitemap.js";
 
 const logger = new Logger("Web");
@@ -69,16 +59,17 @@ const FRAGMENT_PATH = /^\/([^/]+)\/fragment$/s;
  */
 @Controller()
 export class FragmentController {
+  private readonly services: FragmentServices;
+
   constructor(
     @Inject(SITEMAP_QUERY_PATHS)
     private readonly sitemapQueryPaths: ReadonlySet<string>,
-    @Inject(ClassificationService)
-    private readonly classifier: Pick<ClassificationService, "classify">,
-    @Inject(GoogleCrawlerVerifier)
-    private readonly crawlers: Pick<GoogleCrawlerVerifier, "isVerified">,
-    @Inject(Quota)
-    private readonly quota: Pick<Quota, "resolveCaller" | "check" | "charge">,
-  ) {}
+    @Inject(ClassificationService) classifier: FragmentServices["classifier"],
+    @Inject(GoogleCrawlerVerifier) crawlers: FragmentServices["crawlers"],
+    @Inject(Quota) quota: FragmentServices["quota"],
+  ) {
+    this.services = { classifier, crawlers, quota };
+  }
 
   @Get(":classifierType/:leaf")
   async fragment(
@@ -92,34 +83,16 @@ export class FragmentController {
       next();
       return;
     }
-    // FastAPI validates query parameters before the handler runs.
-    const query = parseFragmentQuery(parseQueryString(rawQuery(req)));
-    const description = collapseWhitespace(query.productDescription);
-    const enhance = query.enhanceQuery === "1";
-    const upperType = classifierTypeOr404(match[1]!);
-    const { version, topK, firstVersion } = resolveClassifierOptions(
-      classifierPage(upperType).versions,
-      query.version,
-      query.topK,
-      DEFAULT_TOP_K,
-      { allowInvalidVersion: true },
+    const request = resolveFragmentRequest(
+      match[1]!,
+      parseQueryString(rawQuery(req)),
     );
+    const { query, upperType, description } = request;
     logger.log(
-      `WEB received GET fragment request for '${upperType}' with version '${version}'. Push URL: ${pyBool(query.pushUrl)}`,
+      `WEB received GET fragment request for '${upperType}' with version '${request.version}'. Push URL: ${pyBool(query.pushUrl)}`,
     );
     const pushUrl = resolveFragmentPushUrl(query.pushUrl, query.urlChange)
-      ? buildFragmentPushUrl(
-          upperType,
-          description,
-          {
-            version,
-            defaultVersion: firstVersion,
-            topK,
-            defaultTopK: DEFAULT_TOP_K,
-            enhanceQuery: enhance,
-          },
-          this.sitemapQueryPaths,
-        )
+      ? fragmentPageUrl(request, this.sitemapQueryPaths)
       : undefined;
 
     if (!description) {
@@ -128,41 +101,25 @@ export class FragmentController {
         .set(classificationResultHeaders())
         .send(
           renderResultsFragment(
-            {
-              query: "",
-              results: [],
-              classifierType: upperType,
-              loaded: false,
-              stripCodeDots: false,
-            },
+            { query: "", results: [], loaded: false },
             undefined,
           ),
         );
       return;
     }
 
-    // HEAD answers like GET up to here, but never classifies or charges
-    // quota: a probe must not spend a queue turn or a paid lookup.
     if (req.method === "HEAD") {
-      res
-        .status(405)
-        .set({ Allow: "GET", ...cacheHeaders("NO_STORE") })
-        .end();
+      refuseHead(res);
       return;
     }
 
     // Listen before the crawler, Clerk and quota checks, which can wait on
     // the network.
     const signal = disconnectSignal(res);
-    const result = await classifyFragment(
-      {
-        isVerifiedCrawler: () =>
-          this.crawlers.isVerified(crawlerRequestOf(req)),
-        resolveCaller: () => this.quota.resolveCaller(callerCredentialsOf(req)),
-        quota: this.quota,
-        classify: (...args) => this.classifier.classify(...args),
-      },
-      { query: description, classifierType: upperType, version, topK, enhance },
+    const result = await classifyFragmentRequest(
+      req,
+      this.services,
+      request,
       signal,
     );
     if (signal.aborted) return;
@@ -192,13 +149,14 @@ export class FragmentController {
         // context never sets results_loaded.
         const html = renderResultsFragment(
           {
+            ...toResultsView(outcome.results, {
+              classifierType: upperType,
+              version: outcome.version,
+              elapsedSeconds: outcome.elapsedSeconds,
+              stripCodeDots: context.stripCodeDots,
+            }),
             query: description,
-            results: outcome.results,
-            classifierType: upperType,
-            version: outcome.version,
-            elapsedSeconds: outcome.elapsedSeconds,
             loaded: false,
-            stripCodeDots: context.stripCodeDots,
           },
           pushUrl === undefined
             ? undefined
