@@ -1,10 +1,11 @@
 import { assetUrl } from "./asset-url.js";
 import { BODY_STYLE } from "./body-style.js";
+import { Island } from "./islands/render-island.js";
 import type { MappingProduct } from "../mapping/mapping-store.js";
 import { MAPPING_INDEX_PAGE_CSS } from "./mapping-index-page-styles.js";
 import { jsonLd } from "./render.js";
 import { SiteFooter } from "./site-footer.js";
-import type { SiteLinks } from "./site-links.js";
+import { headerLinks, type SiteLinks } from "./site-links.js";
 
 export interface MappingIndexPageProps {
   readonly links: SiteLinks;
@@ -129,101 +130,23 @@ export function MappingIndexPage({
           }}
         />
         <link href={assetUrl("/css/styles.css")} rel="stylesheet" />
-        <script type="module" src={assetUrl("/js/common.js")}></script>
-        <script type="module" src={assetUrl("/js/storefront.js")}></script>
+        <script type="module" src={assetUrl("/js/site.js")}></script>
         <style dangerouslySetInnerHTML={{ __html: MAPPING_INDEX_PAGE_CSS }} />
       </head>
       <body
         className="mapping-index-surface text-gray-800 min-h-screen"
-        data-auth-ui="disabled"
         style={BODY_STYLE}
       >
-        <header className="bg-white border-b border-slate-200 relative">
-          <div className="container mx-auto flex min-h-14 justify-between items-center max-w-6xl px-4">
-            <a href={links.home} className="flex items-center">
-              <p className="text-xl font-bold text-gray-800 mr-6">
-                Classi<span className="text-sky-600">fast</span>
-              </p>{" "}
-              <span className="text-sm md:text-xl font-medium text-slate-600">
-                Mapping
-              </span>
-            </a>{" "}
-            <button
-              className="hamburger"
-              id="mobile-menu-button"
-              aria-label="Toggle mobile menu"
-              aria-expanded="false"
-            >
-              <span></span> <span></span> <span></span>
-            </button>
-          </div>
-          <nav
-            className="mobile-menu"
-            id="mobile-menu"
-            aria-label="Mobile navigation"
-          >
-            <div className="menu-panel">
-              <section>
-                <p className="menu-section-title">Current page</p>{" "}
-                <a href={links.mappingIndex} className="menu-feature-link">
-                  <strong>Mapping</strong>{" "}
-                  <span>
-                    Browse downloadable crosswalks and move between standards
-                    quickly.
-                  </span>
-                </a>{" "}
-                <div className="menu-link-list mt-3">
-                  <a href={links.home}>Home</a>{" "}
-                  <a
-                    href="https://blog.classifast.com"
-                    target="_blank"
-                    rel="noopener"
-                  >
-                    Blog
-                  </a>
-                </div>
-              </section>
-              <section>
-                <p className="menu-section-title">Classifiers</p>
-                <div className="menu-chip-grid">
-                  <a href={links.classifier("UNSPSC")} className="menu-chip">
-                    UNSPSC
-                  </a>{" "}
-                  <a href={links.classifier("GPC")} className="menu-chip">
-                    GPC
-                  </a>{" "}
-                  <a href={links.classifier("NAICS")} className="menu-chip">
-                    NAICS
-                  </a>{" "}
-                  <a href={links.classifier("CN")} className="menu-chip">
-                    CN
-                  </a>{" "}
-                  <a href={links.classifier("ETIM")} className="menu-chip">
-                    ETIM
-                  </a>{" "}
-                  <a href={links.classifier("ISIC")} className="menu-chip">
-                    ISIC
-                  </a>{" "}
-                  <a href={links.classifier("HS")} className="menu-chip">
-                    HS
-                  </a>{" "}
-                  <a href={links.classifier("HTS")} className="menu-chip">
-                    HTS
-                  </a>{" "}
-                  <a href={links.classifier("NACE")} className="menu-chip">
-                    NACE
-                  </a>{" "}
-                  <a href={links.classifier("CPV")} className="menu-chip">
-                    CPV
-                  </a>{" "}
-                  <a href={links.classifier("NSN")} className="menu-chip">
-                    NSN
-                  </a>
-                </div>
-              </section>
-            </div>
-          </nav>
-        </header>
+        <Island
+          name="header"
+          as="header"
+          className="bg-white border-b border-slate-200 relative"
+          props={{
+            variant: "mapping",
+            links: headerLinks(links),
+            standards: null,
+          }}
+        />
         <main>
           <section className="container mx-auto max-w-6xl px-4 pt-8 pb-6 md:pt-10">
             <div className="catalog-panel px-5 py-6 md:px-7 md:py-7">
@@ -305,15 +228,15 @@ export function MappingIndexPage({
                   </div>
                   <div className="listing-actions">
                     <div className="grid gap-3">
-                      <button
-                        type="button"
-                        data-mapping-buy-button=""
-                        data-mapping-slug={product.slug}
-                        data-return-url={links.mappingProduct(product.slug)}
-                        className="action-button"
-                      >
-                        Buy full mapping file
-                      </button>{" "}
+                      <Island
+                        name="buy-button"
+                        className="contents"
+                        props={{
+                          slug: product.slug,
+                          returnUrl: links.mappingProduct(product.slug),
+                          className: "action-button",
+                        }}
+                      />{" "}
                       <a
                         href={links.mappingSample(product.slug)}
                         className="action-link"

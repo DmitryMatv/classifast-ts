@@ -52,6 +52,10 @@ import { readGolden } from "./support/golden.js";
 import { normalizeFragment, normalizeHtml } from "./support/html-normalizer.js";
 import { normalizeRegions, pageRegions } from "./support/page-regions.js";
 import {
+  expectedPage,
+  withoutIslandProps,
+} from "./support/page-divergences.js";
+import {
   startQdrantServer,
   validCollections,
   type QdrantServer,
@@ -463,8 +467,12 @@ describe("pages match the FastAPI app (parity)", () => {
           expect(body.length).toBe(0);
           break;
         case "html":
-          expect(normalizeHtml(body.toString("utf8"))).toBe(
-            normalizeHtml(readFixtureHtml(page.body.file)),
+          expect(
+            normalizeHtml(withoutIslandProps(body.toString("utf8"))),
+          ).toBe(
+            normalizeHtml(
+              expectedPage(page.body.file, readFixtureHtml(page.body.file)),
+            ),
           );
           break;
         case "json":
@@ -494,6 +502,11 @@ describe("pages match the FastAPI app (parity)", () => {
           expect(oobTitle(body.toString("utf8"))).toBe(oobTitle(expected));
           break;
         }
+      }
+      if (body.includes(" data-island=")) {
+        expect(body.toString("utf8"), "islands need site.js").toContain(
+          '<script type="module" src="/static/js/site.js?v=fixture">',
+        );
       }
     },
   );

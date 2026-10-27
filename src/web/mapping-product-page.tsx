@@ -2,10 +2,11 @@ import { Fragment } from "react";
 import type { MappingProduct } from "../mapping/mapping-store.js";
 import { assetUrl } from "./asset-url.js";
 import { BODY_STYLE } from "./body-style.js";
+import { Island } from "./islands/render-island.js";
 import { MAPPING_PRODUCT_PAGE_CSS } from "./mapping-product-page-styles.js";
 import { jsonLd } from "./render.js";
 import { SiteFooter } from "./site-footer.js";
-import type { SiteLinks } from "./site-links.js";
+import { headerLinks, type SiteLinks } from "./site-links.js";
 
 export interface MappingProductPageProps {
   readonly links: SiteLinks;
@@ -158,121 +159,32 @@ export function MappingProductPage({
           dangerouslySetInnerHTML={{ __html: faqJsonLd(product) }}
         />
         <link href={assetUrl("/css/styles.css")} rel="stylesheet" />
-        <script type="module" src={assetUrl("/js/common.js")}></script>
-        <script type="module" src={assetUrl("/js/storefront.js")}></script>
+        <script type="module" src={assetUrl("/js/site.js")}></script>
         <style dangerouslySetInnerHTML={{ __html: MAPPING_PRODUCT_PAGE_CSS }} />
       </head>
       <body
         className="mapping-surface text-gray-800 min-h-screen"
-        data-auth-ui="disabled"
         style={BODY_STYLE}
       >
-        <header className="bg-white border-b border-slate-200 relative">
-          <div className="container mx-auto flex min-h-14 justify-between items-center max-w-6xl px-4">
-            <a href={links.home} className="flex items-center">
-              <p className="text-xl font-bold text-gray-800 mr-6">
-                Classi<span className="text-sky-600">fast</span>
-              </p>{" "}
-              <span className="text-sm md:text-xl font-medium text-slate-600">
-                {product.sourceStandard} {"->"} {product.targetStandard}
-              </span>
-            </a>{" "}
-            <nav
-              className="desktop-nav ml-auto mr-8"
-              role="navigation"
-              aria-label="Main navigation"
-            >
-              <ul className="flex space-x-6 items-center">
-                <li>
-                  <a
-                    href={links.classifier(product.sourceStandard)}
-                    className="text-gray-600 hover:text-sky-700 hover:underline underline-offset-2 transition-colors"
-                  >
-                    {product.sourceStandard}
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href={links.classifier(product.targetStandard)}
-                    className="text-gray-600 hover:text-sky-700 hover:underline underline-offset-2 transition-colors"
-                  >
-                    {product.targetStandard}
-                  </a>
-                </li>
-              </ul>
-            </nav>{" "}
-            <button
-              className="hamburger"
-              id="mobile-menu-button"
-              aria-label="Toggle mobile menu"
-              aria-expanded="false"
-            >
-              <span></span> <span></span> <span></span>
-            </button>
-          </div>
-          <nav
-            className="mobile-menu"
-            id="mobile-menu"
-            aria-label="Mobile navigation"
-          >
-            <div className="menu-panel">
-              <section>
-                <p className="menu-section-title">Current page</p>{" "}
-                <a href={links.mappingIndex} className="menu-feature-link">
-                  <strong>
-                    {product.sourceStandard} to {product.targetStandard}
-                  </strong>{" "}
-                  <span>
-                    Stay on this mapping file or jump directly into a classifier
-                    from here.
-                  </span>
-                </a>{" "}
-                <div className="menu-link-list mt-3">
-                  <a href={links.home}>Home</a>{" "}
-                  <a href={links.mappingIndex}>Mappings</a>
-                </div>
-              </section>
-              <section>
-                <p className="menu-section-title">Classifiers</p>
-                <div className="menu-chip-grid">
-                  <a href={links.classifier("UNSPSC")} className="menu-chip">
-                    UNSPSC
-                  </a>{" "}
-                  <a href={links.classifier("GPC")} className="menu-chip">
-                    GPC
-                  </a>{" "}
-                  <a href={links.classifier("NAICS")} className="menu-chip">
-                    NAICS
-                  </a>{" "}
-                  <a href={links.classifier("CN")} className="menu-chip">
-                    CN
-                  </a>{" "}
-                  <a href={links.classifier("ETIM")} className="menu-chip">
-                    ETIM
-                  </a>{" "}
-                  <a href={links.classifier("ISIC")} className="menu-chip">
-                    ISIC
-                  </a>{" "}
-                  <a href={links.classifier("HS")} className="menu-chip">
-                    HS
-                  </a>{" "}
-                  <a href={links.classifier("HTS")} className="menu-chip">
-                    HTS
-                  </a>{" "}
-                  <a href={links.classifier("NACE")} className="menu-chip">
-                    NACE
-                  </a>{" "}
-                  <a href={links.classifier("CPV")} className="menu-chip">
-                    CPV
-                  </a>{" "}
-                  <a href={links.classifier("NSN")} className="menu-chip">
-                    NSN
-                  </a>
-                </div>
-              </section>
-            </div>
-          </nav>
-        </header>
+        <Island
+          name="header"
+          as="header"
+          className="bg-white border-b border-slate-200 relative"
+          props={{
+            variant: "mapping",
+            links: headerLinks(links),
+            standards: {
+              source: {
+                name: product.sourceStandard,
+                url: links.classifier(product.sourceStandard),
+              },
+              target: {
+                name: product.targetStandard,
+                url: links.classifier(product.targetStandard),
+              },
+            },
+          }}
+        />
         <main className="container mx-auto max-w-7xl px-4 py-8 md:py-10">
           <nav className="mb-6 text-sm text-slate-500" aria-label="Breadcrumb">
             <ol className="flex items-center gap-2 flex-wrap">
@@ -297,14 +209,7 @@ export function MappingProductPage({
               <li className="text-slate-700">{product.title}</li>
             </ol>
           </nav>
-          <div
-            id="storefront-success-message"
-            data-storefront-success=""
-            className="hidden mb-6 rounded-[0.8rem] border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800"
-          >
-            Checkout started successfully. Polar will handle payment and secure
-            file delivery after purchase.
-          </div>
+          <Island name="checkout-banner" className="contents" props={{}} />
           <section className="grid gap-8 lg:grid-cols-[minmax(0,1.45fr)_22rem]">
             <article className="content-panel p-6 md:p-7">
               <header className="mb-8 border-b border-slate-200 pb-6">
@@ -385,15 +290,14 @@ export function MappingProductPage({
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <button
-                    type="button"
-                    data-mapping-buy-button=""
-                    data-mapping-slug={product.slug}
-                    data-return-url={canonicalUrl}
-                    className="primary-action"
-                  >
-                    Buy full mapping file
-                  </button>{" "}
+                  <Island
+                    name="buy-button"
+                    props={{
+                      slug: product.slug,
+                      returnUrl: canonicalUrl,
+                      className: "primary-action",
+                    }}
+                  />{" "}
                   <a
                     href={links.mappingSample(product.slug)}
                     className="secondary-action"

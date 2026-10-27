@@ -1,3 +1,5 @@
+import type { HeaderLinks } from "./header/site-header.js";
+
 export interface SiteLinks {
   readonly home: string;
   readonly mappingIndex: string;
@@ -18,5 +20,29 @@ export function siteLinks(origin: string): SiteLinks {
     mappingProduct: (slug) => `${origin}/mapping/${slug}/`,
     mappingSample: (slug) => `${origin}/mapping/${slug}/sample`,
     staticFile: (path) => `${origin}/static/${path}`,
+  };
+}
+
+const MENU_CLASSIFIERS = [
+  "UNSPSC",
+  "GPC",
+  "NAICS",
+  "CN",
+  "ETIM",
+  "ISIC",
+  "HS",
+  "HTS",
+  "NACE",
+  "CPV",
+  "NSN",
+] as const;
+
+export function headerLinks(links: SiteLinks): HeaderLinks {
+  return {
+    home: links.home,
+    mappingIndex: links.mappingIndex,
+    classifiers: Object.fromEntries(
+      MENU_CLASSIFIERS.map((type) => [type, links.classifier(type)]),
+    ),
   };
 }
