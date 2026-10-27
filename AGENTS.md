@@ -432,6 +432,34 @@ builds therefore produce the same `styles.css`. A Tailwind class written
 anywhere else in `src/` is not generated. When markup moves to a new
 directory, add a `@source` line for it and a `COPY` to the frontend stage.
 
+## Islands
+
+Pages stay `renderToStaticMarkup`; their interactive parts are React islands.
+`<Island name props>` (`src/web/islands/render-island.tsx`) renders the
+component as its own `renderToString` root inside a host element with
+`data-island`, `data-island-version` and `data-island-props`. The one client
+entry, `app/assets/ts/site.tsx`, hydrates every host whose name and version
+`ISLANDS` (`src/web/islands/registry.ts`) knows. Islands reach the browser only
+through `useServices()`; tests hydrate them with fakes
+(`app/assets/ts/test/islands.tsx`) and assert zero hydration errors first.
+
+- Cloudflare serves HTML about a day old to browsers that load the newest
+  `site.js`. Bump an island's `version` on any props or markup change that
+  old HTML would not hydrate under; the old host then stays static.
+- The first render must depend on props alone. Read the URL, storage or time
+  in an effect, never during render.
+- `site.js` is one file. The `check-bundle` plugin in `vite.config.ts` fails
+  the build if it imports anything, because a chunk would have no `?v=`.
+- `vite.legacy.config.ts` builds `common.js`, `classifier.js`, `paywall.js`
+  and `storefront.js` byte for byte as before, for cached pre-island HTML.
+  `npm run build` runs both configs.
+- `src/web/client-boundary.spec.ts` walks the imports from `site.tsx` and
+  fails on server-only modules (`asset-url.ts`, `src/python/urllib.ts`,
+  Nest), on files the Dockerfile frontend stage does not copy, and on `.tsx`
+  files Tailwind does not scan.
+- Golden page fixtures stay frozen. `test/support/page-divergences.ts` lists
+  each deliberate markup change as a named edit of the expected page.
+
 ## Rapid API
 
 `src/rapidapi/` serves the `/api/v1/rapid/` endpoints for the Rapid API
