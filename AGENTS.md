@@ -337,6 +337,19 @@ one being rebuilt. `isCacheableClassification` in
 and the sitemap result store. The parity case with `classify: "empty"`
 expects `NO_STORE` through `nestCase`.
 
+`GET /api/results/{TYPE}` (`ResultsApiController`) is the result fragment's
+JSON twin for the hydrated classifier page. It shares the fragment's request
+resolution, quota order and HEAD 405 (`fragment-delivery.ts`), and every
+body is a `ResultsResponse` (`src/web/results-api.ts`): `results` 200 with
+the fragment's cache headers and `Cache-Tag`, `paywall` 402, `busy` 503
+(full queue or quota unavailable), and `error` for everything else, all
+`NO_STORE` except `results`. Results arrive formatted by `toResultsView`
+(`src/web/results-view.ts`), because the Python formatting ports depend on
+Node's Unicode data and a browser may format differently. Build the URL with
+`resultsApiPath`, whose fixed parameter order gives one edge cache key per
+query. Cloudflare caches the route only if a cache rule in the dashboard
+covers `/api/results/*`.
+
 Git rerere may automatically stage an old conflict resolution. Inspect every
 conflicted file even when no conflict markers remain.
 
