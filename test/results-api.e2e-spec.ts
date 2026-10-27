@@ -392,6 +392,8 @@ describe("paywall", () => {
       kind: "paywall",
       signedIn: false,
       limit: ANON_LIMIT,
+      url: "/UNSPSC/laptop/",
+      title: "UNSPSC codes for 'Laptop'",
     });
     expect(fake.events).toEqual(["crawler", "caller", "check"]);
   });
@@ -404,6 +406,8 @@ describe("paywall", () => {
       kind: "paywall",
       signedIn: true,
       limit: SIGNED_IN_LIMIT,
+      url: "/UNSPSC/laptop/",
+      title: "UNSPSC codes for 'Laptop'",
     });
   });
 

@@ -56,19 +56,24 @@ export interface ResultsView {
   readonly elapsed?: string;
 }
 
+/**
+ * The classifier page that shows a query, as the fragment pushes it in
+ * HX-Push-Url, and its document title. A paywall carries it too, so the
+ * page can show the query's URL and return there after checkout.
+ */
+export interface QueryPage {
+  readonly url: string;
+  readonly title: string;
+}
+
 /** 200 results, 402 paywall, 503 busy, and 4xx or 5xx error. */
 export type ResultsResponse =
+  | ({ readonly kind: "results"; readonly version: string } & QueryPage &
+      ResultsView)
   | ({
-      readonly kind: "results";
-      readonly version: string;
-      /** The page URL the fragment pushes as HX-Push-Url. */
-      readonly url: string;
-      readonly title: string;
-    } & ResultsView)
-  | {
       readonly kind: "paywall";
       readonly signedIn: boolean;
       readonly limit: number;
-    }
+    } & QueryPage)
   | { readonly kind: "busy"; readonly message: string }
   | { readonly kind: "error"; readonly message: string };

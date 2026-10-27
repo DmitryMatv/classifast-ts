@@ -179,6 +179,8 @@ describe.runIf(fullMode)(
         kind: "paywall",
         signedIn: false,
         limit: contract.anonLimit,
+        url: "/UNSPSC/laptop_computer/",
+        title: "UNSPSC codes for 'Laptop Computer'",
       });
     });
   },

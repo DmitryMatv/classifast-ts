@@ -31,7 +31,7 @@ import {
 import { paywallLimit } from "./fragments.js";
 import { parseQueryString } from "./request-url.js";
 import { disconnectSignal, rawQuery } from "./responses.js";
-import type { ResultsResponse } from "./results-api.js";
+import type { QueryPage, ResultsResponse } from "./results-api.js";
 import { toResultsView } from "./results-view.js";
 import { SITEMAP_QUERY_PATHS } from "./sitemap.js";
 
@@ -130,12 +130,19 @@ export class ResultsApiController {
     send(res, this.#reply(result, request, stripCodeDots));
   }
 
+  #queryPage(request: FragmentRequest): QueryPage {
+    return {
+      url: fragmentPageUrl(request, this.sitemapQueryPaths),
+      title: buildFragmentPageTitle(request.upperType, request.description),
+    };
+  }
+
   #reply(
     result: FragmentOutcome,
     request: FragmentRequest,
     stripCodeDots: boolean,
   ): Reply {
-    const { upperType, description } = request;
+    const { upperType } = request;
     switch (result.kind) {
       case "results": {
         const { outcome } = result;
@@ -145,8 +152,7 @@ export class ResultsApiController {
           body: {
             kind: "results",
             version: outcome.versionName,
-            url: fragmentPageUrl(request, this.sitemapQueryPaths),
-            title: buildFragmentPageTitle(upperType, description),
+            ...this.#queryPage(request),
             ...toResultsView(outcome.results, {
               classifierType: upperType,
               version: outcome.version,
@@ -164,6 +170,7 @@ export class ResultsApiController {
             kind: "paywall",
             signedIn: result.usage.caller.kind !== "anonymous",
             limit: paywallLimit(result.usage),
+            ...this.#queryPage(request),
           },
         };
       case "quota-unavailable":
