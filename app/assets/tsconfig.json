@@ -10,11 +10,13 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "noEmit": true
+    "noEmit": true,
+    "jsx": "react-jsx"
   },
   "include": [
     "ts/**/*",
     "../../vite.config.ts",
+    "../../vite.legacy.config.ts",
     "../../vitest.config.ts",
     "../../vitest.config.e2e.ts"
   ],
