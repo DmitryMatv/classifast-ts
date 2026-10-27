@@ -3,6 +3,8 @@ import type { Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, vi } from "vitest";
 import type {
+  AuthService,
+  AuthSnapshot,
   CheckoutOutcome,
   ClientServices,
 } from "../../../../src/web/islands/services.js";
@@ -12,7 +14,47 @@ import { hydrateIslands } from "../hydrate-islands.js";
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
+export interface FakeAuth extends AuthService {
+  /** Each call the islands made, in order, such as "start" or "one-tap". */
+  readonly calls: string[];
+  /** Elements handed to mountUserButton and not yet unmounted. */
+  readonly userButtons: Set<HTMLElement>;
+  /** Publishes a new snapshot, as Clerk's listener would. */
+  set(snapshot: AuthSnapshot): Promise<void>;
+}
+
+export function fakeAuth(): FakeAuth {
+  const listeners = new Set<() => void>();
+  const calls: string[] = [];
+  const userButtons = new Set<HTMLElement>();
+  let snapshot: AuthSnapshot = { status: "pending" };
+  return {
+    calls,
+    userButtons,
+    async set(next) {
+      await act(async () => {
+        snapshot = next;
+        for (const listener of listeners) listener();
+      });
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    getSnapshot: () => snapshot,
+    start: () => void calls.push("start"),
+    openSignIn: () => void calls.push("sign-in"),
+    openSignUp: () => void calls.push("sign-up"),
+    openGoogleOneTap: () => void calls.push("one-tap"),
+    mountUserButton(element) {
+      userButtons.add(element);
+      return () => void userButtons.delete(element);
+    },
+  };
+}
+
 export interface FakeServices extends ClientServices {
+  readonly auth: FakeAuth;
   readonly checkouts: [slug: string, returnUrl: string][];
   readonly navigations: string[];
   readonly replacedUrls: string[];
@@ -31,6 +73,7 @@ export function fakeServices(
     checkouts,
     navigations,
     replacedUrls,
+    auth: fakeAuth(),
     api: {
       mappingCheckout(slug, returnUrl) {
         checkouts.push([slug, returnUrl]);
