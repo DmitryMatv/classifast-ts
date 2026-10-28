@@ -15,7 +15,7 @@ export type IslandElementProps<N extends IslandName> = AriaAttributes & {
   readonly name: N;
   readonly props: IslandProps<N>;
   /** The element the page already had there, so no wrapper changes layout. */
-  readonly as?: "div" | "header";
+  readonly as?: "div" | "header" | "section";
   readonly id?: string;
   readonly className?: string;
   readonly role?: AriaRole;

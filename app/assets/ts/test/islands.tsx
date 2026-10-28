@@ -155,11 +155,18 @@ export function hydratePage(
   return hydrateHtml(renderToStaticMarkup(page), services);
 }
 
-export async function hydrateHtml(
+export function hydrateHtml(
   html: string,
   services: ClientServices,
 ): Promise<unknown[]> {
   document.body.innerHTML = html;
+  return hydrateDocument(services);
+}
+
+/** Hydrates the document as it is, such as after a test typed into it. */
+export async function hydrateDocument(
+  services: ClientServices,
+): Promise<unknown[]> {
   const errors: unknown[] = [];
   const onError = (event: ErrorEvent) => errors.push(event.error);
   window.addEventListener("error", onError);

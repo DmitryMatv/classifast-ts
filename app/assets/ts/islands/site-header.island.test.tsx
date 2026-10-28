@@ -289,3 +289,42 @@ describe("header island, home variant", () => {
     expect(menuState()).toEqual(CLOSED);
   });
 });
+
+describe("header island, classifier variant", () => {
+  beforeEach(async () => {
+    services = fakeServices();
+    const errors = await hydratePage(
+      <Island
+        name="header"
+        as="header"
+        className="bg-white relative"
+        props={{
+          variant: "classifier",
+          links,
+          classifier: { name: "UNSPSC", url: links.classifiers["UNSPSC"]! },
+        }}
+      />,
+      services,
+    );
+    expect(errors).toEqual([]);
+  });
+
+  it("names the page's classifier, starts auth and fills the slots", async () => {
+    expect(element("header h1 a").getAttribute("href")).toBe(
+      "https://classifast.test/UNSPSC/",
+    );
+    expect(services.auth.calls).toEqual(["start"]);
+
+    await services.auth.set({ status: "signed-out" });
+    await click(element("#clerk-sign-in-button-desktop"));
+
+    expect(services.auth.calls).toEqual(["start", "one-tap", "sign-in:plain"]);
+  });
+
+  it("toggles the menu", async () => {
+    await click(element("#mobile-menu-button"));
+    expect(menuState()).toEqual(OPEN);
+    await press("Escape");
+    expect(menuState()).toEqual(CLOSED);
+  });
+});
