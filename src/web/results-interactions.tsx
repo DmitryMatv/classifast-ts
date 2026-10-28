@@ -102,7 +102,6 @@ export function CopyIdButton(props: {
 const SHARE_CLASS =
   "text-white font-semibold px-8 py-2 rounded text-base transition-colors duration-150 ease-in-out transform";
 
-/** Copies the page URL; "Copied!" on green for 2 s. */
 export function ShareButton(): ReactElement {
   const { runtime } = useServices();
   const [copied, setCopied] = useState(false);

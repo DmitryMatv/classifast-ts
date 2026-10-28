@@ -63,7 +63,7 @@ export function useMachine<P, S, E, C, X>(
     [machine],
   );
 
-  useEffect(() => send(mounted), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => send(mounted), []);
 
   return { state, send };
 }

@@ -1,7 +1,7 @@
 // Isomorphic. The `classifier` island: everything inside
 // <section id="classifier-form-section">. Form values live in the DOM and
-// are read per event; the machine decides, and runCommand below is the
-// only code here with side effects.
+// are read per event; the machine decides, and the interpreter is the only
+// code here with side effects.
 import {
   Fragment,
   useEffect,
@@ -103,7 +103,6 @@ function isTopK(value: number): value is TopK {
   return (TOP_K_CHOICES as readonly number[]).includes(value);
 }
 
-/** The form as the visitor left it. */
 export function readFields(form: HTMLFormElement): FormFields {
   const topK = Number(control(form, "top_k", HTMLSelectElement)?.value);
   return {
@@ -157,10 +156,6 @@ function createInterpreter(
   let lookup: AbortController | null = null;
   let checkout: AbortController | null = null;
   const timers = new Map<PaywallTimer, ReturnType<typeof setTimeout>>();
-
-  function toPaywall(send: (event: ClassifierEvent) => void) {
-    return (event: PaywallInput) => send({ type: "paywall", event });
-  }
 
   function run(
     command: ClassifierCommand,
@@ -218,7 +213,10 @@ function createInterpreter(
         api.checkout(command.returnUrl, controller.signal).then(
           (outcome) => {
             if (!controller.signal.aborted)
-              toPaywall(send)({ type: "checkout-settled", outcome });
+              send({
+                type: "paywall",
+                event: { type: "checkout-settled", outcome },
+              });
           },
           () => {},
         );
@@ -242,7 +240,7 @@ function createInterpreter(
           timer,
           setTimeout(() => {
             timers.delete(timer);
-            toPaywall(send)({ type: "timer", timer });
+            send({ type: "paywall", event: { type: "timer", timer } });
           }, command.ms),
         );
         return;
