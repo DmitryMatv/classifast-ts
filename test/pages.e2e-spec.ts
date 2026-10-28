@@ -52,7 +52,9 @@ import { readGolden } from "./support/golden.js";
 import { normalizeFragment, normalizeHtml } from "./support/html-normalizer.js";
 import { normalizeRegions, pageRegions } from "./support/page-regions.js";
 import {
+  expectedFragment,
   expectedPage,
+  expectedRegion,
   withoutIslandProps,
 } from "./support/page-divergences.js";
 import {
@@ -467,9 +469,7 @@ describe("pages match the FastAPI app (parity)", () => {
           expect(body.length).toBe(0);
           break;
         case "html":
-          expect(
-            normalizeHtml(withoutIslandProps(body.toString("utf8"))),
-          ).toBe(
+          expect(normalizeHtml(withoutIslandProps(body.toString("utf8")))).toBe(
             normalizeHtml(
               expectedPage(page.body.file, readFixtureHtml(page.body.file)),
             ),
@@ -485,7 +485,9 @@ describe("pages match the FastAPI app (parity)", () => {
             ),
           ).toEqual(
             normalizeRegions(
-              page.body.regions.map((index) => golden.regions[index]!),
+              page.body.regions.map((index) =>
+                expectedRegion(golden.regions[index]!),
+              ),
             ),
           );
           break;
@@ -495,11 +497,11 @@ describe("pages match the FastAPI app (parity)", () => {
           );
           break;
         case "fragment": {
-          const expected = golden.regions[page.body.region]!;
+          const recorded = golden.regions[page.body.region]!;
           expect(normalizeFragment(body.toString("utf8"))).toBe(
-            normalizeFragment(expected),
+            normalizeFragment(expectedFragment(recorded)),
           );
-          expect(oobTitle(body.toString("utf8"))).toBe(oobTitle(expected));
+          expect(oobTitle(body.toString("utf8"))).toBe(oobTitle(recorded));
           break;
         }
       }
@@ -624,7 +626,9 @@ describe("sitemap query pages (decided divergence from Python)", () => {
     expect(regions(first.response.text)).toEqual(
       normalizeRegions(
         crawlerPage.body.kind === "regions"
-          ? crawlerPage.body.regions.map((index) => golden.regions[index]!)
+          ? crawlerPage.body.regions.map((index) =>
+              expectedRegion(golden.regions[index]!),
+            )
           : [],
       ),
     );
@@ -820,9 +824,11 @@ describe("result fragment caching (decided divergence from Python)", () => {
       expect(fake.events).toEqual(parity.events);
       if (parity.body.kind !== "fragment") throw new Error("expected fragment");
       const html = (response.body as Buffer).toString("utf8");
-      const expected = golden.regions[parity.body.region]!;
-      expect(normalizeFragment(html)).toBe(normalizeFragment(expected));
-      expect(oobTitle(html)).toBe(oobTitle(expected));
+      const recorded = golden.regions[parity.body.region]!;
+      expect(normalizeFragment(html)).toBe(
+        normalizeFragment(expectedFragment(recorded)),
+      );
+      expect(oobTitle(html)).toBe(oobTitle(recorded));
     },
   );
 });

@@ -4,6 +4,7 @@
 import {
   defaultTreeAdapter,
   parse,
+  parseFragment,
   serialize,
   type DefaultTreeAdapterTypes,
 } from "parse5";
@@ -14,9 +15,15 @@ type Element = DefaultTreeAdapterTypes.Element;
 type ParentNode = DefaultTreeAdapterTypes.ParentNode;
 
 export interface PageDivergence {
+  /** Golden page files (`pages/*.html`) it edits. */
   readonly pages: readonly string[];
+  /** It also edits each classifier page region case. */
+  readonly regions?: true;
+  /** It also edits each result fragment case. */
+  readonly fragments?: true;
   readonly why: string;
-  readonly apply: (expected: Document) => void;
+  /** Edits whatever of its elements the expected page or snippet has. */
+  readonly apply: (expected: ParentNode) => void;
 }
 
 function elements(node: ParentNode, matches: (element: Element) => boolean) {
@@ -73,6 +80,14 @@ function wrapInIsland(
   defaultTreeAdapter.appendChild(host, element);
 }
 
+const CLASSIFIER_PAGES = [
+  "pages/classifier-unspsc.html",
+  "pages/classifier-gpc.html",
+  "pages/classifier-emdn.html",
+  "pages/classifier-cpv.html",
+  "pages/classifier-hts.html",
+];
+
 const MAPPING_PAGES = [
   "pages/mapping-index.html",
   "pages/mapping-unspsc-to-cpv.html",
@@ -103,7 +118,35 @@ function islandBuyButtons(hostClass: string | null) {
   };
 }
 
+function siblingIndex(element: Element): number {
+  return element
+    .parentNode!.childNodes.filter((child) => "tagName" in child)
+    .indexOf(element);
+}
+
 export const PAGE_DIVERGENCES: readonly PageDivergence[] = [
+  {
+    pages: CLASSIFIER_PAGES,
+    regions: true,
+    fragments: true,
+    why: "Each score bar carries its width and, from the second row, its stagger (100 ms a row, at most 1 s) inline; CSS grows it. The legacy classifier.js read data-score-width and set both at runtime.",
+    apply(page) {
+      for (const bar of elements(
+        page,
+        (element) => attribute(element, "data-score-bar") !== undefined,
+      )) {
+        const index = siblingIndex(bar.parentNode as Element);
+        const width = `width:${attribute(bar, "data-score-width")}%`;
+        setAttribute(
+          bar,
+          "style",
+          index === 0
+            ? width
+            : `${width};animation-delay:${Math.min(index * 100, 1000)}ms`,
+        );
+      }
+    },
+  },
   {
     pages: MAPPING_PAGES,
     why: "The mapping pages load the one island bundle, site.js, instead of common.js and storefront.js.",
@@ -200,15 +243,43 @@ export const PAGE_DIVERGENCES: readonly PageDivergence[] = [
   },
 ];
 
-/** The golden page with every divergence that names it applied. */
+/**
+ * The golden page with every divergence that names it applied. A
+ * divergence that no longer changes its page fails, so the list cannot
+ * keep stale entries.
+ */
 export function expectedPage(file: string, golden: string): string {
-  const divergences = PAGE_DIVERGENCES.filter(({ pages }) =>
-    pages.includes(file),
-  );
-  if (divergences.length === 0) return golden;
   const page = parse(golden);
-  for (const divergence of divergences) divergence.apply(page);
+  for (const divergence of PAGE_DIVERGENCES) {
+    if (!divergence.pages.includes(file)) continue;
+    const before = serialize(page);
+    divergence.apply(page);
+    if (serialize(page) === before) {
+      throw new Error(`no change on ${file}: ${divergence.why}`);
+    }
+  }
   return serialize(page);
+}
+
+function expectedSnippet(
+  golden: string,
+  applies: (divergence: PageDivergence) => boolean,
+): string {
+  const snippet = parseFragment(golden);
+  for (const divergence of PAGE_DIVERGENCES.filter(applies)) {
+    divergence.apply(snippet);
+  }
+  return serialize(snippet);
+}
+
+/** A classifier page region with the divergences for regions applied. */
+export function expectedRegion(golden: string): string {
+  return expectedSnippet(golden, (divergence) => divergence.regions === true);
+}
+
+/** A result fragment with the divergences for fragments applied. */
+export function expectedFragment(golden: string): string {
+  return expectedSnippet(golden, (divergence) => divergence.fragments === true);
 }
 
 /**
