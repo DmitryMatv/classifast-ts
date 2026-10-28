@@ -6,6 +6,7 @@ import {
   type AuthService,
   type AuthSnapshot,
   type BrowserRuntime,
+  type SignInPurpose,
 } from "../../../../src/web/islands/services.js";
 
 export const CLERK_UI_SRC =
@@ -46,10 +47,12 @@ interface ClerkGlobals {
   readonly __internal_ClerkUICtor?: unknown;
 }
 
+export const AUTH_FAILED_MESSAGE = "Authentication failed. Please try again.";
+
 export class AuthUnavailableError extends Error {
   override readonly name = "AuthUnavailableError";
   constructor() {
-    super("Authentication failed. Please try again.");
+    super(AUTH_FAILED_MESSAGE);
   }
 }
 
@@ -104,10 +107,11 @@ function abortable<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
 
 export function createAuthService(
   window: Window,
-  runtime: BrowserRuntime,
+  runtime: Pick<BrowserRuntime, "href" | "navigate">,
 ): ClientAuth {
   const globals = window as unknown as ClerkGlobals;
   const listeners = new Set<() => void>();
+  const signInListeners = new Set<(purpose: SignInPurpose) => void>();
   let snapshot: AuthSnapshot = { status: "pending" };
   let markSettled = () => {};
   const settled = new Promise<void>((resolve) => (markSettled = resolve));
@@ -225,9 +229,14 @@ export function createAuthService(
         publish(UNAVAILABLE);
       });
     },
-    openSignIn() {
+    openSignIn(purpose) {
+      for (const listener of signInListeners) listener(purpose);
       if (clerk) clerk.openSignIn({ redirectUrl: runtime.href() });
       else runtime.navigate(accountsUrl("sign-in", runtime.href()));
+    },
+    onSignInRequested(listener) {
+      signInListeners.add(listener);
+      return () => signInListeners.delete(listener);
     },
     openSignUp() {
       if (clerk) clerk.openSignUp({ redirectUrl: runtime.href() });

@@ -12,6 +12,7 @@ FROM deps AS frontend-builder
 COPY tsconfig.json vite.config.ts vite.legacy.config.ts ./
 COPY app/assets ./app/assets
 COPY src/web ./src/web
+COPY src/python ./src/python
 RUN npm run build
 
 FROM deps AS server-builder

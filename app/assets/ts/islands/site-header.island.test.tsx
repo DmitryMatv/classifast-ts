@@ -1,3 +1,4 @@
+import { act } from "react";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   click,
@@ -187,8 +188,8 @@ describe("header island, home variant", () => {
     expect(services.auth.calls).toEqual([
       "start",
       "one-tap",
-      "sign-in",
-      "sign-in",
+      "sign-in:plain",
+      "sign-in:plain",
       "sign-up",
     ]);
   });
@@ -249,6 +250,32 @@ describe("header island, home variant", () => {
         `https://accounts.classifast.com/sign-in?redirect_url=${redirect}`,
       ],
     ]);
+  });
+
+  it("leaves through a plain sign-in on a plain click of the fallback Sign In, and lets a new-tab click through", async () => {
+    await services.auth.set({ status: "unavailable" });
+    const signIn = slot("mobile").querySelector("a")!;
+    const clickWith = async (init: MouseEventInit) => {
+      let followed = false;
+      // Runs after React's handler; jsdom cannot navigate, so stop it here.
+      const observe = (event: Event) => {
+        followed = !event.defaultPrevented;
+        event.preventDefault();
+      };
+      window.addEventListener("click", observe);
+      await act(async () => {
+        signIn.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, cancelable: true, ...init }),
+        );
+      });
+      window.removeEventListener("click", observe);
+      return followed;
+    };
+
+    expect(await clickWith({ ctrlKey: true })).toBe(true);
+    expect(services.auth.calls).toEqual(["start"]);
+    expect(await clickWith({})).toBe(false);
+    expect(services.auth.calls).toEqual(["start", "sign-in:plain"]);
   });
 
   it("opens and closes the menu as the mapping header does", async () => {

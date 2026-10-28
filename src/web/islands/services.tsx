@@ -9,6 +9,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
+import type { ResultsQuery, ResultsResponse } from "../results-api.js";
 
 /**
  * What the page knows about the visitor. `pending` until Clerk settles or a
@@ -27,13 +28,22 @@ export type AuthSnapshot =
   /** Clerk failed to load: anonymous, with links to the accounts site. */
   | { readonly status: "unavailable" };
 
+/**
+ * Why a sign-in opens. A plain sign-in anywhere on the page drops an
+ * Upgrade that waits for one; an `upgrade` sign-in is that wait.
+ */
+export type SignInPurpose = "plain" | "upgrade";
+
 export interface AuthService {
   /** useSyncExternalStore calls these two unbound. */
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => AuthSnapshot;
   /** Loads Clerk once per page. Only an island of a page that shows auth calls it. */
   start(): void;
-  openSignIn(): void;
+  /** Tells every onSignInRequested listener, then opens Clerk's sign-in or the accounts site. */
+  openSignIn(purpose: SignInPurpose): void;
+  /** Returns the unsubscribe. */
+  onSignInRequested(listener: (purpose: SignInPurpose) => void): () => void;
   openSignUp(): void;
   /** Mounts Clerk's UserButton into an element React renders empty. Returns the unmount. */
   mountUserButton(element: HTMLElement): () => void;
@@ -57,6 +67,21 @@ export type CheckoutOutcome =
 export interface ApiClient {
   /** POST /api/create-mapping-checkout; anonymous. Never rejects. */
   mappingCheckout(slug: string, returnUrl: string): Promise<CheckoutOutcome>;
+  /**
+   * GET /api/results/{type} once auth has settled, as the visitor. A
+   * network failure, a body that is not a ResultsResponse and an auth
+   * failure all answer `error`. Rejects only when `signal` aborts.
+   */
+  results(
+    classifierType: string,
+    query: ResultsQuery,
+    signal: AbortSignal,
+  ): Promise<ResultsResponse>;
+  /**
+   * POST /api/create-checkout as the signed-in visitor, bounded by 30 s.
+   * Without a bearer token it fails. Rejects only when `signal` aborts.
+   */
+  checkout(returnUrl: string, signal: AbortSignal): Promise<CheckoutOutcome>;
 }
 
 export interface BrowserRuntime {
@@ -64,6 +89,22 @@ export interface BrowserRuntime {
   /** Replaces the current URL and keeps history.state. */
   replaceUrl(url: string): void;
   navigate(url: string): void;
+  now(): number;
+  /** The clipboard, else a selected textarea and execCommand. False when both fail. */
+  copyText(text: string): Promise<boolean>;
+  historyState(): unknown;
+  pushHistory(state: unknown, url: string): void;
+  /** A null url keeps the current one. */
+  replaceHistory(state: unknown, url: string | null): void;
+  setTitle(title: string): void;
+  /** sessionStorage; null when the key is missing or storage is unavailable. */
+  readSession(key: string): string | null;
+  /** Null removes the key. Storage errors are ignored. */
+  writeSession(key: string, value: string | null): void;
+  /** Each returns the unsubscribe. */
+  onPopState(listener: (state: unknown) => void): () => void;
+  onPageHide(listener: () => void): () => void;
+  onPageShow(listener: (persisted: boolean) => void): () => void;
 }
 
 export interface ClientServices {
@@ -85,15 +126,31 @@ export const SERVER_SERVICES: ClientServices = {
     getSnapshot: () => PENDING,
     start: unavailable,
     openSignIn: unavailable,
+    onSignInRequested: unavailable,
     openSignUp: unavailable,
     mountUserButton: unavailable,
     openGoogleOneTap: unavailable,
   },
-  api: { mappingCheckout: unavailable },
+  api: {
+    mappingCheckout: unavailable,
+    results: unavailable,
+    checkout: unavailable,
+  },
   runtime: {
     href: unavailable,
     replaceUrl: unavailable,
     navigate: unavailable,
+    now: unavailable,
+    copyText: unavailable,
+    historyState: unavailable,
+    pushHistory: unavailable,
+    replaceHistory: unavailable,
+    setTitle: unavailable,
+    readSession: unavailable,
+    writeSession: unavailable,
+    onPopState: unavailable,
+    onPageHide: unavailable,
+    onPageShow: unavailable,
   },
 };
 

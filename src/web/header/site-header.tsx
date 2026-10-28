@@ -256,7 +256,7 @@ function AuthControls({
             type="button"
             id={`clerk-sign-in-button-${slot}`}
             className={SIGN_IN_CLASS}
-            onClick={() => auth.openSignIn()}
+            onClick={() => auth.openSignIn("plain")}
           >
             Sign In
           </button>
@@ -278,6 +278,18 @@ function AuthControls({
           <a
             href={accountsUrl("sign-in", runtime.href())}
             className={SIGN_IN_CLASS}
+            onClick={(event) => {
+              // A plain click leaves through openSignIn, which drops a
+              // pending Upgrade first; a new-tab click keeps the page and it.
+              const modified =
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey;
+              if (event.button !== 0 || modified) return;
+              event.preventDefault();
+              auth.openSignIn("plain");
+            }}
           >
             Sign In
           </a>

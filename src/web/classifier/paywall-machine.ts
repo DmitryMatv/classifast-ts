@@ -2,7 +2,11 @@
 // activation check as one reducer. It runs inside the classifier machine,
 // which owns the request slot: this machine asks the parent for lookups
 // and is told their answers.
-import type { AuthSnapshot, CheckoutOutcome } from "../islands/services.js";
+import type {
+  AuthSnapshot,
+  CheckoutOutcome,
+  SignInPurpose,
+} from "../islands/services.js";
 import type { ResultsResponse } from "../results-api.js";
 
 const ACTIVATION_WINDOW_MS = 60_000;
@@ -112,8 +116,6 @@ export function sameRoute(left: string, right: string): boolean {
 function isCheckoutReturn(href: string): boolean {
   return new URL(href).searchParams.get("checkout") === "success";
 }
-
-export type SignInPurpose = "plain" | "upgrade";
 
 /** The Upgrade flow. */
 export type Checkout =
