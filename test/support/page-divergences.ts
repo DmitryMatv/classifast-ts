@@ -124,7 +124,216 @@ function siblingIndex(element: Element): number {
     .indexOf(element);
 }
 
+const FORM_HOOKS = [
+  "hx-get",
+  "hx-target",
+  "hx-swap",
+  "hx-indicator",
+  "hx-sync",
+  "data-initial-query-present",
+  "data-default-example-prefill",
+  "data-autoload-enabled",
+  "data-default-top-k",
+  "data-default-version",
+];
+
+const OLD_SPINNER_AND_SCORE_CSS = `        /* HTMX loading indicator styles */
+        #loading-indicator {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-out;
+        }
+
+        #loading-indicator.htmx-indicator {
+            display: flex;
+        }
+
+        #loading-indicator.htmx-indicator.htmx-request {
+            opacity: 1;
+        }
+
+        .score-bar {
+            background: linear-gradient(to right, #f9fafb, #e5e7eb);
+        }
+
+        .classifier-surface {
+            background-color: #c6ecff;
+        }
+
+        .js-score-animations [data-score-bar] {
+            transform: scaleX(0);
+            transform-origin: left center;
+            transition: transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
+            transition-delay: var(--score-animation-delay, 0ms);
+            will-change: transform;
+        }
+
+        .js-score-animations [data-score-bar].is-score-bar-visible {
+            transform: scaleX(1);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .js-score-animations [data-score-bar] {
+                transform: none;
+                transition: none;
+                will-change: auto;
+            }
+        }
+`;
+
+const NEW_SPINNER_AND_SCORE_CSS = `        #loading-indicator {
+            display: flex;
+            opacity: 0;
+            transition: opacity 0.3s ease-out;
+        }
+
+        #loading-indicator[data-active] {
+            opacity: 1;
+        }
+
+        .score-bar {
+            background: linear-gradient(to right, #f9fafb, #e5e7eb);
+            transform-origin: left center;
+            animation: score-bar-grow 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        }
+
+        @keyframes score-bar-grow {
+            from {
+                transform: scaleX(0);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .score-bar {
+                animation: none;
+            }
+        }
+
+        .classifier-surface {
+            background-color: #c6ecff;
+        }
+`;
+
+function withId(id: string) {
+  return (element: Element) => attribute(element, "id") === id;
+}
+
+/** The deliberate changes of the classifier page switch (Phase 2 PR 4). */
+const CLASSIFIER_DIVERGENCES: readonly PageDivergence[] = [
+  {
+    pages: CLASSIFIER_PAGES,
+    why: "Classifier pages load only site.js: htmx.min.js, common.js, paywall.js, classifier.js, the static Clerk tags, the js-score-animations script and the inline cf_track script go. The header island injects Clerk, and the API client writes cf_track before its first lookup.",
+    apply(page) {
+      setAttribute(
+        only(page, scriptNamed("common.js")),
+        "src",
+        "/static/js/site.js?v=fixture",
+      );
+      const dropped = elements(
+        page,
+        (element) =>
+          element.tagName === "script" &&
+          (/^\/static\/(htmx\.min|js\/(paywall|classifier))\.js\?/.test(
+            attribute(element, "src") ?? "",
+          ) ||
+            (attribute(element, "src") ?? "").startsWith(
+              "https://clerk.classifast.com/",
+            ) ||
+            /js-score-animations|cf_track/.test(
+              element.childNodes
+                .map((node) => ("value" in node ? node.value : ""))
+                .join(""),
+            )),
+      );
+      if (dropped.length !== 7) {
+        throw new Error(
+          `expected seven dropped scripts, found ${dropped.length}`,
+        );
+      }
+      dropped.forEach((script) => defaultTreeAdapter.detachNode(script));
+    },
+  },
+  {
+    pages: CLASSIFIER_PAGES,
+    why: "The spinner shows while the island marks it data-active, and score bars grow through a CSS animation from their inline width, replacing HTMX's indicator classes and the rAF reveal.",
+    apply(page) {
+      const style = only(page, (element) => element.tagName === "style");
+      const text = style.childNodes[0];
+      if (text === undefined || !("value" in text)) {
+        throw new Error("the page style has no text");
+      }
+      if (!text.value.includes(OLD_SPINNER_AND_SCORE_CSS)) {
+        throw new Error("the page style lacks the HTMX spinner and score CSS");
+      }
+      text.value = text.value.replace(
+        OLD_SPINNER_AND_SCORE_CSS,
+        NEW_SPINNER_AND_SCORE_CSS,
+      );
+    },
+  },
+  {
+    pages: CLASSIFIER_PAGES,
+    regions: true,
+    why: "The <title> loses id=page-title, which only the fragment's out-of-band title swap targeted.",
+    apply(page) {
+      for (const title of elements(
+        page,
+        (element) => element.tagName === "title",
+      )) {
+        removeAttribute(title, "id");
+      }
+    },
+  },
+  {
+    pages: CLASSIFIER_PAGES,
+    regions: true,
+    why: "#classifier-form-section hosts the classifier island.",
+    apply(page) {
+      for (const section of elements(page, withId("classifier-form-section"))) {
+        section.attrs.push(...islandAttributes("classifier"));
+      }
+    },
+  },
+  {
+    pages: CLASSIFIER_PAGES,
+    regions: true,
+    why: "The server labels the description toggle 'Learn more about TYPE', which classifier.js used to set at runtime, and the toggle and logo lose the hooks only classifier.js read.",
+    apply(page) {
+      for (const toggle of elements(page, withId("description-toggle"))) {
+        const type = attribute(toggle, "data-classifier-type")!;
+        removeAttribute(toggle, "data-classifier-type");
+        toggle.childNodes = [];
+        defaultTreeAdapter.insertText(toggle, `Learn more about ${type}`);
+      }
+      for (const logo of elements(
+        page,
+        (element) => attribute(element, "data-classifier-logo") !== undefined,
+      )) {
+        removeAttribute(logo, "data-classifier-logo");
+      }
+    },
+  },
+  {
+    pages: CLASSIFIER_PAGES,
+    regions: true,
+    why: "The form loses its hx-* and data-* hooks; the island reads its options from props. The base page renders the textarea empty with the example as its placeholder, instead of a prefill classifier.js cleared after 100 ms.",
+    apply(page) {
+      for (const form of elements(page, withId("classifier-form"))) {
+        if (attribute(form, "data-default-example-prefill") === "true") {
+          only(form, (element) => element.tagName === "textarea").childNodes =
+            [];
+        }
+        FORM_HOOKS.forEach((name) => removeAttribute(form, name));
+      }
+      for (const spinner of elements(page, withId("loading-indicator"))) {
+        setAttribute(spinner, "class", "justify-center items-center");
+      }
+    },
+  },
+];
+
 export const PAGE_DIVERGENCES: readonly PageDivergence[] = [
+  ...CLASSIFIER_DIVERGENCES,
   {
     pages: CLASSIFIER_PAGES,
     regions: true,
@@ -193,7 +402,7 @@ export const PAGE_DIVERGENCES: readonly PageDivergence[] = [
     },
   },
   {
-    pages: [...MAPPING_PAGES, "pages/home.html"],
+    pages: [...MAPPING_PAGES, "pages/home.html", ...CLASSIFIER_PAGES],
     why: "The page header hosts the header island. The menu button renders the aria-controls that common.js added at runtime.",
     apply(page) {
       const body = only(page, (element) => element.tagName === "body");
@@ -289,4 +498,16 @@ export function expectedFragment(golden: string): string {
  */
 export function withoutIslandProps(actual: string): string {
   return actual.replaceAll(/ data-island-props="[^"]*"/g, "");
+}
+
+/** Whether the page's classifier island loads its results after hydration. */
+export function autoloads(html: string): boolean {
+  const host = only(
+    parse(html),
+    (element) => attribute(element, "data-island") === "classifier",
+  );
+  const props = JSON.parse(attribute(host, "data-island-props") ?? "") as {
+    start: { autoload: boolean };
+  };
+  return props.start.autoload;
 }

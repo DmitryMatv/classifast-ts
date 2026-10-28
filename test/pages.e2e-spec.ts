@@ -52,11 +52,13 @@ import { readGolden } from "./support/golden.js";
 import { normalizeFragment, normalizeHtml } from "./support/html-normalizer.js";
 import { normalizeRegions, pageRegions } from "./support/page-regions.js";
 import {
+  autoloads,
   expectedFragment,
   expectedPage,
   expectedRegion,
   withoutIslandProps,
 } from "./support/page-divergences.js";
+import { hydrationErrors } from "./support/island-hydration.js";
 import {
   startQdrantServer,
   validCollections,
@@ -481,7 +483,10 @@ describe("pages match the FastAPI app (parity)", () => {
         case "regions":
           expect(
             normalizeRegions(
-              pageRegions(body.toString("utf8"), page.body.groups),
+              pageRegions(
+                withoutIslandProps(body.toString("utf8")),
+                page.body.groups,
+              ),
             ),
           ).toEqual(
             normalizeRegions(
@@ -512,6 +517,32 @@ describe("pages match the FastAPI app (parity)", () => {
       }
     },
   );
+});
+
+describe("every golden classifier page hydrates", () => {
+  it("with no recoverable error in either island", async () => {
+    const pages: { url: string; html: string }[] = [];
+    for (const page of golden.cases.map(nestCase)) {
+      if (page.method !== "GET") continue;
+      const response = await send(page);
+      const html = Buffer.isBuffer(response.body)
+        ? response.body.toString("utf8")
+        : "";
+      if (!html.includes(' data-island="classifier"')) continue;
+      pages.push({ url: `http://testserver${page.path}`, html });
+    }
+    expect(pages.length).toBeGreaterThanOrEqual(40);
+
+    const results = await hydrationErrors(pages);
+
+    for (const [url, { hydrated, errors }] of results) {
+      expect({ url, hydrated, errors }).toEqual({
+        url,
+        hydrated: 2,
+        errors: [],
+      });
+    }
+  });
 });
 
 describe("classifier page lifecycle", () => {
@@ -606,7 +637,9 @@ describe("sitemap query pages (decided divergence from Python)", () => {
   function regions(html: string): string[] {
     if (crawlerPage.body.kind !== "regions")
       throw new Error("expected regions");
-    return normalizeRegions(pageRegions(html, crawlerPage.body.groups));
+    return normalizeRegions(
+      pageRegions(withoutIslandProps(html), crawlerPage.body.groups),
+    );
   }
 
   it("renders a visitor the crawler's results, then serves them from the cache", async () => {
@@ -633,9 +666,12 @@ describe("sitemap query pages (decided divergence from Python)", () => {
       ),
     );
     expect(second.response.text).toBe(first.response.text);
-    expect(second.response.text).toContain("Finished in 0.46 seconds.");
-    // The client does not fetch the fragment, so no quota is charged.
-    expect(first.response.text).toContain('data-autoload-enabled="false"');
+    // React separates adjacent text in an island with empty comments.
+    expect(second.response.text.replaceAll("<!-- -->", "")).toContain(
+      "Finished in 0.46 seconds.",
+    );
+    // The client does not look the results up, so no quota is charged.
+    expect(autoloads(first.response.text)).toBe(false);
   });
 
   it("serves a verified crawler the cached page without verifying it", async () => {
@@ -664,7 +700,7 @@ describe("sitemap query pages (decided divergence from Python)", () => {
     expect(visitor.response.headers["x-robots-tag"]).toBe("index, follow");
     expect(visitor.response.headers["retry-after"]).toBeUndefined();
     expect(visitor.response.headers["cache-tag"]).toBeUndefined();
-    expect(visitor.response.text).toContain('data-autoload-enabled="true"');
+    expect(autoloads(visitor.response.text)).toBe(true);
     expect(crawler.response.status).toBe(503);
     expect(crawler.response.headers["retry-after"]).toBe("120");
   });
@@ -712,7 +748,7 @@ describe("sitemap query pages (decided divergence from Python)", () => {
       );
       expect(degraded.response.headers["cache-tag"]).toBeUndefined();
       expect(degraded.response.headers["x-robots-tag"]).toBe("index, follow");
-      expect(degraded.response.text).toContain('data-autoload-enabled="false"');
+      expect(autoloads(degraded.response.text)).toBe(false);
       expect(
         degraded.response.text.match(/role="listitem"/g) ?? [],
       ).toHaveLength(golden.fake.results.length);
