@@ -68,7 +68,12 @@ export interface QueryPage {
 
 /** 200 results, 402 paywall, 503 busy, and 4xx or 5xx error. */
 export type ResultsResponse =
-  | ({ readonly kind: "results"; readonly version: string } & QueryPage &
+  | ({
+      readonly kind: "results";
+      readonly version: string;
+      /** The description as the server classified it. */
+      readonly query: string;
+    } & QueryPage &
       ResultsView)
   | ({
       readonly kind: "paywall";
@@ -77,3 +82,78 @@ export type ResultsResponse =
     } & QueryPage)
   | { readonly kind: "busy"; readonly message: string }
   | { readonly kind: "error"; readonly message: string };
+
+export type ResultsAnswer = Extract<ResultsResponse, { kind: "results" }>;
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === "string";
+}
+
+function isOptionalString(value: unknown): boolean {
+  return value === undefined || isString(value);
+}
+
+function isResultView(value: unknown): value is ResultView {
+  return (
+    isObject(value) &&
+    isString(value["originalId"]) &&
+    isString(value["definition"]) &&
+    isString(value["scoreLabel"]) &&
+    isString(value["scoreWidth"]) &&
+    isOptionalString(value["detailUrl"]) &&
+    isOptionalString(value["idLevel"]) &&
+    isOptionalString(value["className"]) &&
+    Array.isArray(value["codeTokens"]) &&
+    value["codeTokens"].every(
+      (token) =>
+        isObject(token) &&
+        isString(token["char"]) &&
+        typeof token["gapAfter"] === "boolean",
+    )
+  );
+}
+
+function isQueryPage(value: Record<string, unknown>): boolean {
+  return isString(value["url"]) && isString(value["title"]);
+}
+
+export function isResultsAnswer(value: unknown): value is ResultsAnswer {
+  return (
+    isObject(value) &&
+    value["kind"] === "results" &&
+    isString(value["version"]) &&
+    isString(value["query"]) &&
+    isQueryPage(value) &&
+    isOptionalString(value["tooltip"]) &&
+    isOptionalString(value["elapsed"]) &&
+    Array.isArray(value["results"]) &&
+    value["results"].every(isResultView)
+  );
+}
+
+/**
+ * Narrows an untrusted body, the endpoint's JSON or a history entry an
+ * older site.js wrote, down to each ResultView field. Null when it is not
+ * one of the four answers.
+ */
+export function parseResultsResponse(value: unknown): ResultsResponse | null {
+  if (isResultsAnswer(value)) return value;
+  if (!isObject(value)) return null;
+  switch (value["kind"]) {
+    case "paywall":
+      return typeof value["signedIn"] === "boolean" &&
+        typeof value["limit"] === "number" &&
+        isQueryPage(value)
+        ? (value as ResultsResponse)
+        : null;
+    case "busy":
+    case "error":
+      return isString(value["message"]) ? (value as ResultsResponse) : null;
+    default:
+      return null;
+  }
+}
