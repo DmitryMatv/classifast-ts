@@ -373,7 +373,8 @@ function observeAuth(state: PaywallState, ctx: PaywallCtx): Step {
     state.checkout.kind === "creating" && state.checkout.userId !== auth.userId
       ? abandonCheckout(state)
       : ([state, []] as const);
-  if (!auth.sessionUsable) return kept;
+  if (!auth.sessionUsable)
+    return then(kept, (current) => [{ ...current, sessionUsable: false }, []]);
   return then(kept, (current) => {
     const becameUsable = !current.sessionUsable;
     const usable = { ...current, sessionUsable: true };
