@@ -472,6 +472,12 @@ through `useServices()`; tests hydrate them with fakes
   files Tailwind does not scan.
 - Golden page fixtures stay frozen. `test/support/page-divergences.ts` lists
   each deliberate markup change as a named edit of the expected page.
+- `app/assets/ts/services/auth.ts` owns Clerk on island pages. The home
+  header island starts it, and it injects Clerk's scripts, so island pages
+  carry no Clerk tags. Islands read `useAuth()`; only the API client may call
+  `authorization()`. Clerk refreshes its session token itself, so add no
+  refresh timer. Classifier pages keep `common.ts` until they become islands;
+  never load both owners on one page.
 
 ## Rapid API
 
@@ -550,7 +556,7 @@ as `unavailable`.
   Initialize restored controls after the BODY `htmx:after:swap` with
   `HX-History-Restore-Request`, and retire handlers for the previous form.
   Restored result autoload must use `push_url=false` to preserve Forward.
-- `common.ts` can load through both a versioned template URL and the classifier's
+- On classifier pages, `common.ts` can load through both a versioned template URL and the classifier's
   unversioned module import. Both instances must share one document owner for
   Clerk bootstrap, token refresh, and global handlers.
 - `htmx.min.js` is vendored in `app/static` and must use `asset_url` like the
@@ -581,8 +587,10 @@ as `unavailable`.
   fails; that link does not prove authentication works. Use a Clerk test
   configuration that accepts the local origin to verify sign-in.
   On localhost the page renders the signed-out Clerk buttons rather than the
-  fallback links, and their Sign In opens an empty Clerk modal backdrop. To see
-  the fallback locally, block the `clerk.browser.js` request.
+  fallback links, and their Sign In opens an empty Clerk modal backdrop. On
+  `127.0.0.1`, where the verify driver serves, `Clerk.load` fails with a 400
+  from `/v1/client` and both auth owners show the fallback links after about
+  1.5 s. Blocking the `clerk.browser.js` request shows them at once.
 - Page links render as absolute URLs with the request origin, as the
   templates' `url_for` did.
   Browser checks should use accessible names or inspect the URL pathname,

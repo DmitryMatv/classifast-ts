@@ -1,5 +1,10 @@
 // Server-only: imports react-dom/server, so the client bundle never does.
-import type { AriaAttributes, ComponentType, ReactElement } from "react";
+import type {
+  AriaAttributes,
+  AriaRole,
+  ComponentType,
+  ReactElement,
+} from "react";
 import { renderToString } from "react-dom/server";
 import { ISLANDS, type IslandName, type IslandProps } from "./registry.js";
 import { IslandRoot, SERVER_SERVICES } from "./services.js";
@@ -13,6 +18,7 @@ export type IslandElementProps<N extends IslandName> = AriaAttributes & {
   readonly as?: "div" | "header";
   readonly id?: string;
   readonly className?: string;
+  readonly role?: AriaRole;
 };
 
 /**
