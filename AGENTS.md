@@ -695,9 +695,10 @@ as `unavailable`.
   shutdown begins both fail with `ClassificationQueueClosed`.
 - Checkout recovery (the paywall machine's activation) checks at once, then
   two seconds after each answer that is not results, within a 60-second
-  deadline kept in sessionStorage. An edit or a manual submit stops it and
-  shows "still pending. Try again.", with the paywall's buttons when the
-  panel held a paywall; after the deadline only Try again shows, and it
-  restarts the window. While it
-  checks, the panel shows the activation card instead of a paywall.
+  deadline kept in sessionStorage. An edit, or a manual submit that sends a
+  lookup, stops it and shows "still pending. Try again.", with the paywall's
+  buttons when the panel held a paywall; after the deadline only Try again
+  shows, and it restarts the window. A blank submit only shows the native
+  required message and the checks go on. While it checks, the panel shows
+  the activation card instead of whatever answer it held.
   Successful recovery shows the results without recreating a warning.

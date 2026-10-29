@@ -605,7 +605,9 @@ function panelView(state: ClassifierState): PanelView {
         activationStopped: stopped,
       };
     case "results":
-      return { kind: "results", key: panel.seq, answer };
+      return stopped
+        ? { kind: "activation", phase: "stopped" }
+        : { kind: "results", key: panel.seq, answer };
     case "busy":
     case "error":
       return stopped
