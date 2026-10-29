@@ -91,7 +91,6 @@ beforeEach(() => {
   navigations = [];
   auth = createAuthService(window, {
     href: () => HREF,
-    replaceUrl: () => {},
     navigate: (url) => navigations.push(url),
   });
   published = [];
@@ -215,7 +214,7 @@ describe("sign-in and sign-up", () => {
     auth.start();
     await loadScripts(clerk);
 
-    auth.openSignIn();
+    auth.openSignIn("plain");
     auth.openSignUp();
 
     expect(clerk.openSignIn).toHaveBeenCalledWith({ redirectUrl: HREF });
@@ -229,7 +228,7 @@ describe("sign-in and sign-up", () => {
     auth.start();
     await loadScripts(clerk);
 
-    auth.openSignIn();
+    auth.openSignIn("plain");
     auth.openSignUp();
 
     expect(clerk.openSignIn).not.toHaveBeenCalled();
@@ -237,6 +236,25 @@ describe("sign-in and sign-up", () => {
       `https://accounts.classifast.com/sign-in?redirect_url=${encodeURIComponent(HREF)}`,
       `https://accounts.classifast.com/sign-up?redirect_url=${encodeURIComponent(HREF)}`,
     ]);
+  });
+
+  it("tells each sign-in listener the purpose before it opens, until it unsubscribes", async () => {
+    const clerk = fakeClerk();
+    auth.start();
+    await loadScripts(clerk);
+    const heard: string[] = [];
+    const stop = auth.onSignInRequested((purpose) => {
+      heard.push(purpose);
+      expect(clerk.openSignIn).toHaveBeenCalledTimes(heard.length - 1);
+    });
+
+    auth.openSignIn("upgrade");
+    auth.openSignIn("plain");
+    stop();
+    auth.openSignIn("plain");
+
+    expect(heard).toEqual(["upgrade", "plain"]);
+    expect(clerk.openSignIn).toHaveBeenCalledTimes(3);
   });
 });
 

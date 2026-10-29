@@ -1,13 +1,16 @@
 // Pure and isomorphic. The classifier form's one request slot, the results
 // panel and history, with the paywall machine nested inside.
 import type { AuthSnapshot } from "../islands/services.js";
-import type { ResultsQuery, ResultsResponse } from "../results-api.js";
+import type {
+  ResultsAnswer,
+  ResultsQuery,
+  ResultsResponse,
+} from "../results-api.js";
 import {
   lookupOf,
   type FormFields,
   type FormSnapshot,
   type HistoryEntry,
-  type ResultsAnswer,
 } from "./lookup.js";
 import {
   PAYWALL_INITIAL,

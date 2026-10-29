@@ -1,10 +1,10 @@
 // Answers and form values the classifier specs share.
-import type {
-  FormFields,
-  ResultsAnswer,
-} from "../../src/web/classifier/lookup.js";
+import type { FormFields } from "../../src/web/classifier/lookup.js";
 import type { AuthSnapshot } from "../../src/web/islands/services.js";
-import type { ResultsResponse } from "../../src/web/results-api.js";
+import type {
+  ResultsAnswer,
+  ResultsResponse,
+} from "../../src/web/results-api.js";
 
 export const T0 = Date.UTC(2026, 9, 27, 12);
 export const ORIGIN = "http://localhost:3000";
@@ -31,6 +31,7 @@ export function results(
   return {
     kind: "results",
     version: "v1",
+    query: "industrial pump",
     url: path,
     title,
     results: [

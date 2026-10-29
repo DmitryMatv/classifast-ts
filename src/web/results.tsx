@@ -1,5 +1,6 @@
-import { Fragment } from "react";
+import { Fragment, type CSSProperties } from "react";
 import type { CodeToken, ResultView, ResultsView } from "./results-api.js";
+import { CopyIdButton, ShareButton } from "./results-interactions.js";
 
 export type ResultsProps = ResultsView & {
   /** Python's results.html renders nothing but a prompt without a query. */
@@ -75,7 +76,30 @@ function CodeDigits({ tokens }: { readonly tokens: readonly CodeToken[] }) {
   ));
 }
 
-function ResultItem({ result }: { readonly result: ResultView }) {
+const STAGGER_MS = 100;
+const MAX_DELAY_MS = 1000;
+
+/**
+ * The page's CSS grows each bar from zero to this width; rows after the
+ * first start 100 ms apart, at most 1 s late. data-score-width stays for
+ * the legacy classifier.js, which sizes bars in cached pre-island pages.
+ */
+function scoreBarStyle(width: string, index: number): CSSProperties {
+  return {
+    width: `${width}%`,
+    ...(index > 0 && {
+      animationDelay: `${Math.min(index * STAGGER_MS, MAX_DELAY_MS)}ms`,
+    }),
+  };
+}
+
+function ResultItem({
+  result,
+  index,
+}: {
+  readonly result: ResultView;
+  readonly index: number;
+}) {
   const { originalId } = result;
   const digits = <CodeDigits tokens={result.codeTokens} />;
   let code;
@@ -108,19 +132,14 @@ function ResultItem({ result }: { readonly result: ResultView }) {
         className="absolute inset-y-0 left-0 score-bar"
         data-score-bar=""
         data-score-width={result.scoreWidth}
+        style={scoreBarStyle(result.scoreWidth, index)}
       ></div>
       <div className="relative p-3">
         <div className="flex-1">
           <div className="flex items-baseline gap-2">
-            <button
-              type="button"
-              data-copy-original-id={originalId}
-              title="Copy ID to clipboard"
-              aria-label={`Copy classification ID ${originalId} to clipboard`}
-              className="text-2xl font-mono text-gray-600 hover:text-sky-600 cursor-pointer"
-            >
+            <CopyIdButton originalId={originalId}>
               <CopyIcon />
-            </button>{" "}
+            </CopyIdButton>{" "}
             {code}{" "}
             {result.idLevel !== undefined && (
               <>
@@ -154,7 +173,7 @@ function ResultList({ results, tooltip, elapsed }: ResultsView) {
       {tooltip !== undefined && <p className="text-gray-600 mb-4">{tooltip}</p>}
       <ul className="space-y-3" role="list">
         {results.map((result, index) => (
-          <ResultItem key={index} result={result} />
+          <ResultItem key={index} result={result} index={index} />
         ))}
       </ul>
       <div className="mt-8 text-gray-600">
@@ -170,14 +189,7 @@ function ResultList({ results, tooltip, elapsed }: ResultsView) {
         </p>
       </div>
       <div className="mt-8">
-        <button
-          type="button"
-          id="share-button"
-          className="bg-gray-600 hover:bg-gray-700 text-white font-semibold px-8 py-2 rounded text-base transition-colors duration-150 ease-in-out transform"
-          title="Copy shareable link to clipboard"
-        >
-          Copy link
-        </button>
+        <ShareButton />
       </div>
     </>
   );

@@ -52,9 +52,13 @@ import { readGolden } from "./support/golden.js";
 import { normalizeFragment, normalizeHtml } from "./support/html-normalizer.js";
 import { normalizeRegions, pageRegions } from "./support/page-regions.js";
 import {
+  autoloads,
+  expectedFragment,
   expectedPage,
+  expectedRegion,
   withoutIslandProps,
 } from "./support/page-divergences.js";
+import { hydrationErrors } from "./support/island-hydration.js";
 import {
   startQdrantServer,
   validCollections,
@@ -467,9 +471,7 @@ describe("pages match the FastAPI app (parity)", () => {
           expect(body.length).toBe(0);
           break;
         case "html":
-          expect(
-            normalizeHtml(withoutIslandProps(body.toString("utf8"))),
-          ).toBe(
+          expect(normalizeHtml(withoutIslandProps(body.toString("utf8")))).toBe(
             normalizeHtml(
               expectedPage(page.body.file, readFixtureHtml(page.body.file)),
             ),
@@ -481,11 +483,16 @@ describe("pages match the FastAPI app (parity)", () => {
         case "regions":
           expect(
             normalizeRegions(
-              pageRegions(body.toString("utf8"), page.body.groups),
+              pageRegions(
+                withoutIslandProps(body.toString("utf8")),
+                page.body.groups,
+              ),
             ),
           ).toEqual(
             normalizeRegions(
-              page.body.regions.map((index) => golden.regions[index]!),
+              page.body.regions.map((index) =>
+                expectedRegion(golden.regions[index]!),
+              ),
             ),
           );
           break;
@@ -495,11 +502,11 @@ describe("pages match the FastAPI app (parity)", () => {
           );
           break;
         case "fragment": {
-          const expected = golden.regions[page.body.region]!;
+          const recorded = golden.regions[page.body.region]!;
           expect(normalizeFragment(body.toString("utf8"))).toBe(
-            normalizeFragment(expected),
+            normalizeFragment(expectedFragment(recorded)),
           );
-          expect(oobTitle(body.toString("utf8"))).toBe(oobTitle(expected));
+          expect(oobTitle(body.toString("utf8"))).toBe(oobTitle(recorded));
           break;
         }
       }
@@ -510,6 +517,32 @@ describe("pages match the FastAPI app (parity)", () => {
       }
     },
   );
+});
+
+describe("every golden classifier page hydrates", () => {
+  it("with no recoverable error in either island", async () => {
+    const pages: { url: string; html: string }[] = [];
+    for (const page of golden.cases.map(nestCase)) {
+      if (page.method !== "GET") continue;
+      const response = await send(page);
+      const html = Buffer.isBuffer(response.body)
+        ? response.body.toString("utf8")
+        : "";
+      if (!html.includes(' data-island="classifier"')) continue;
+      pages.push({ url: `http://testserver${page.path}`, html });
+    }
+    expect(pages.length).toBeGreaterThanOrEqual(40);
+
+    const results = await hydrationErrors(pages);
+
+    for (const [url, { hydrated, errors }] of results) {
+      expect({ url, hydrated, errors }).toEqual({
+        url,
+        hydrated: 2,
+        errors: [],
+      });
+    }
+  });
 });
 
 describe("classifier page lifecycle", () => {
@@ -604,7 +637,9 @@ describe("sitemap query pages (decided divergence from Python)", () => {
   function regions(html: string): string[] {
     if (crawlerPage.body.kind !== "regions")
       throw new Error("expected regions");
-    return normalizeRegions(pageRegions(html, crawlerPage.body.groups));
+    return normalizeRegions(
+      pageRegions(withoutIslandProps(html), crawlerPage.body.groups),
+    );
   }
 
   it("renders a visitor the crawler's results, then serves them from the cache", async () => {
@@ -624,14 +659,19 @@ describe("sitemap query pages (decided divergence from Python)", () => {
     expect(regions(first.response.text)).toEqual(
       normalizeRegions(
         crawlerPage.body.kind === "regions"
-          ? crawlerPage.body.regions.map((index) => golden.regions[index]!)
+          ? crawlerPage.body.regions.map((index) =>
+              expectedRegion(golden.regions[index]!),
+            )
           : [],
       ),
     );
     expect(second.response.text).toBe(first.response.text);
-    expect(second.response.text).toContain("Finished in 0.46 seconds.");
-    // The client does not fetch the fragment, so no quota is charged.
-    expect(first.response.text).toContain('data-autoload-enabled="false"');
+    // React separates adjacent text in an island with empty comments.
+    expect(second.response.text.replaceAll("<!-- -->", "")).toContain(
+      "Finished in 0.46 seconds.",
+    );
+    // The client does not look the results up, so no quota is charged.
+    expect(autoloads(first.response.text)).toBe(false);
   });
 
   it("serves a verified crawler the cached page without verifying it", async () => {
@@ -660,7 +700,7 @@ describe("sitemap query pages (decided divergence from Python)", () => {
     expect(visitor.response.headers["x-robots-tag"]).toBe("index, follow");
     expect(visitor.response.headers["retry-after"]).toBeUndefined();
     expect(visitor.response.headers["cache-tag"]).toBeUndefined();
-    expect(visitor.response.text).toContain('data-autoload-enabled="true"');
+    expect(autoloads(visitor.response.text)).toBe(true);
     expect(crawler.response.status).toBe(503);
     expect(crawler.response.headers["retry-after"]).toBe("120");
   });
@@ -708,7 +748,7 @@ describe("sitemap query pages (decided divergence from Python)", () => {
       );
       expect(degraded.response.headers["cache-tag"]).toBeUndefined();
       expect(degraded.response.headers["x-robots-tag"]).toBe("index, follow");
-      expect(degraded.response.text).toContain('data-autoload-enabled="false"');
+      expect(autoloads(degraded.response.text)).toBe(false);
       expect(
         degraded.response.text.match(/role="listitem"/g) ?? [],
       ).toHaveLength(golden.fake.results.length);
@@ -820,9 +860,11 @@ describe("result fragment caching (decided divergence from Python)", () => {
       expect(fake.events).toEqual(parity.events);
       if (parity.body.kind !== "fragment") throw new Error("expected fragment");
       const html = (response.body as Buffer).toString("utf8");
-      const expected = golden.regions[parity.body.region]!;
-      expect(normalizeFragment(html)).toBe(normalizeFragment(expected));
-      expect(oobTitle(html)).toBe(oobTitle(expected));
+      const recorded = golden.regions[parity.body.region]!;
+      expect(normalizeFragment(html)).toBe(
+        normalizeFragment(expectedFragment(recorded)),
+      );
+      expect(oobTitle(html)).toBe(oobTitle(recorded));
     },
   );
 });
