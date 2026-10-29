@@ -1,24 +1,12 @@
 import { Fragment } from "react";
-import type { ClassificationResult } from "../classifier/classification.js";
-import type { ClassifierVersion } from "../classifier/classifier-config.js";
-import { pyRepr } from "../python/float-repr.js";
-import { pyFormatFixed } from "../python/numbers.js";
-import { pyStrip } from "../python/str.js";
-import { groupOriginalIdTokens } from "./original-id-tokens.js";
-import { formatScore } from "./result-score.js";
+import type { CodeToken, ResultView, ResultsView } from "./results-api.js";
 
-export interface ResultsProps {
+export type ResultsProps = ResultsView & {
   /** Python's results.html renders nothing but a prompt without a query. */
   readonly query: string;
-  readonly results: readonly ClassificationResult[];
-  readonly classifierType: string;
-  readonly version?: ClassifierVersion;
-  readonly elapsedSeconds?: number;
   /** A completed classification: no results means none matched. */
   readonly loaded: boolean;
-  /** Python's 'NACE' in request.url.path: link codes without their dots. */
-  readonly stripCodeDots: boolean;
-}
+};
 
 const DIGIT_COLORS: Readonly<Record<string, string>> = {
   "0": "text-[#1f77b4]",
@@ -32,38 +20,6 @@ const DIGIT_COLORS: Readonly<Record<string, string>> = {
   "8": "text-[#ff7f0e]",
   "9": "text-[#d62728]",
 };
-
-// Classifiers whose codes read better without visual separators.
-const UNSPACED_CLASSIFIERS: ReadonlySet<string> = new Set([
-  "ETIM",
-  "HTS",
-  "NSN",
-]);
-
-// Jinja prints a payload value with Python's str(); a missing key is empty.
-function pyText(value: unknown): string {
-  if (value === undefined) return "";
-  if (value === null) return "None";
-  if (typeof value === "boolean") return value ? "True" : "False";
-  if (typeof value === "number") {
-    return Number.isInteger(value) ? String(value) : pyRepr(value);
-  }
-  // Qdrant payload values are JSON; lists and objects are not expected here.
-  return typeof value === "string" ? value : JSON.stringify(value);
-}
-
-function isFilled(value: unknown): boolean {
-  return typeof value === "string" && pyStrip(value) !== "";
-}
-
-// Python truthiness of a JSON payload value.
-function isTruthy(value: unknown): boolean {
-  if (Array.isArray(value)) return value.length > 0;
-  if (typeof value === "object" && value !== null) {
-    return Object.keys(value).length > 0;
-  }
-  return Boolean(value);
-}
 
 function CopyIcon() {
   return (
@@ -106,63 +62,27 @@ function ExternalLinkIcon() {
   );
 }
 
-function CodeDigits({
-  originalId,
-  classifierType,
-}: {
-  readonly originalId: unknown;
-  readonly classifierType: string;
-}) {
-  const spaced = !UNSPACED_CLASSIFIERS.has(classifierType);
-  // Jinja renders a missing original_id as an empty string.
-  const id = originalId === undefined ? "" : originalId;
-  return groupOriginalIdTokens(id).map((token, index) => (
+function CodeDigits({ tokens }: { readonly tokens: readonly CodeToken[] }) {
+  return tokens.map((token, index) => (
     <Fragment key={index}>
       <span className={DIGIT_COLORS[token.char] ?? "text-gray-600"}>
         {token.char}
       </span>
-      {token.gapAfter && spaced && (
+      {token.gapAfter && (
         <span aria-hidden="true" className="code-spacer-halves"></span>
       )}
     </Fragment>
   ));
 }
 
-interface ResultItemProps {
-  readonly result: ClassificationResult;
-  readonly classifierType: string;
-  readonly version: ClassifierVersion | undefined;
-  readonly stripCodeDots: boolean;
-}
-
-function ResultItem({
-  result,
-  classifierType,
-  version,
-  stripCodeDots,
-}: ResultItemProps) {
-  const { payload } = result;
-  const originalId = pyText(payload["original_id"]);
-  const score = formatScore(result.score);
-  const baseUrl = version?.baseUrl;
-  const digits = (
-    <CodeDigits
-      originalId={payload["original_id"]}
-      classifierType={classifierType}
-    />
-  );
+function ResultItem({ result }: { readonly result: ResultView }) {
+  const { originalId } = result;
+  const digits = <CodeDigits tokens={result.codeTokens} />;
   let code;
-  if (baseUrl !== undefined && isFilled(baseUrl)) {
-    const codeForUrl = stripCodeDots
-      ? originalId.replaceAll(".", "")
-      : originalId;
-    const detailUrl =
-      baseUrl +
-      ((version?.appendCodeToUrl ?? true) ? codeForUrl : "") +
-      (version?.codeUrlSuffix ?? "");
+  if (result.detailUrl !== undefined) {
     code = (
       <a
-        href={detailUrl}
+        href={result.detailUrl}
         target="_blank"
         className="text-gray-600 text-2xl font-bold font-mono hover:text-sky-600 hover:underline hover:decoration-sky-600"
         rel="noopener"
@@ -187,7 +107,7 @@ function ResultItem({
       <div
         className="absolute inset-y-0 left-0 score-bar"
         data-score-bar=""
-        data-score-width={score.width}
+        data-score-width={result.scoreWidth}
       ></div>
       <div className="relative p-3">
         <div className="flex-1">
@@ -202,60 +122,43 @@ function ResultItem({
               <CopyIcon />
             </button>{" "}
             {code}{" "}
-            {isTruthy(payload["id_level"]) && (
+            {result.idLevel !== undefined && (
               <>
                 <span className="text-gray-600 text-lg">
-                  {pyText(payload["id_level"])}
+                  {result.idLevel}
                 </span>{" "}
               </>
             )}
-            <span className="ml-auto text-gray-600">{score.label}%</span>
+            <span className="ml-auto text-gray-600">{result.scoreLabel}%</span>
           </div>
-          {isFilled(payload["class_name"]) && (
+          {result.className !== undefined && (
             <div className="flex items-baseline gap-x-2 flex-wrap">
               <h3 className="text-gray-800 text-lg font-semibold">
-                {pyText(payload["class_name"])}
+                {result.className}
               </h3>
             </div>
           )}
-          <p className="text-gray-600">{pyText(payload["definition"])}</p>
+          <p className="text-gray-600">{result.definition}</p>
         </div>
       </div>
     </li>
   );
 }
 
-function ResultList({
-  results,
-  classifierType,
-  version,
-  elapsedSeconds,
-  stripCodeDots,
-}: Omit<ResultsProps, "query" | "loaded">) {
-  const tooltip = version?.tooltip;
+function ResultList({ results, tooltip, elapsed }: ResultsView) {
   return (
     <>
       <p className="hidden text-xl font-semibold text-gray-800 mb-4">
         Classification Results
       </p>
-      {tooltip !== undefined && isFilled(tooltip) && (
-        <p className="text-gray-600 mb-4">{tooltip}</p>
-      )}
+      {tooltip !== undefined && <p className="text-gray-600 mb-4">{tooltip}</p>}
       <ul className="space-y-3" role="list">
         {results.map((result, index) => (
-          <ResultItem
-            key={index}
-            result={result}
-            classifierType={classifierType}
-            version={version}
-            stripCodeDots={stripCodeDots}
-          />
+          <ResultItem key={index} result={result} />
         ))}
       </ul>
       <div className="mt-8 text-gray-600">
-        {elapsedSeconds !== undefined && (
-          <span>Finished in {pyFormatFixed(elapsedSeconds, 2)} seconds.</span>
-        )}
+        {elapsed !== undefined && <span>Finished in {elapsed} seconds.</span>}
       </div>
       <div className="mt-4 prose max-w-none">
         <p id="description-pro-tip" className="text-gray-600">
@@ -280,7 +183,11 @@ function ResultList({
   );
 }
 
-/** Port of app/templates/results.html, without the fragment's page title. */
+/**
+ * Port of app/templates/results.html, without the fragment's page title.
+ * It renders preformatted strings only (see toResultsView), so the browser
+ * can render it from the results API.
+ */
 export function Results(props: ResultsProps) {
   const { query, results, loaded } = props;
   if (!query) {

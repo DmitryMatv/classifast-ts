@@ -12,6 +12,7 @@ import { CLASSIFIER_GUIDES } from "./classifier-guides.js";
 import { CLASSIFIER_PAGE_CSS } from "./classifier-page-styles.js";
 import { jinjaEscape, jsonLd } from "./render.js";
 import { Results } from "./results.js";
+import { toResultsView } from "./results-view.js";
 import { SiteFooter } from "./site-footer.js";
 import type { SiteLinks } from "./site-links.js";
 import { UnspscGuide } from "./unspsc-guide.js";
@@ -1203,13 +1204,14 @@ export function ClassifierPage(props: ClassifierPageProps) {
             >
               <div id="results-container" style={{ minHeight: "200px" }}>
                 <Results
+                  {...toResultsView(results.results, {
+                    classifierType,
+                    version: results.version,
+                    elapsedSeconds: results.elapsedSeconds,
+                    stripCodeDots: props.stripCodeDots,
+                  })}
                   query={results.query}
-                  results={results.results}
-                  classifierType={classifierType}
-                  version={results.version}
-                  elapsedSeconds={results.elapsedSeconds}
                   loaded={results.loaded}
-                  stripCodeDots={props.stripCodeDots}
                 />
               </div>
             </div>

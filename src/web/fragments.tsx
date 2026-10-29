@@ -125,10 +125,15 @@ function Paywall({ limit, isAuthenticated }: PaywallProps) {
   );
 }
 
+// A Pro caller has no limit and never gets the paywall.
+export function paywallLimit(usage: UsageStatus): number {
+  return usage.kind === "metered" ? usage.limit : -1;
+}
+
 export function renderPaywall(usage: UsageStatus): string {
   return renderToStaticMarkup(
     <Paywall
-      limit={usage.kind === "metered" ? usage.limit : -1}
+      limit={paywallLimit(usage)}
       isAuthenticated={usage.caller.kind !== "anonymous"}
     />,
   );
