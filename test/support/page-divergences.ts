@@ -128,7 +128,29 @@ export const PAGE_DIVERGENCES: readonly PageDivergence[] = [
     },
   },
   {
-    pages: MAPPING_PAGES,
+    pages: ["pages/home.html"],
+    why: "Home loads only site.js. Its header island starts the auth service, which injects Clerk's two scripts, so the static Clerk tags go.",
+    apply(page) {
+      setAttribute(
+        only(page, scriptNamed("common.js")),
+        "src",
+        "/static/js/site.js?v=fixture",
+      );
+      const clerkScripts = elements(page, (element) =>
+        (attribute(element, "src") ?? "").startsWith(
+          "https://clerk.classifast.com/",
+        ),
+      );
+      if (clerkScripts.length !== 2) {
+        throw new Error(
+          `expected two Clerk scripts, found ${clerkScripts.length}`,
+        );
+      }
+      clerkScripts.forEach((script) => defaultTreeAdapter.detachNode(script));
+    },
+  },
+  {
+    pages: [...MAPPING_PAGES, "pages/home.html"],
     why: "The page header hosts the header island. The menu button renders the aria-controls that common.js added at runtime.",
     apply(page) {
       const body = only(page, (element) => element.tagName === "body");

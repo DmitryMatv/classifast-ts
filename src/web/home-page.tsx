@@ -2,8 +2,9 @@ import type { PopularLookupLink } from "../classifier/popular-lookups.js";
 import { assetUrl } from "./asset-url.js";
 import { BODY_STYLE } from "./body-style.js";
 import { HOME_PAGE_CSS } from "./home-page-styles.js";
+import { Island } from "./islands/render-island.js";
 import { SiteFooter } from "./site-footer.js";
-import type { SiteLinks } from "./site-links.js";
+import { headerLinks, HOME_MENU, type SiteLinks } from "./site-links.js";
 
 export interface HomePageProps {
   readonly links: SiteLinks;
@@ -215,161 +216,20 @@ export function HomePage({
           dangerouslySetInnerHTML={{ __html: FAQ_JSON_LD }}
         />
         <link href={assetUrl("/css/styles.css")} rel="stylesheet" />
-        <script type="module" src={assetUrl("/js/common.js")}></script>
+        <script type="module" src={assetUrl("/js/site.js")}></script>
         <style dangerouslySetInnerHTML={{ __html: HOME_PAGE_CSS }} />
       </head>
       <body
         className="home-surface text-gray-800 flex flex-col min-h-screen"
         style={BODY_STYLE}
       >
-        <header className="site-masthead" role="banner">
-          <div className="container mx-auto flex min-h-14 justify-between items-center max-w-6xl px-4">
-            <div className="flex items-center">
-              <a href={links.home} className="flex items-center">
-                <p className="text-xl font-bold text-gray-800">
-                  Classi<span className="text-sky-600">fast</span>
-                </p>
-              </a>
-            </div>
-            <nav
-              className="desktop-nav ml-auto mr-8"
-              role="navigation"
-              aria-label="Main navigation"
-            >
-              <ul className="flex space-x-6 items-center">
-                <li>
-                  <a
-                    href={links.mappingIndex}
-                    className="text-gray-600 hover:text-sky-700 hover:underline underline-offset-2 transition-colors"
-                    role="link"
-                    aria-label="Mapping Files"
-                  >
-                    Mapping
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://blog.classifast.com"
-                    target="_blank"
-                    rel="noopener"
-                    className="text-gray-600 hover:text-sky-700 hover:underline underline-offset-2 transition-colors"
-                    role="link"
-                    aria-label="Blog"
-                  >
-                    Blog
-                  </a>
-                </li>
-                <li className="hidden md:block">
-                  <a
-                    href="https://rapidapi.com/DmitryMatv/api/classifast-api"
-                    target="_blank"
-                    rel="noopener"
-                    className="text-gray-600 hover:text-sky-700 hover:underline underline-offset-2 transition-colors"
-                    role="link"
-                    aria-label="API Documentation"
-                  >
-                    API
-                  </a>
-                </li>
-                <li className="auth-slot" data-auth-slot="desktop">
-                  <div id="desktop-auth-container"></div>
-                </li>
-              </ul>
-            </nav>
-            <div className="auth-slot" data-auth-slot="mobile">
-              <div id="mobile-auth-container"></div>
-            </div>{" "}
-            <button
-              className="hamburger"
-              id="mobile-menu-button"
-              aria-label="Toggle mobile menu"
-              aria-expanded="false"
-              role="button"
-            >
-              <span></span> <span></span> <span></span>
-            </button>
-          </div>
-          <nav
-            className="mobile-menu"
-            id="mobile-menu"
-            role="navigation"
-            aria-label="Mobile navigation"
-          >
-            <div className="menu-panel">
-              <section>
-                <p className="menu-section-title">Explore</p>{" "}
-                <a href={links.mappingIndex} className="menu-feature-link">
-                  <strong>Mapping Files</strong>{" "}
-                  <span>
-                    Open crosswalk files and jump between classification
-                    systems.
-                  </span>
-                </a>{" "}
-                <div className="menu-link-list mt-3">
-                  <a
-                    href="https://blog.classifast.com"
-                    target="_blank"
-                    rel="noopener"
-                  >
-                    Blog
-                  </a>{" "}
-                  <a
-                    href="https://rapidapi.com/DmitryMatv/api/classifast-api"
-                    target="_blank"
-                    rel="noopener"
-                  >
-                    API
-                  </a>
-                </div>
-              </section>
-              <section>
-                <p className="menu-section-title">Classifiers</p>
-                <div className="menu-chip-grid">
-                  <a href={links.classifier("UNSPSC")} className="menu-chip">
-                    UNSPSC
-                  </a>{" "}
-                  <a href={links.classifier("GPC")} className="menu-chip">
-                    GS1 GPC
-                  </a>{" "}
-                  <a href={links.classifier("EMDN")} className="menu-chip">
-                    EMDN
-                  </a>{" "}
-                  <a href={links.classifier("NAICS")} className="menu-chip">
-                    NAICS
-                  </a>{" "}
-                  <a href={links.classifier("CN")} className="menu-chip">
-                    CN
-                  </a>{" "}
-                  <a href={links.classifier("ETIM")} className="menu-chip">
-                    ETIM
-                  </a>{" "}
-                  <a href={links.classifier("ISIC")} className="menu-chip">
-                    ISIC
-                  </a>{" "}
-                  <a href={links.classifier("HS")} className="menu-chip">
-                    HS
-                  </a>{" "}
-                  <a href={links.classifier("HTS")} className="menu-chip">
-                    HTS
-                  </a>{" "}
-                  <a href={links.classifier("NACE")} className="menu-chip">
-                    NACE
-                  </a>{" "}
-                  <a href={links.classifier("CPV")} className="menu-chip">
-                    CPV
-                  </a>{" "}
-                  <a href={links.classifier("NSN")} className="menu-chip">
-                    NSN
-                  </a>
-                </div>
-              </section>
-            </div>
-          </nav>
-          <div
-            id="google-one-tap"
-            className="absolute top-20 right-4 z-50"
-          ></div>
-        </header>
+        <Island
+          name="header"
+          as="header"
+          className="site-masthead"
+          role="banner"
+          props={{ variant: "home", links: headerLinks(links, HOME_MENU) }}
+        />
         <main className="grow">
           <section className="hero-section">
             <div className="container mx-auto px-4 max-w-6xl">
@@ -672,19 +532,6 @@ export function HomePage({
           )}
         </main>
         <SiteFooter links={links} currentYear={currentYear} />
-        <script
-          defer
-          crossOrigin="anonymous"
-          src="https://clerk.classifast.com/npm/@clerk/ui@1/dist/ui.browser.js"
-          type="text/javascript"
-        ></script>
-        <script
-          defer
-          crossOrigin="anonymous"
-          data-clerk-publishable-key="pk_live_Y2xlcmsuY2xhc3NpZmFzdC5jb20k"
-          src="https://clerk.classifast.com/npm/@clerk/clerk-js@6/dist/clerk.browser.js"
-          type="text/javascript"
-        ></script>
       </body>
     </html>
   );
