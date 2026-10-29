@@ -4,6 +4,7 @@ import {
   element,
   fakeServices,
   hydratePage,
+  type FakeServices,
   press,
 } from "../test/islands.js";
 import { Island } from "../../../../src/web/islands/render-island.js";
@@ -29,8 +30,11 @@ function menuState() {
 const OPEN = { menu: true, button: true, expanded: "true" };
 const CLOSED = { menu: false, button: false, expanded: "false" };
 
+let services: FakeServices;
+
 describe("header island, mapping variant", () => {
   beforeEach(async () => {
+    services = fakeServices();
     const errors = await hydratePage(
       <>
         <Island
@@ -43,9 +47,13 @@ describe("header island, mapping variant", () => {
           <p id="outside">Outside</p>
         </main>
       </>,
-      fakeServices(),
+      services,
     );
     expect(errors).toEqual([]);
+  });
+
+  it("never starts auth", () => {
+    expect(services.auth.calls).toEqual([]);
   });
 
   it("toggles the menu from the button", async () => {
@@ -115,5 +123,142 @@ describe("header island, mapping product variant", () => {
     ]);
     await click(element("#mobile-menu-button"));
     expect(menuState()).toEqual(OPEN);
+  });
+});
+
+describe("header island, home variant", () => {
+  const HREF = "https://classifast.test/?from=home";
+
+  beforeEach(async () => {
+    services = fakeServices({ href: HREF });
+    const errors = await hydratePage(
+      <>
+        <Island
+          name="header"
+          as="header"
+          className="site-masthead"
+          role="banner"
+          props={{ variant: "home", links }}
+        />
+        <p id="outside">Outside</p>
+      </>,
+      services,
+    );
+    expect(errors).toEqual([]);
+  });
+
+  const slot = (name: "desktop" | "mobile") =>
+    element(`#${name}-auth-container`);
+  const controls = (name: "desktop" | "mobile") =>
+    [...slot(name).children].map((child) => ({
+      tag: child.tagName,
+      text: child.textContent,
+    }));
+  const SIGNED_IN = {
+    status: "signed-in",
+    userId: "user_1",
+    sessionUsable: true,
+  } as const;
+
+  it("starts auth and keeps both slots empty while it is pending", () => {
+    expect(services.auth.calls).toEqual(["start"]);
+    expect(slot("desktop").childElementCount).toBe(0);
+    expect(slot("mobile").childElementCount).toBe(0);
+  });
+
+  it("offers Sign In and Sign Up on desktop and only Sign In on mobile when signed out", async () => {
+    await services.auth.set({ status: "signed-out" });
+
+    expect(controls("desktop")).toEqual([
+      { tag: "BUTTON", text: "Sign In" },
+      { tag: "BUTTON", text: "Sign Up" },
+    ]);
+    expect(controls("mobile")).toEqual([{ tag: "BUTTON", text: "Sign In" }]);
+    expect(element("#clerk-sign-in-button-mobile").className).toBe(
+      element("#clerk-sign-in-button-desktop").className,
+    );
+    for (const button of slot("desktop").querySelectorAll("button")) {
+      expect(button.type).toBe("button");
+    }
+
+    await click(element("#clerk-sign-in-button-mobile"));
+    await click(element("#clerk-sign-in-button-desktop"));
+    await click(element("#clerk-sign-up-button-desktop"));
+    expect(services.auth.calls).toEqual([
+      "start",
+      "one-tap",
+      "sign-in",
+      "sign-in",
+      "sign-up",
+    ]);
+  });
+
+  it("asks for One Tap only for a signed-out visitor", async () => {
+    await services.auth.set({ status: "unavailable" });
+    await services.auth.set(SIGNED_IN);
+    expect(services.auth.calls).toEqual(["start"]);
+
+    await services.auth.set({ status: "signed-out" });
+    expect(services.auth.calls).toEqual(["start", "one-tap"]);
+  });
+
+  it("mounts Clerk's user button in both slots and keeps what Clerk renders", async () => {
+    await services.auth.set(SIGNED_IN);
+
+    const desktop = element("#clerk-user-button-desktop");
+    const mobile = element("#clerk-user-button-mobile");
+    expect(desktop.parentElement).toBe(slot("desktop"));
+    expect(mobile.parentElement).toBe(slot("mobile"));
+    expect(mobile.className).toBe(desktop.className);
+    expect(mobile.classList).toContain("h-9");
+    expect(services.auth.userButtons).toEqual(new Set([desktop, mobile]));
+    expect(document.querySelector("#clerk-sign-in-button-mobile")).toBeNull();
+
+    desktop.append(document.createElement("img"));
+    await click(element("#mobile-menu-button"));
+    expect(
+      document.querySelector("#clerk-user-button-desktop img"),
+    ).not.toBeNull();
+
+    await services.auth.set({ status: "signed-out" });
+    expect(services.auth.userButtons).toEqual(new Set());
+  });
+
+  it("links to the accounts site with this page as the redirect when Clerk is unavailable", async () => {
+    await services.auth.set({ status: "unavailable" });
+
+    const redirect = encodeURIComponent(HREF);
+    const links = (name: "desktop" | "mobile") =>
+      [...slot(name).children].map((a) => [
+        a.textContent,
+        a.getAttribute("href"),
+      ]);
+    expect(links("desktop")).toEqual([
+      [
+        "Sign In",
+        `https://accounts.classifast.com/sign-in?redirect_url=${redirect}`,
+      ],
+      [
+        "Sign Up",
+        `https://accounts.classifast.com/sign-up?redirect_url=${redirect}`,
+      ],
+    ]);
+    expect(links("mobile")).toEqual([
+      [
+        "Sign In",
+        `https://accounts.classifast.com/sign-in?redirect_url=${redirect}`,
+      ],
+    ]);
+  });
+
+  it("opens and closes the menu as the mapping header does", async () => {
+    await click(element("#mobile-menu-button"));
+    expect(menuState()).toEqual(OPEN);
+    await press("Escape");
+    expect(menuState()).toEqual(CLOSED);
+    expect(document.activeElement).toBe(element("#mobile-menu-button"));
+    await click(element("#mobile-menu-button"));
+    await click(element("#outside"));
+    expect(menuState()).toEqual(CLOSED);
   });
 });

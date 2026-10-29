@@ -23,7 +23,10 @@ export function siteLinks(origin: string): SiteLinks {
   };
 }
 
-const MENU_CLASSIFIERS = [
+/** A mobile menu's classifier chips: [label, classifier type], in order. */
+type MenuChips = readonly (readonly [label: string, classifierType: string])[];
+
+const MAPPING_MENU: MenuChips = [
   "UNSPSC",
   "GPC",
   "NAICS",
@@ -35,14 +38,32 @@ const MENU_CLASSIFIERS = [
   "NACE",
   "CPV",
   "NSN",
-] as const;
+].map((type) => [type, type]);
 
-export function headerLinks(links: SiteLinks): HeaderLinks {
+export const HOME_MENU: MenuChips = [
+  ["UNSPSC", "UNSPSC"],
+  ["GS1 GPC", "GPC"],
+  ["EMDN", "EMDN"],
+  ["NAICS", "NAICS"],
+  ["CN", "CN"],
+  ["ETIM", "ETIM"],
+  ["ISIC", "ISIC"],
+  ["HS", "HS"],
+  ["HTS", "HTS"],
+  ["NACE", "NACE"],
+  ["CPV", "CPV"],
+  ["NSN", "NSN"],
+];
+
+export function headerLinks(
+  links: SiteLinks,
+  menu: MenuChips = MAPPING_MENU,
+): HeaderLinks {
   return {
     home: links.home,
     mappingIndex: links.mappingIndex,
     classifiers: Object.fromEntries(
-      MENU_CLASSIFIERS.map((type) => [type, links.classifier(type)]),
+      menu.map(([label, type]) => [label, links.classifier(type)]),
     ),
   };
 }
