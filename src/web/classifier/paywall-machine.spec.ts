@@ -191,6 +191,17 @@ describe("paywall checkout", () => {
     expect(ofType(page.log, "create-checkout")).toEqual([]);
   });
 
+  it("retries the refused lookup when a session that went unusable is usable again", () => {
+    const page = showingPaywall(SIGNED_OUT);
+    page.setAuth(signedIn());
+    expect(page.fetches()).toHaveLength(2);
+    page.answer(paywall("/NAICS/coffee/?top_k=30", true));
+
+    page.setAuth(signedIn("user_123", false));
+    page.setAuth(signedIn());
+    expect(page.fetches()).toHaveLength(3);
+  });
+
   it("clears Upgrade before the header Sign In can synchronously notify usable authentication", () => {
     const page = showingPaywall(SIGNED_OUT);
     page.paywall({ type: "upgrade-clicked" });
@@ -537,6 +548,54 @@ describe("paywall activation", () => {
       kind: "paywall",
       activationStopped: false,
     });
+  });
+
+  it("shows the stopped notice, not the stored results a resumed activation covered", () => {
+    const page = new Classifier(
+      { autoload: true },
+      {
+        url: `${ORIGIN}/NAICS/industrial_pump/`,
+        fields: form("industrial pump"),
+        auth: signedIn(),
+      },
+    );
+    page.mount();
+    page.answer(results());
+    page.browser.stored = {
+      upgradeIntent: null,
+      activation: { returnUrl: RETURN_PAGE, deadline: T0 + 60_000 },
+    };
+    page.send({
+      type: "history-popped",
+      entry: {
+        v: 1,
+        fields: form("industrial pump"),
+        fallbackQuery: null,
+        title: "NAICS codes for 'Industrial Pump'",
+        show: results(),
+      },
+    });
+    expect(page.view.panel).toEqual({ kind: "activation", phase: "checking" });
+
+    page.type("industrial pumps");
+    expect(page.view.panel).toEqual({ kind: "activation", phase: "stopped" });
+  });
+
+  it("keeps checking when a blank submit on the base page only reports the empty textarea", () => {
+    const page = new Classifier(
+      { example: "Industrial pump" },
+      {
+        url: `${ORIGIN}/NAICS/?checkout=success`,
+        fields: form(""),
+        auth: signedIn(),
+      },
+    );
+    page.mount();
+    page.answer(BUSY);
+    expect(page.submit()).toEqual([{ type: "report-empty-query" }]);
+    expect(page.view.panel).toEqual({ kind: "activation", phase: "checking" });
+    page.advance(2_000);
+    expect(page.fetches()).toHaveLength(2);
   });
 
   it("ignores a stale answer while observing the first check", () => {
