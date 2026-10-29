@@ -272,6 +272,7 @@ describe("results", () => {
     }).toEqual({
       kind: "results",
       version: VERSION,
+      query: "laptop computer",
       results: [
         {
           originalId: "43211503",

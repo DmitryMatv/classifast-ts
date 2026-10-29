@@ -9,7 +9,8 @@ import {
 /**
  * Hydration resets a prefilled textarea to its server text. Captures what
  * the visitor typed before the bundle ran and returns the function that
- * writes it back as an ordinary edit.
+ * writes it back. Every capture is reported as an input event, also where
+ * React kept the text (an empty textarea), so the island sees the edit.
  */
 export function captureEdits(host: Element): () => void {
   const edits = [...host.querySelectorAll("textarea")]
@@ -17,7 +18,6 @@ export function captureEdits(host: Element): () => void {
     .map((textarea) => [textarea, textarea.value] as const);
   return () => {
     for (const [textarea, value] of edits) {
-      if (textarea.value === value) continue;
       textarea.value = value;
       textarea.dispatchEvent(new Event("input", { bubbles: true }));
     }
