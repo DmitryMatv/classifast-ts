@@ -12,22 +12,40 @@ import {
   sameOriginPath,
   send,
 } from "./support/http.js";
+import { islandNamed } from "../../src/web/islands/registry.js";
 
 type Region = {
   selector: string;
   count?: number | "some";
   attributes?: Record<string, string>;
   sameOriginPaths?: Record<string, string>;
+  /** Values in the island's data-island-props. */
+  islandProps?: Record<string, string>;
+  sameOriginIslandProps?: Record<string, string>;
   text?: string;
 };
 
 type PageDom = { path: string; regions: Region[] };
 
-const shell: Region[] = [
+const menu: Region[] = [
   { selector: "#mobile-menu-button.hamburger" },
   { selector: "#mobile-menu" },
   { selector: "#mobile-menu a", count: "some" },
+];
+
+const shell: Region[] = [
+  ...menu,
   { selector: 'script[type="module"][src^="/static/js/common.js?v="]' },
+];
+
+// A page of islands loads only site.js, and its header island starts Clerk
+// when the page needs it.
+const islandShell: Region[] = [
+  ...menu,
+  { selector: 'header[data-island="header"] #mobile-menu' },
+  { selector: 'script[type="module"][src^="/static/js/site.js?v="]' },
+  { selector: 'script[src*="/static/js/"]', count: 1 },
+  { selector: "body:not([data-auth-ui])" },
 ];
 
 const clerkAuth: Region[] = [
@@ -37,10 +55,6 @@ const clerkAuth: Region[] = [
   {
     selector: 'script[src*="clerk.browser.js"][data-clerk-publishable-key]',
   },
-];
-
-const authDisabled: Region[] = [
-  { selector: "body", attributes: { "data-auth-ui": "disabled" } },
 ];
 
 function classifierRegions(query: {
@@ -110,18 +124,10 @@ function buyButton(
 ): Region {
   const path = `/mapping/${slug}/`;
   return {
-    selector: `[data-mapping-buy-button][data-mapping-slug="${slug}"]`,
+    selector: `[data-island="buy-button"][data-island-props*='"slug":"${slug}"']`,
     ...(returnUrl === "canonical"
-      ? {
-          attributes: {
-            type: "button",
-            "data-return-url": `https://classifast.com${path}`,
-          },
-        }
-      : {
-          attributes: { type: "button" },
-          sameOriginPaths: { "data-return-url": path },
-        }),
+      ? { islandProps: { returnUrl: `https://classifast.com${path}` } }
+      : { sameOriginIslandProps: { returnUrl: path } }),
   };
 }
 
@@ -131,10 +137,6 @@ function sampleLink(slug: string): Region {
     sameOriginPaths: { href: `/mapping/${slug}/sample` },
   };
 }
-
-const storefrontScript: Region = {
-  selector: 'script[type="module"][src^="/static/js/storefront.js?v="]',
-};
 
 const pageDoms: PageDom[] = [
   { path: "/", regions: [...shell, ...clerkAuth] },
@@ -160,24 +162,28 @@ const pageDoms: PageDom[] = [
   {
     path: "/mapping/",
     regions: [
-      ...shell,
-      ...authDisabled,
+      ...islandShell,
       buyButton("unspsc-to-cpv-mapping", "same-origin"),
       buyButton("cpv-to-unspsc-mapping", "same-origin"),
       sampleLink("unspsc-to-cpv-mapping"),
       sampleLink("cpv-to-unspsc-mapping"),
-      storefrontScript,
+      {
+        selector: '[data-island="buy-button"] > button[type="button"]',
+        count: 2,
+      },
     ],
   },
   {
     path: "/mapping/unspsc-to-cpv-mapping/",
     regions: [
-      ...shell,
-      ...authDisabled,
+      ...islandShell,
       buyButton("unspsc-to-cpv-mapping", "canonical"),
+      { selector: '[data-island="buy-button"] > button[type="button"]' },
       sampleLink("unspsc-to-cpv-mapping"),
-      { selector: "[data-storefront-success].hidden" },
-      storefrontScript,
+      {
+        selector:
+          '[data-island="checkout-banner"] > #storefront-success-message.hidden',
+      },
     ],
   },
 ];
@@ -206,7 +212,16 @@ describe(
   () => {
     it.each(regionChecks)(
       "$path $selector",
-      async ({ path, selector, count, attributes, sameOriginPaths, text }) => {
+      async ({
+        path,
+        selector,
+        count,
+        attributes,
+        sameOriginPaths,
+        islandProps,
+        sameOriginIslandProps,
+        text,
+      }) => {
         const elements = [
           ...(await documentAt(path)).querySelectorAll(selector),
         ];
@@ -227,6 +242,20 @@ describe(
               sameOriginPath(element.getAttribute(name) ?? "", label),
               label,
             ).toBe(value);
+          }
+          const props = JSON.parse(
+            element.getAttribute("data-island-props") ?? "{}",
+          ) as Record<string, unknown>;
+          for (const [name, value] of Object.entries(islandProps ?? {})) {
+            expect(props[name], `${selector} ${name}`).toBe(value);
+          }
+          for (const [name, value] of Object.entries(
+            sameOriginIslandProps ?? {},
+          )) {
+            const label = `${path} ${selector} ${name}`;
+            expect(sameOriginPath(String(props[name]), label), label).toBe(
+              value,
+            );
           }
           if (text !== undefined) {
             expect(element.textContent?.trim()).toBe(text);
@@ -266,6 +295,25 @@ describe(
     });
   },
 );
+
+describe("every island host names an island this server's site.js hydrates", () => {
+  it.each(pageDoms.map(({ path }) => path))("%s", async (path) => {
+    for (const host of (await documentAt(path)).querySelectorAll(
+      "[data-island]",
+    )) {
+      const name = host.getAttribute("data-island") ?? "";
+      const label = `${path} [data-island="${name}"]`;
+      expect(islandNamed(name), label).toBeDefined();
+      expect(host.getAttribute("data-island-version"), label).toBe(
+        String(islandNamed(name)?.version),
+      );
+      expect(
+        JSON.parse(host.getAttribute("data-island-props") ?? ""),
+        label,
+      ).toBeTypeOf("object");
+    }
+  });
+});
 
 describe("same-origin scripts and stylesheets load", () => {
   it.each(pageDoms.map(({ path }) => path))("%s", async (path) => {

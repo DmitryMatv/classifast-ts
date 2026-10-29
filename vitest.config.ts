@@ -7,7 +7,7 @@ export default defineConfig({
         test: {
           name: "assets",
           environment: "jsdom",
-          include: ["app/assets/ts/**/*.test.ts"],
+          include: ["app/assets/ts/**/*.test.{ts,tsx}"],
           setupFiles: ["app/assets/ts/test/setup.ts"],
           restoreMocks: true,
           clearMocks: true,
