@@ -10,8 +10,9 @@ import {
 
 stripCheckoutSecrets(window);
 const runtime = createBrowserRuntime(window);
+const auth = createAuthService(window, runtime);
 hydrateIslands(document, {
-  auth: createAuthService(window, runtime),
-  api: createApiClient(window),
+  auth,
+  api: createApiClient(window, auth),
   runtime,
 });

@@ -126,6 +126,7 @@ describe.runIf(fullMode)(
       expect(reply.headers.get("hx-push-url")).toBeNull();
       expect(body).toMatchObject({
         version: VERSION,
+        query: "laptop computer",
         url,
         title: "UNSPSC codes for 'Laptop Computer'",
       });

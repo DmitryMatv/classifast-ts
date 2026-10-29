@@ -152,6 +152,7 @@ export class ResultsApiController {
           body: {
             kind: "results",
             version: outcome.versionName,
+            query: request.description,
             ...this.#queryPage(request),
             ...toResultsView(outcome.results, {
               classifierType: upperType,

@@ -1,10 +1,10 @@
 // Pure and isomorphic. The classifier form as data: the query a lookup
 // sends and the history entry Back/Forward restores.
 import { collapseWhitespace } from "../../python/str.js";
-import type {
-  ResultView,
-  ResultsQuery,
-  ResultsResponse,
+import {
+  isResultsAnswer,
+  type ResultsAnswer,
+  type ResultsQuery,
 } from "../results-api.js";
 
 export const TOP_K_CHOICES = [10, 30, 100] as const;
@@ -49,8 +49,6 @@ export function lookupOf(
   };
 }
 
-export type ResultsAnswer = Extract<ResultsResponse, { kind: "results" }>;
-
 /**
  * What Back/Forward to an entry shows.
  * - page: the document's first entry; the panel the server rendered.
@@ -79,10 +77,6 @@ function isString(value: unknown): value is string {
   return typeof value === "string";
 }
 
-function isOptionalString(value: unknown): boolean {
-  return value === undefined || isString(value);
-}
-
 function formFieldsOf(value: unknown): FormFields | null {
   if (!isObject(value)) return null;
   const { text, version, topK, enhance } = value;
@@ -95,40 +89,6 @@ function formFieldsOf(value: unknown): FormFields | null {
   )
     return null;
   return { text, version, topK: topK as TopK, enhance };
-}
-
-function isResultView(value: unknown): value is ResultView {
-  return (
-    isObject(value) &&
-    isString(value["originalId"]) &&
-    isString(value["definition"]) &&
-    isString(value["scoreLabel"]) &&
-    isString(value["scoreWidth"]) &&
-    isOptionalString(value["detailUrl"]) &&
-    isOptionalString(value["idLevel"]) &&
-    isOptionalString(value["className"]) &&
-    Array.isArray(value["codeTokens"]) &&
-    value["codeTokens"].every(
-      (token) =>
-        isObject(token) &&
-        isString(token["char"]) &&
-        typeof token["gapAfter"] === "boolean",
-    )
-  );
-}
-
-function isResultsAnswer(value: unknown): value is ResultsAnswer {
-  return (
-    isObject(value) &&
-    value["kind"] === "results" &&
-    isString(value["version"]) &&
-    isString(value["url"]) &&
-    isString(value["title"]) &&
-    isOptionalString(value["tooltip"]) &&
-    isOptionalString(value["elapsed"]) &&
-    Array.isArray(value["results"]) &&
-    value["results"].every(isResultView)
-  );
 }
 
 function shownPanelOf(value: unknown): ShownPanel | null {

@@ -1,6 +1,7 @@
 // Isomorphic: the browser bundles this module and the server imports it.
 // src/web/client-boundary.spec.ts keeps server-only imports out of it.
 import type { ComponentProps, ComponentType } from "react";
+import { ClassifierIsland } from "../classifier/classifier-island.js";
 import { SiteHeader } from "../header/site-header.js";
 import { BuyButton, CheckoutBanner } from "../storefront/storefront-islands.js";
 
@@ -24,6 +25,7 @@ export const ISLANDS = {
   header: { version: 1, component: SiteHeader },
   "buy-button": { version: 1, component: BuyButton },
   "checkout-banner": { version: 1, component: CheckoutBanner },
+  classifier: { version: 1, component: ClassifierIsland },
 } as const satisfies Record<string, IslandDefinition>;
 
 export type IslandName = keyof typeof ISLANDS;

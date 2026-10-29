@@ -50,47 +50,36 @@ export const CLASSIFIER_PAGE_CSS = `
             }
         }
 
-        /* HTMX loading indicator styles */
         #loading-indicator {
-            display: none;
+            display: flex;
             opacity: 0;
             transition: opacity 0.3s ease-out;
         }
 
-        #loading-indicator.htmx-indicator {
-            display: flex;
-        }
-
-        #loading-indicator.htmx-indicator.htmx-request {
+        #loading-indicator[data-active] {
             opacity: 1;
         }
 
         .score-bar {
             background: linear-gradient(to right, #f9fafb, #e5e7eb);
+            transform-origin: left center;
+            animation: score-bar-grow 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        }
+
+        @keyframes score-bar-grow {
+            from {
+                transform: scaleX(0);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .score-bar {
+                animation: none;
+            }
         }
 
         .classifier-surface {
             background-color: #c6ecff;
-        }
-
-        .js-score-animations [data-score-bar] {
-            transform: scaleX(0);
-            transform-origin: left center;
-            transition: transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
-            transition-delay: var(--score-animation-delay, 0ms);
-            will-change: transform;
-        }
-
-        .js-score-animations [data-score-bar].is-score-bar-visible {
-            transform: scaleX(1);
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            .js-score-animations [data-score-bar] {
-                transform: none;
-                transition: none;
-                will-change: auto;
-            }
         }
 
         /* Mobile menu styles */

@@ -1,3 +1,4 @@
+import { act } from "react";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   click,
@@ -187,8 +188,8 @@ describe("header island, home variant", () => {
     expect(services.auth.calls).toEqual([
       "start",
       "one-tap",
-      "sign-in",
-      "sign-in",
+      "sign-in:plain",
+      "sign-in:plain",
       "sign-up",
     ]);
   });
@@ -251,6 +252,32 @@ describe("header island, home variant", () => {
     ]);
   });
 
+  it("leaves through a plain sign-in on a plain click of the fallback Sign In, and lets a new-tab click through", async () => {
+    await services.auth.set({ status: "unavailable" });
+    const signIn = slot("mobile").querySelector("a")!;
+    const clickWith = async (init: MouseEventInit) => {
+      let followed = false;
+      // Runs after React's handler; jsdom cannot navigate, so stop it here.
+      const observe = (event: Event) => {
+        followed = !event.defaultPrevented;
+        event.preventDefault();
+      };
+      window.addEventListener("click", observe);
+      await act(async () => {
+        signIn.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, cancelable: true, ...init }),
+        );
+      });
+      window.removeEventListener("click", observe);
+      return followed;
+    };
+
+    expect(await clickWith({ ctrlKey: true })).toBe(true);
+    expect(services.auth.calls).toEqual(["start"]);
+    expect(await clickWith({})).toBe(false);
+    expect(services.auth.calls).toEqual(["start", "sign-in:plain"]);
+  });
+
   it("opens and closes the menu as the mapping header does", async () => {
     await click(element("#mobile-menu-button"));
     expect(menuState()).toEqual(OPEN);
@@ -259,6 +286,45 @@ describe("header island, home variant", () => {
     expect(document.activeElement).toBe(element("#mobile-menu-button"));
     await click(element("#mobile-menu-button"));
     await click(element("#outside"));
+    expect(menuState()).toEqual(CLOSED);
+  });
+});
+
+describe("header island, classifier variant", () => {
+  beforeEach(async () => {
+    services = fakeServices();
+    const errors = await hydratePage(
+      <Island
+        name="header"
+        as="header"
+        className="bg-white relative"
+        props={{
+          variant: "classifier",
+          links,
+          classifier: { name: "UNSPSC", url: links.classifiers["UNSPSC"]! },
+        }}
+      />,
+      services,
+    );
+    expect(errors).toEqual([]);
+  });
+
+  it("names the page's classifier, starts auth and fills the slots", async () => {
+    expect(element("header h1 a").getAttribute("href")).toBe(
+      "https://classifast.test/UNSPSC/",
+    );
+    expect(services.auth.calls).toEqual(["start"]);
+
+    await services.auth.set({ status: "signed-out" });
+    await click(element("#clerk-sign-in-button-desktop"));
+
+    expect(services.auth.calls).toEqual(["start", "one-tap", "sign-in:plain"]);
+  });
+
+  it("toggles the menu", async () => {
+    await click(element("#mobile-menu-button"));
+    expect(menuState()).toEqual(OPEN);
+    await press("Escape");
     expect(menuState()).toEqual(CLOSED);
   });
 });

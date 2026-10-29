@@ -227,7 +227,6 @@ export class ClassifierPageController {
         version: version !== firstVersion ? version : "",
         firstVersion,
         topK,
-        defaultTopK: DEFAULT_TOP_K,
         canonicalUrl,
         results: seeded.results,
         defaultExamplePrefill: seeded.defaultExamplePrefill,

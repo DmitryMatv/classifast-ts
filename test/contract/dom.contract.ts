@@ -1,9 +1,6 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import {
   classificationTimeout,
   contract,
-  repoRoot,
   type ContractMode,
 } from "./support/env.js";
 import {
@@ -33,11 +30,6 @@ const menu: Region[] = [
   { selector: "#mobile-menu a", count: "some" },
 ];
 
-const shell: Region[] = [
-  ...menu,
-  { selector: 'script[type="module"][src^="/static/js/common.js?v="]' },
-];
-
 // A page of islands loads only site.js, and its header island starts Clerk
 // when the page needs it.
 const islandShell: Region[] = [
@@ -49,7 +41,7 @@ const islandShell: Region[] = [
 ];
 
 // The home header island renders the auth slots empty and injects Clerk's
-// scripts itself.
+// scripts itself; the classifier variant does too.
 const islandAuth: Region[] = [
   {
     selector: 'header[data-island="header"]',
@@ -60,39 +52,27 @@ const islandAuth: Region[] = [
   { selector: 'script[src*="clerk"]', count: 0 },
 ];
 
-const clerkAuth: Region[] = [
-  { selector: "#desktop-auth-container" },
-  { selector: "#mobile-auth-container" },
-  { selector: "body:not([data-auth-ui])" },
-  {
-    selector: 'script[src*="clerk.browser.js"][data-clerk-publishable-key]',
-  },
-];
-
-function classifierRegions(query: {
-  initialQueryPresent: boolean;
-  text?: string;
-}): Region[] {
+// The classifier island covers #classifier-form-section; its props carry
+// what the HTMX-era form held in hx-* and data-* attributes.
+function classifierRegions(query: { text: string }): Region[] {
   return [
     {
-      selector: "form[hx-get]",
-      attributes: {
-        id: "classifier-form",
-        "hx-target": "#results-container",
-        "hx-swap": "innerHTML",
-        "hx-indicator": "#loading-indicator",
-        "hx-sync": "this:replace",
-        "data-initial-query-present": String(query.initialQueryPresent),
-        "data-default-example-prefill": String(!query.initialQueryPresent),
-        "data-default-top-k": "10",
-        "data-default-version": "UNSPSC UNv260801.1 (18 March 2025)",
-      },
-      sameOriginPaths: { "hx-get": "/UNSPSC/fragment" },
+      selector: 'header[data-island="header"]',
+      islandProps: { variant: "classifier" },
     },
+    { selector: 'header[data-island="header"] #desktop-auth-container:empty' },
+    { selector: 'header[data-island="header"] #mobile-auth-container:empty' },
+    { selector: 'script[src*="clerk"]', count: 0 },
+    {
+      selector: 'section#classifier-form-section[data-island="classifier"]',
+      islandProps: { classifierType: "UNSPSC" },
+    },
+    { selector: "#classifier-form-section form#classifier-form" },
+    { selector: "form[hx-get], [hx-target], [hx-swap-oob]", count: 0 },
     {
       selector: "#classifier-form textarea#product_description_area[required]",
       attributes: { name: "product_description" },
-      ...(query.text === undefined ? {} : { text: query.text }),
+      text: query.text,
     },
     {
       selector: "#classifier-form select#version_selector",
@@ -111,22 +91,19 @@ function classifierRegions(query: {
       attributes: { type: "checkbox", name: "enhance_query", value: "1" },
     },
     { selector: '#classifier-form button[type="submit"]' },
-    { selector: "#loading-indicator" },
+    { selector: "#loading-indicator:not([data-active])" },
     { selector: "#results-section #results-container" },
     {
       selector: "#description-toggle",
       attributes: {
         "aria-controls": "description-content",
         "aria-expanded": "false",
-        "data-classifier-type": "UNSPSC",
       },
+      text: "Learn more about UNSPSC",
     },
     { selector: "#description-container #description-content" },
-    { selector: '[data-classifier-logo="true"]', count: "some" },
-    { selector: "title#page-title" },
-    { selector: 'script[src^="/static/htmx.min.js?v="]' },
-    { selector: 'script[type="module"][src^="/static/js/paywall.js?v="]' },
-    { selector: 'script[type="module"][src^="/static/js/classifier.js?v="]' },
+    { selector: "#classifier-form-section img", count: "some" },
+    { selector: 'script[src*="htmx"]', count: 0 },
   ];
 }
 
@@ -154,21 +131,13 @@ const pageDoms: PageDom[] = [
   { path: "/", regions: [...islandShell, ...islandAuth] },
   {
     path: "/UNSPSC/",
-    regions: [
-      ...shell,
-      ...clerkAuth,
-      ...classifierRegions({ initialQueryPresent: false }),
-    ],
+    regions: [...islandShell, ...classifierRegions({ text: "" })],
   },
   {
     path: "/UNSPSC/laptop_computer/",
     regions: [
-      ...shell,
-      ...clerkAuth,
-      ...classifierRegions({
-        initialQueryPresent: true,
-        text: "laptop computer",
-      }),
+      ...islandShell,
+      ...classifierRegions({ text: "laptop computer" }),
     ],
   },
   {
@@ -299,11 +268,12 @@ describe(
       expect(results.length > 0, "server-rendered results").toBe(
         seeded[contract.mode],
       );
-      expect(
+      const props = JSON.parse(
         document
-          .querySelector("#classifier-form")
-          ?.getAttribute("data-autoload-enabled"),
-      ).toBe(String(!seeded[contract.mode]));
+          .querySelector('[data-island="classifier"]')
+          ?.getAttribute("data-island-props") ?? "",
+      ) as { start: { autoload: boolean } };
+      expect(props.start.autoload).toBe(!seeded[contract.mode]);
     });
   },
 );
@@ -346,36 +316,4 @@ describe("same-origin scripts and stylesheets load", () => {
       expectStatus(await send(`${url.pathname}${url.search}`), 200);
     }
   });
-});
-
-const fragmentIds = new Set([
-  "share-button",
-  "paywall-warning",
-  "paywall-buttons",
-  "signin-button",
-  "upgrade-button",
-  "retry-button",
-]);
-
-function idsLookedUpByScripts(): string[] {
-  const sources = readdirSync(join(repoRoot, "app/assets/ts"))
-    .filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
-    .map((name) => readFileSync(join(repoRoot, "app/assets/ts", name), "utf8"));
-  const ids = sources.flatMap((source) => [
-    ...[...source.matchAll(/getElementById\(\s*["']([\w-]+)["']/g)].map(
-      (match) => match[1] ?? "",
-    ),
-    ...[...source.matchAll(/["'][^"'\n]*?#([\w-]+)/g)].map(
-      (match) => match[1] ?? "",
-    ),
-  ]);
-  return [...new Set(ids)].sort();
-}
-
-it("the region tables cover every id the scripts look up", () => {
-  const covered = regionChecks.map(({ selector }) => selector).join(" ");
-  const uncovered = idsLookedUpByScripts().filter(
-    (id) => !fragmentIds.has(id) && !new RegExp(`#${id}\\b`).test(covered),
-  );
-  expect(uncovered).toEqual([]);
 });

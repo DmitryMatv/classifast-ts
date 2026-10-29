@@ -471,13 +471,71 @@ through `useServices()`; tests hydrate them with fakes
   Nest), on files the Dockerfile frontend stage does not copy, and on `.tsx`
   files Tailwind does not scan.
 - Golden page fixtures stay frozen. `test/support/page-divergences.ts` lists
-  each deliberate markup change as a named edit of the expected page.
-- `app/assets/ts/services/auth.ts` owns Clerk on island pages. The home
-  header island starts it, and it injects Clerk's scripts, so island pages
-  carry no Clerk tags. Islands read `useAuth()`; only the API client may call
-  `authorization()`. Clerk refreshes its session token itself, so add no
-  refresh timer. Classifier pages keep `common.ts` until they become islands;
-  never load both owners on one page.
+  each deliberate markup change as a named edit of the expected page. An
+  entry can also edit the classifier region cases (`regions`) and the result
+  fragment cases (`fragments`). An entry that no longer changes its full page
+  fails, so remove it when its change is reverted.
+- `app/assets/ts/services/auth.ts` owns Clerk on island pages. The header
+  island's home and classifier variants start it, and it injects Clerk's
+  scripts, so island pages carry no Clerk tags. Islands read `useAuth()`;
+  only the API client may call `authorization()`. Clerk refreshes its session
+  token itself, so add no refresh timer. Never load `common.ts` on an island
+  page: the page would have two Clerk owners.
+- Tailwind scans every file under `src/web`, specs and comments included. A
+  utility word such as `truncate` or `isolate` anywhere there adds a rule to
+  `styles.css`. Compare `styles.css` with `cmp` after a change that only
+  touched tests or comments.
+
+### The classifier island
+
+The `classifier` island (`src/web/classifier/classifier-island.tsx`) covers
+all of `#classifier-form-section`. `classifier-machine.ts` decides and
+`paywall-machine.ts`, nested in it, owns checkout and activation; the doc
+comment of each command type is the interpreter's contract. The island's
+`createInterpreter` is the only code that runs commands. Keep effects there
+and decisions in the machines.
+
+- Form fields are uncontrolled. The island reads them from the DOM for each
+  event (`readFields`) and writes them only for Back/Forward
+  (`write-fields`). Do not make them controlled: React resets a prefilled
+  textarea on hydration, and `captureEdits` in `hydrate-islands.tsx` writes
+  back what the visitor typed before `site.js` ran and reports it as an
+  edit, which cancels an autoload.
+- The base page renders the textarea empty with the example as its
+  placeholder; the machine's `fallbackQuery` sends the example until the
+  first edit. A manual submit of an empty or blank textarea shows the
+  native required message (`report-empty-query`), because the form is
+  `noValidate` and the submit handler is the one validation point.
+- Every lookup goes through `ApiClient.results`, which waits for auth,
+  writes the `cf_track` cookie before the first lookup, and answers `error`
+  for network, auth and malformed answers. Only an abort rejects.
+- History entries live under `history.state.classifast`. A results answer is
+  stored in its entry and Back/Forward shows it with no request; a paywall,
+  busy or error entry refetches. Manual and resubmit answers push the
+  server's `url` and `title`; autoload, restore and activation answers
+  change neither.
+- Score bars carry their width and stagger inline and grow by a CSS
+  animation in `classifier-page-styles.ts`. `data-score-bar` and
+  `data-score-width` stay for the legacy `classifier.js` until unit 5.
+- The paywall's sessionStorage keys (`classifast:upgrade-intent`,
+  `classifast:checkout-recovery`) and shapes match `paywall.ts`, so a
+  checkout started on a cached HTMX page resumes on an island page. An
+  activation needs a signed-in visitor: signing out or an unavailable Clerk
+  stops it.
+- `test/pages.e2e-spec.ts` hydrates every golden classifier page from the
+  Nest app through `hydrateIslands` (`test/support/island-hydration.ts`) and
+  expects both islands to hydrate with no recoverable error.
+
+`scripts/serve-fake-backend.mjs` is a dev-only tool, not part of the image.
+After `npm run build && npm run build:server` it serves the built app with a
+fake Qdrant, classification, quota and crawler check, so a browser can see
+every classifier panel without Redis or embeddings. A word in the
+description picks the answer (`paywall`, `member`, `busy`, `error`,
+`degraded`, `empty`); `POST 127.0.0.1:<port+1>/mode` with
+`{"answer": "...", "delayMs": 700, "crawler": false}` overrides it for every
+lookup. Production Clerk rejects localhost, so a signed-in flow such as a
+checkout return needs Clerk's two scripts replaced in the browser, for
+example with a Playwright route that serves a stand-in `window.Clerk`.
 
 ## Rapid API
 
@@ -531,7 +589,8 @@ as `unavailable`.
   `npm run build`, restart the server or the browser keeps loading the old
   JS with stale `?v=` values.
 - The server never sets cookies on any response, cacheable or not. `cf_track`
-  is set by client-side JavaScript. On HTML or fragment routes a server-side
+  is set by client-side JavaScript: the API client on island pages, and the
+  inline script of cached pre-island classifier HTML. On HTML or fragment routes a server-side
   cookie additionally breaks the `HTML_PAGE`/`CLASSIFICATION_RESULT` CDN cache
   profiles; on other routes it is still forbidden by design, so use
   client-side JavaScript for any per-user state.
@@ -540,26 +599,32 @@ as `unavailable`.
   `src/crawlers/google-crawlers.ts` requires the explicit
   `GOOGLE_CRAWLER_TRUST_CF_CONNECTING_IP` opt-in. Pick one policy deliberately
   for new IP-dependent code.
-- `paywall.ts` is wrapped in a parse guard on purpose (class declarations
+- Legacy until unit 5: the HTMX entries below describe `common.ts`,
+  `classifier.ts`, `paywall.ts` and `htmx.min.js`, which only cached
+  pre-island classifier HTML still loads, with `/{TYPE}/fragment`. No page
+  the server renders now loads them. Keep them working, and keep
+  `vite.legacy.config.ts` building them byte for byte, until unit 5 deletes
+  them.
+- Legacy: `paywall.ts` is wrapped in a parse guard on purpose (class declarations
   re-execute on bfcache/history-restore re-parsing). Do not remove the guard.
-- System classification retries must use `requestCurrentClassifierSubmission`
+- Legacy: System classification retries must use `requestCurrentClassifierSubmission`
   so the current classifier owner can submit a remembered example after the
   required textarea clears. Native `requestSubmit` stops at validation before
   HTMX can supply the query; mocked `requestSubmit` hides this failure.
-- HTMX 4's submit handler does not check `defaultPrevented`. The auth-readiness
+- Legacy: HTMX 4's submit handler does not check `defaultPrevented`. The auth-readiness
   gate must capture submission and stop immediate propagation until auth is ready,
   even when HTMX processed the form before the classifier mounted.
-- Vendored HTMX tests in jsdom need an explicit XPath result type, `CSS.escape`,
+- Legacy: Vendored HTMX tests in jsdom need an explicit XPath result type, `CSS.escape`,
   and `includeIndicatorCSS: false`. `paywall-retry.test.ts` supplies these while
   retaining native form validation and recording final request parameters.
-- HTMX 4 history restore preserves `document.body` and replaces its children.
+- Legacy: HTMX 4 history restore preserves `document.body` and replaces its children.
   Initialize restored controls after the BODY `htmx:after:swap` with
   `HX-History-Restore-Request`, and retire handlers for the previous form.
   Restored result autoload must use `push_url=false` to preserve Forward.
-- On classifier pages, `common.ts` can load through both a versioned template URL and the classifier's
+- Legacy: On classifier pages, `common.ts` can load through both a versioned template URL and the classifier's
   unversioned module import. Both instances must share one document owner for
   Clerk bootstrap, token refresh, and global handlers.
-- `htmx.min.js` is vendored in `app/static` and must use `asset_url` like the
+- Legacy: `htmx.min.js` is vendored in `app/static` and must use `asset_url` like the
   application scripts. An unversioned URL can pair cached HTMX with incompatible
   event handlers after an upgrade. `emptyOutDir: false` in `vite.config.ts`
   protects it from build cleanup.
@@ -628,9 +693,11 @@ as `unavailable`.
   Shutdown rejects waiting jobs and drains the active one before shared
   clients close. Waiting jobs rejected at shutdown and `run` calls made after
   shutdown begins both fail with `ClassificationQueueClosed`.
-- Checkout recovery retries two seconds after each completed request and has a
-  60-second deadline. An input or change inside the form cancels recovery,
-  switches to the existing manual-retry message, and enables Try again.
-  Keep displayed status consistent with whether automatic checks are running;
-  update only the recovery status paragraph, preserving a fresh ordinary paywall.
-  Successful recovery must leave results visible without recreating a warning.
+- Checkout recovery (the paywall machine's activation) checks at once, then
+  two seconds after each answer that is not results, within a 60-second
+  deadline kept in sessionStorage. An edit or a manual submit stops it and
+  shows "still pending. Try again.", with the paywall's buttons when the
+  panel held a paywall; after the deadline only Try again shows, and it
+  restarts the window. While it
+  checks, the panel shows the activation card instead of a paywall.
+  Successful recovery shows the results without recreating a warning.
