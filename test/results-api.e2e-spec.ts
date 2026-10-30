@@ -45,6 +45,7 @@ import {
   resultsApiPath,
   type ResultsResponse,
 } from "../src/web/results-api.js";
+import { fitsUrlLimit, MAX_URL_LENGTH } from "../src/web/url-limit.js";
 import {
   startQdrantServer,
   validCollections,
@@ -504,6 +505,16 @@ describe("errors", () => {
     expectProfile(response, "NO_STORE");
     expect(body).toEqual({ kind: "error", message });
     expect(fake.events).toEqual([]);
+  });
+
+  it("rejects a URL exactly where fitsUrlLimit stops fitting", async () => {
+    // "x" because a run of 64 hex digits is rejected as an attack.
+    const longest = "x".repeat(MAX_URL_LENGTH + 1 - apiPath("").length);
+    expect(fitsUrlLimit(apiPath(longest))).toBe(true);
+    expect(fitsUrlLimit(apiPath(`${longest}x`))).toBe(false);
+
+    expect((await get(apiPath(longest))).status).toBe(200);
+    expect((await get(apiPath(`${longest}x`))).status).toBe(400);
   });
 });
 
