@@ -1,5 +1,6 @@
 import { codePointLength, collapseWhitespace } from "../python/str.js";
 import { quote, unquotePlus } from "../python/urllib.js";
+import { MAX_URL_LENGTH } from "./url-limit.js";
 
 export type QueryItem = readonly [name: string, value: string];
 
@@ -37,7 +38,6 @@ export function canonicalQuery(
     .join("&");
 }
 
-const MAX_URL_LENGTH = 4000;
 const SPAM_SIGNATURES = [
   "cfRLUnblockHandlers",
   "UnblockHandlers",

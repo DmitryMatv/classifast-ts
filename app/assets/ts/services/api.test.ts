@@ -240,6 +240,26 @@ describe("ApiClient.results", () => {
     ).toEqual({ kind: "error", message });
   });
 
+  it.each([
+    ["4,000 Latin letters", "x".repeat(4000)],
+    ["500 Chinese characters", "泵".repeat(500)],
+  ])("answers %s as too long without fetching", async (_, description) => {
+    const fetch = vi.fn(async () => answer(200, RESULTS));
+    vi.stubGlobal("fetch", fetch);
+
+    expect(
+      await createApiClient(window, ANONYMOUS).results(
+        "UNSPSC",
+        { ...QUERY, query: description },
+        new AbortController().signal,
+      ),
+    ).toEqual({
+      kind: "error",
+      message: "This description is too long. Please shorten it.",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("answers an error without fetching when a signed-in visitor has no token", async () => {
     const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);
