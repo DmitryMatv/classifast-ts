@@ -508,7 +508,11 @@ and decisions in the machines.
   `noValidate` and the submit handler is the one validation point.
 - Every lookup goes through `ApiClient.results`, which waits for auth,
   writes the `cf_track` cookie before the first lookup, and answers `error`
-  for network, auth and malformed answers. Only an abort rejects.
+  for network, auth and malformed answers. Only an abort rejects. A
+  description whose URL exceeds the server's URL guard (`fitsUrlLimit` in
+  `src/web/url-limit.ts`) gets "too long" with no request: a 4,000-letter
+  description does, and so does one of 500 Chinese characters, because
+  percent-encoding counts each as 9.
 - History entries live under `history.state.classifast`. A results answer is
   stored in its entry and Back/Forward shows it with no request; a paywall,
   busy or error entry refetches. Manual and resubmit answers push the

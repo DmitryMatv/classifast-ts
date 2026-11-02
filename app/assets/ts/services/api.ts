@@ -8,6 +8,7 @@ import {
   resultsApiPath,
   type ResultsResponse,
 } from "../../../../src/web/results-api.js";
+import { fitsUrlLimit } from "../../../../src/web/url-limit.js";
 import {
   AUTH_FAILED_MESSAGE,
   type Authorization,
@@ -23,6 +24,10 @@ const NETWORK_ERROR: ResultsResponse = {
 const UNEXPECTED_ANSWER: ResultsResponse = {
   kind: "error",
   message: "Something went wrong. Please try again.",
+};
+const TOO_LONG: ResultsResponse = {
+  kind: "error",
+  message: "This description is too long. Please shorten it.",
 };
 
 const TRACKING_COOKIE = "cf_track";
@@ -88,6 +93,9 @@ export function createApiClient(
     },
 
     async results(classifierType, query, signal) {
+      const path = resultsApiPath(classifierType, query);
+      // The server would refuse the URL, and no retry can fix that.
+      if (!fitsUrlLimit(path)) return TOO_LONG;
       let authorization: Authorization;
       try {
         authorization = await auth.authorization(signal);
@@ -98,7 +106,7 @@ export function createApiClient(
       ensureTrackingCookie(window.document, window.crypto);
       let response: Response;
       try {
-        response = await window.fetch(resultsApiPath(classifierType, query), {
+        response = await window.fetch(path, {
           headers: authorizationHeaders(authorization),
           signal,
         });
