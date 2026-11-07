@@ -377,8 +377,10 @@ codes share it: `exactIdSearch` pages through the whole bucket, and
 `exactIdMatches` keeps exact codes and same-node codes (padding zeros only,
 such as `43000000` for `43`). Only code-shaped queries are looked up
 (`isCodeShaped`), because compaction would turn `10 стульев` into `10`.
-Combining marks count as text as well; Python's check missed them, so a
-decomposed `é 10` became the code `e10`. The
+A code-shaped query holds only ASCII letters and digits between
+punctuation, spaces and format characters. Python rejected only non-ASCII
+letters and digits, so a decomposed `é 10` became the code `e10` and
+`10 ℃` the code `10`. The
 recorded cases are `exactIdSearches` in `classification.json`, from Python's
 classifast#24.
 

@@ -106,21 +106,36 @@ describe("code lookup matches app/id_lookup.py", () => {
     },
   );
 
-  // Python's check misses combining marks, which compaction deletes: a
-  // decomposed "é 10" became the code "e10". The port treats them as text.
+  // Python's check misses combining marks and symbols, which compaction
+  // deletes: a decomposed "é 10" became the code "e10", and "10 ℃" the code
+  // "10". The port allows only ASCII letters and digits between separators.
   it.each([
     ["e\u0301 10", false],
     ["10\u0300", false],
     ["8471\u20e3", false],
     ["\u0301", false],
+    ["10 ℃", false],
+    ["10 €", false],
+    ["$10", false],
+    ["8471+", false],
+    ["10 \u{1F4A1}", false],
+    ["10\ue000", false],
+    ["10\u0378", false],
     ["e 10", true],
+    ["8471.30-00/1 (a_b); [c], 'd'!", true],
+    ["\t8471\u00a030\u3000", true],
+    ["84\u00ad71", true],
+    ["8471，30。", true],
   ])("calls %j code-shaped: %s", (text, codeShaped) => {
     expect(isCodeShaped(text)).toBe(codeShaped);
   });
 
-  it("looks up no code for a decomposed accented description", () => {
-    expect(exactIdLookupKeys("e\u0301 10")).toEqual([]);
-  });
+  it.each(["e\u0301 10", "10 ℃"])(
+    "looks up no code for the description %j",
+    (text) => {
+      expect(exactIdLookupKeys(text)).toEqual([]);
+    },
+  );
 
   it.each(classificationGolden.exactIdSearches)(
     "probes Python's keys for $query",

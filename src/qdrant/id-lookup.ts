@@ -1,4 +1,4 @@
-import { PY_WORD } from "../python/str.js";
+import { PY_WHITESPACE } from "../python/str.js";
 
 export const ORIGINAL_ID_FIELD = "original_id";
 export const ORIGINAL_ID_NORMALIZED_FIELD = "original_id_normalized";
@@ -79,17 +79,20 @@ export function reverseNormalizedId(value: string): string {
   return Array.from(value).reverse().join("");
 }
 
-// A letter or digit outside ASCII (Python's [^\W0-9A-Za-z_]), or a combining
-// mark, all of which compaction would silently delete. Python missed the
-// marks, so a decomposed "é 10" compacted to the code "e10".
-const NON_ASCII_WORD_CHARACTER = new RegExp(
-  `(?![0-9A-Za-z_])[${PY_WORD}\\p{M}]`,
+// A code is ASCII letters and digits between separators: punctuation,
+// spaces, and invisible format characters such as a soft hyphen. Compaction
+// deletes everything else, so anything else is description text: a
+// non-ASCII letter or digit (Python's only test), a combining mark ("é"
+// typed as e + U+0301 became the code "e10"), or a symbol ("10 ℃" became the
+// code "10").
+const CODE_SHAPED = new RegExp(
+  `^[0-9A-Za-z\\p{P}\\p{Z}\\p{Cf}${PY_WHITESPACE}]*$`,
   "u",
 );
 
 /** True when compaction removes only separators, never description text. */
 export function isCodeShaped(value: string): boolean {
-  return !NON_ASCII_WORD_CHARACTER.test(value);
+  return CODE_SHAPED.test(value);
 }
 
 /**
