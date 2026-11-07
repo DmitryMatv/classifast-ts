@@ -79,7 +79,7 @@ describe("isNotModified", () => {
 
 describe("staticFileProfile", () => {
   it("serves JavaScript and CSS with STATIC_CODE", () => {
-    expect(staticFileProfile("htmx.min.js")).toBe("STATIC_CODE");
+    expect(staticFileProfile("js/site.js")).toBe("STATIC_CODE");
     expect(staticFileProfile("css/styles.css")).toBe("STATIC_CODE");
     expect(cacheHeaders("STATIC_CODE")).toEqual({
       "Cache-Control": "public, max-age=300, stale-while-revalidate=3600",

@@ -366,7 +366,7 @@ describe("HTTP layer (e2e)", () => {
 
   it("gzips other bodies for clients that accept gzip", async () => {
     const response = await request(server)
-      .get("/static/htmx.min.js")
+      .get("/static/images/ETIM-International_logo.svg")
       .set("Accept-Encoding", "gzip");
 
     expect(response.headers["content-encoding"]).toBe("gzip");

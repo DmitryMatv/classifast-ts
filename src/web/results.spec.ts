@@ -49,7 +49,7 @@ describe("Results", () => {
         loaded: true,
       }),
     );
-    expect(html).toContain('data-score-width="87.65"');
+    expect(html).toContain('style="width:87.65%"');
     expect(html).toContain(">87.7%</span>");
     expect(html).toContain(
       '<span class="text-[#17becf]">1</span><span aria-hidden="true" class="code-spacer-halves"></span><span class="text-[#e377c2]">2</span>',

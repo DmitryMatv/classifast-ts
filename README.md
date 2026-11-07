@@ -43,7 +43,7 @@ Classifast is a web application that provides easy classification of any text in
 ## Stack
 
 - **Backend**: NestJS (TypeScript) with server-rendered React pages
-- **Frontend**: TypeScript, Tailwind CSS, HTMX
+- **Frontend**: TypeScript, React islands, Tailwind CSS
 - **Vector Database**: Qdrant for semantic search
 - **Embedding Models**: Hugging Face Inference with Qwen embeddings
 - **Deployment**: Docker containerized

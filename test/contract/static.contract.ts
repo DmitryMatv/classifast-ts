@@ -47,8 +47,8 @@ const rootFiles: (FileCase & { gzip: boolean })[] = [
 
 const staticFiles: FileCase[] = [
   {
-    path: "/static/js/common.js",
-    repoFile: "app/static/js/common.js",
+    path: "/static/js/site.js",
+    repoFile: "app/static/js/site.js",
     contentType: "text/javascript; charset=utf-8",
     profile: "STATIC_CODE",
     vary: gzipVary,
@@ -57,13 +57,6 @@ const staticFiles: FileCase[] = [
     path: "/static/css/styles.css",
     repoFile: "app/static/css/styles.css",
     contentType: "text/css; charset=utf-8",
-    profile: "STATIC_CODE",
-    vary: gzipVary,
-  },
-  {
-    path: "/static/htmx.min.js",
-    repoFile: "app/static/htmx.min.js",
-    contentType: "text/javascript; charset=utf-8",
     profile: "STATIC_CODE",
     vary: gzipVary,
   },
