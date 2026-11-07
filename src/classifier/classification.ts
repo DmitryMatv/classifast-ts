@@ -56,6 +56,8 @@ export const EXACT_ID_SCORE = 1.0;
 export const PARTIAL_ID_SCORE = 0.9;
 export const EXACT_ID_PAGE_SIZE = 100;
 export const PARTIAL_ID_LIMIT = 100;
+/** Partial-ID pages carry only the two ID fields, so a page can be large. */
+export const PARTIAL_ID_PAGE_SIZE = 1000;
 export const MIN_PARTIAL_ID_LENGTH = 3;
 export const DEFAULT_RERANK_CANDIDATE_LIMIT = 100;
 export const MIN_RERANK_BUDGET_SECONDS = 2.0;

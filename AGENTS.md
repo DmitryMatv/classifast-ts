@@ -380,6 +380,13 @@ such as `43000000` for `43`). Only code-shaped queries are looked up
 recorded cases are `exactIdSearches` in `classification.json`, from Python's
 classifast#24.
 
+`partialIdSearch` departs from Python on purpose. Python ranked only the
+first 100 points scrolled, but scroll pages follow point IDs, and a
+three-digit prefix such as `503` matches about 13,000 UNSPSC codes. The
+port scrolls every match with only `original_id` and
+`original_id_normalized`, ranks them all, and then retrieves whole payloads
+for the best 100.
+
 The ID normalization in `src/qdrant/id-lookup.ts` must keep producing what
 Python's did, because the payloads already in Qdrant hold Python's values
 and the runtime looks IDs up with the same function that `apply` writes.

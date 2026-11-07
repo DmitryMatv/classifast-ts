@@ -162,3 +162,110 @@ describe("exactIdSearch matches perform_exact_id_search", () => {
     },
   );
 });
+
+describe("partialIdSearch ranks the whole bucket", () => {
+  // Scroll pages follow point IDs. Here the shallow codes have the highest
+  // IDs, so a search that ranked only its first page would miss them.
+  const commodities = Array.from({ length: 1_500 }, (_, index) => ({
+    id: index,
+    originalId: `50391${String(index).padStart(4, "0")}1`,
+  }));
+  const stored = [
+    ...commodities,
+    { id: 2_000, originalId: "50310000" },
+    { id: 2_001, originalId: "50320000" },
+    { id: 2_002, originalId: "11150300" },
+    { id: 2_003, originalId: "99999999" },
+  ];
+
+  function scriptedClient(deleted: ReadonlySet<number> = new Set()) {
+    const scroll = vi.fn(
+      async (
+        _collection: string,
+        request: { limit: number; offset?: number; with_payload: string[] },
+      ) => {
+        const matches = stored.filter(({ originalId }) => {
+          const normalized = normalizeOriginalIdForLookup(originalId);
+          return normalized.startsWith("503") || normalized.endsWith("503");
+        });
+        const start = request.offset ?? 0;
+        const end = start + request.limit;
+        return {
+          points: matches.slice(start, end).map(({ id, originalId }) => ({
+            id,
+            payload: {
+              original_id: originalId,
+              original_id_normalized: normalizeOriginalIdForLookup(originalId),
+            },
+          })),
+          next_page_offset: end < matches.length ? end : null,
+        };
+      },
+    );
+    const retrieve = vi.fn(
+      async (_collection: string, request: { ids: number[] }) =>
+        stored
+          .filter(({ id }) => request.ids.includes(id) && !deleted.has(id))
+          .map(({ id, originalId }) => ({
+            id,
+            payload: { original_id: originalId, class_name: `name ${id}` },
+          })),
+    );
+    return { client: { scroll, retrieve, query: vi.fn() }, scroll, retrieve };
+  }
+
+  it("pages through every match, then fetches the best 100", async () => {
+    const { client, scroll, retrieve } = scriptedClient();
+
+    const results = await partialIdSearch(
+      client as unknown as QdrantSearchClient,
+      "products",
+      "503",
+    );
+
+    expect(scroll.mock.calls.map(([, request]) => request.offset)).toEqual([
+      undefined,
+      1_000,
+    ]);
+    expect(retrieve).toHaveBeenCalledOnce();
+    expect(retrieve.mock.calls[0]![1].ids).toHaveLength(100);
+    expect(results).toHaveLength(100);
+    expect(results.slice(0, 4).map((result) => result.id)).toEqual([
+      2_000, 2_001, 0, 1,
+    ]);
+    expect(results.at(-1)!.id).toBe(97);
+    expect(results.every((result) => result.score === 0.9)).toBe(true);
+    expect(results[0]!.payload).toEqual({
+      original_id: "50310000",
+      class_name: "name 2000",
+    });
+  });
+
+  it("drops a point deleted before its payload was fetched", async () => {
+    const { client } = scriptedClient(new Set([2_001]));
+
+    const results = await partialIdSearch(
+      client as unknown as QdrantSearchClient,
+      "products",
+      "503",
+    );
+
+    expect(results.slice(0, 3).map((result) => result.id)).toEqual([
+      2_000, 0, 1,
+    ]);
+    expect(results).toHaveLength(99);
+  });
+
+  it("fetches no payloads when nothing matches", async () => {
+    const { client, retrieve } = scriptedClient();
+
+    await expect(
+      partialIdSearch(
+        client as unknown as QdrantSearchClient,
+        "products",
+        "888",
+      ),
+    ).resolves.toEqual([]);
+    expect(retrieve).not.toHaveBeenCalled();
+  });
+});

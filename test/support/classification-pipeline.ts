@@ -10,6 +10,7 @@ import { createQdrantClient } from "../../src/qdrant/qdrant-connection.js";
 import { FakeClock } from "./fake-http.js";
 import {
   pointsRoute,
+  retrieveRoute,
   startQdrantServer,
   type QdrantServer,
 } from "./qdrant-server.js";
@@ -71,6 +72,7 @@ export async function pipelineFixture({
     pointsRoute("query", () =>
       semantic.map((point) => ({ version: 1, score: 0, ...point })),
     ),
+    retrieveRoute(() => partial),
   );
   const clock = new FakeClock();
   const embedCalls: EmbeddingRequest[] = [];

@@ -328,6 +328,9 @@ describe("performClassification failures", () => {
         scroll: exactAndPartialSucceed.deps.qdrant.scroll.bind(
           exactAndPartialSucceed.deps.qdrant,
         ),
+        retrieve: exactAndPartialSucceed.deps.qdrant.retrieve.bind(
+          exactAndPartialSucceed.deps.qdrant,
+        ),
         query: f.deps.qdrant.query.bind(f.deps.qdrant),
       },
     };
@@ -350,6 +353,7 @@ describe("performClassification failures", () => {
       ...f.deps,
       qdrant: {
         scroll: () => Promise.reject(new Error("Qdrant down")),
+        retrieve: () => Promise.reject(new Error("Qdrant down")),
         query: f.deps.qdrant.query.bind(f.deps.qdrant),
       },
     };
