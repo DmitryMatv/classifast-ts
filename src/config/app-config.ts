@@ -177,7 +177,7 @@ const openRouter = z
       rerank = {
         enabled: true,
         apiKey,
-        model: env.OPENROUTER_RERANK_MODEL.trim() || "voyageai/rerank-3",
+        model: env.OPENROUTER_RERANK_MODEL.trim() || "voyageai/rerank-3-lite",
         timeoutSeconds: timeout.seconds,
       };
     }

@@ -272,14 +272,15 @@ the golden visitor cases for those pages from the crawler case at the same
 path. The results come from
 `SitemapResultCache` (`src/classifier/sitemap-result-cache.ts`) in Redis:
 
-- The key is `ssr-result:v1:{collectionName}:{topK}:{query}`, with the
+- The key is `ssr-result:v2:{collectionName}:{topK}:{query}`, with the
   whitespace-collapsed query. The value is JSON
   `{results, versionName, query, elapsedSeconds, computedAt}`, parsed with
   zod on read. A malformed value or a Redis error is a miss.
 - The TTL is 30 days, plus or minus 20%. Never flush these keys. The key
-  does not include the embedding model or the rerank and query
-  instructions, so bump `v1` after changing them or the value shape; the
-  old keys expire by TTL.
+  does not include the embedding model, the rerank model, or the rerank and
+  query instructions, so bump the version after changing them or the value
+  shape; the old keys expire by TTL. `v2` came with the `rerank-3-lite`
+  default.
 - Only complete results are stored: `rerank` is `applied` or `not_needed`,
   `idSearch` is `ok`, and at least one result was found
   (`isCacheableClassification`, which the fragment also uses). An incomplete

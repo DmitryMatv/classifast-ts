@@ -25,7 +25,7 @@ export const ISLANDS = {
   header: { version: 1, component: SiteHeader },
   "buy-button": { version: 1, component: BuyButton },
   "checkout-banner": { version: 1, component: CheckoutBanner },
-  classifier: { version: 1, component: ClassifierIsland },
+  classifier: { version: 2, component: ClassifierIsland },
 } as const satisfies Record<string, IslandDefinition>;
 
 export type IslandName = keyof typeof ISLANDS;

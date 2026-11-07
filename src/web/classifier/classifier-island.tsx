@@ -511,59 +511,62 @@ export function ClassifierIsland(props: ClassifierIslandProps): ReactElement {
           maxLength={4000}
           role="textbox"
           aria-label="Product description"
-          className="w-full px-2 py-2 border border-gray-400 rounded min-h-20 h-20 max-h-200 resize-y mb-1"
+          className="w-full px-2 py-2 border border-gray-400 rounded min-h-20 h-20 max-h-200 resize-y mb-2"
           defaultValue={fields.text}
           onInput={edited("text")}
           onKeyDown={onKeyDown}
         />{" "}
-        <label className="inline-flex items-center gap-2 mb-3 text-sm text-gray-700 cursor-pointer">
-          <input
-            type="checkbox"
-            id="enhance-query-switch"
-            name="enhance_query"
-            value="1"
-            role="switch"
-            defaultChecked={fields.enhance}
-            className="sr-only peer"
-            onChange={edited("enhance")}
-          />{" "}
-          <span
-            aria-hidden="true"
-            className="relative h-5 w-9 rounded-full bg-gray-300 transition-colors peer-checked:bg-sky-700 peer-focus-visible:ring-2 peer-focus-visible:ring-sky-600 peer-focus-visible:ring-offset-2 after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:content-[''] peer-checked:after:translate-x-4"
-          ></span>{" "}
-          <span>
-            Expand query <span className="text-xs text-sky-700">Beta</span>
-          </span>
-        </label>{" "}
         <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <button
-              ref={submitRef}
-              type="submit"
-              role="button"
-              aria-label="Lookup code for product description"
-              className={pressed ? `scale-95 ${SUBMIT_CLASS}` : SUBMIT_CLASS}
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+            <div className="flex items-center gap-x-2">
+              <button
+                ref={submitRef}
+                type="submit"
+                role="button"
+                aria-label="Lookup code for product description"
+                className={pressed ? `scale-95 ${SUBMIT_CLASS}` : SUBMIT_CLASS}
+              >
+                <span className="hidden md:inline">Submit</span>{" "}
+                <span className="md:hidden">🔍︎</span>
+              </button>{" "}
+              <select
+                name="top_k"
+                id="show_top_k_categories"
+                role="combobox"
+                aria-label="Number of results to show"
+                aria-expanded="false"
+                aria-haspopup="listbox"
+                className="border border-gray-400 rounded text-left px-1 py-2"
+                defaultValue={String(fields.topK)}
+                onChange={() => send({ type: "top-k-changed" })}
+              >
+                {TOP_K_CHOICES.map((value) => (
+                  <option key={value} value={value}>
+                    {`Top ${value}`}
+                  </option>
+                ))}
+              </select>
+            </div>{" "}
+            <label
+              title="Adds a short AI-written description of your input before searching"
+              className="inline-flex items-center gap-2 text-gray-700 cursor-pointer select-none"
             >
-              <span className="hidden md:inline">Submit</span>{" "}
-              <span className="md:hidden">🔍︎</span>
-            </button>{" "}
-            <select
-              name="top_k"
-              id="show_top_k_categories"
-              role="combobox"
-              aria-label="Number of results to show"
-              aria-expanded="false"
-              aria-haspopup="listbox"
-              className="border border-gray-400 rounded text-left px-1 py-2"
-              defaultValue={String(fields.topK)}
-              onChange={() => send({ type: "top-k-changed" })}
-            >
-              {TOP_K_CHOICES.map((value) => (
-                <option key={value} value={value}>
-                  {`Top ${value}`}
-                </option>
-              ))}
-            </select>{" "}
+              <input
+                type="checkbox"
+                id="enhance-query-switch"
+                name="enhance_query"
+                value="1"
+                role="switch"
+                defaultChecked={fields.enhance}
+                className="sr-only peer"
+                onChange={edited("enhance")}
+              />{" "}
+              <span
+                aria-hidden="true"
+                className="relative h-6 w-11 shrink-0 rounded-full bg-gray-300 transition-colors duration-150 peer-checked:bg-sky-700 peer-focus-visible:ring-2 peer-focus-visible:ring-sky-600 peer-focus-visible:ring-offset-2 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:duration-150 after:content-[''] peer-checked:after:translate-x-5 motion-reduce:transition-none motion-reduce:after:transition-none"
+              ></span>{" "}
+              <span>Enhance query</span>
+            </label>{" "}
             <div
               id="loading-indicator"
               className="justify-center items-center"

@@ -330,6 +330,49 @@ const CLASSIFIER_DIVERGENCES: readonly PageDivergence[] = [
       }
     },
   },
+  {
+    pages: CLASSIFIER_PAGES,
+    regions: true,
+    why: "The 'Expand query Beta' switch becomes 'Enhance query' beside Submit and Top K, larger and with a tooltip, as Python's classifier_page.html did in commit e980af7.",
+    apply(page) {
+      for (const form of elements(page, withId("classifier-form"))) {
+        const textarea = only(
+          form,
+          (element) => element.tagName === "textarea",
+        );
+        setAttribute(
+          textarea,
+          "class",
+          attribute(textarea, "class")!.replace(/\bmb-1\b/, "mb-2"),
+        );
+        const input = only(form, withId("enhance-query-switch"));
+        const checked = attribute(input, "checked") !== undefined;
+        defaultTreeAdapter.detachNode(input.parentNode as Element);
+        const row = only(form, withId("loading-indicator"))
+          .parentNode as Element;
+        const button = only(row, (element) => element.tagName === "button");
+        const select = only(row, withId("show_top_k_categories"));
+        const [group, label] = parseFragment(
+          `<div class="flex items-center gap-x-2"></div><label title="Adds a short AI-written description of your input before searching" class="inline-flex items-center gap-2 text-gray-700 cursor-pointer select-none"><input type="checkbox" id="enhance-query-switch" name="enhance_query" value="1" role="switch"${checked ? " checked" : ""} class="sr-only peer"> <span aria-hidden="true" class="relative h-6 w-11 shrink-0 rounded-full bg-gray-300 transition-colors duration-150 peer-checked:bg-sky-700 peer-focus-visible:ring-2 peer-focus-visible:ring-sky-600 peer-focus-visible:ring-offset-2 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:duration-150 after:content-[''] peer-checked:after:translate-x-5 motion-reduce:transition-none motion-reduce:after:transition-none"></span> <span>Enhance query</span></label>`,
+        ).childNodes as Element[];
+        defaultTreeAdapter.detachNode(button);
+        defaultTreeAdapter.detachNode(select);
+        defaultTreeAdapter.appendChild(group!, button);
+        defaultTreeAdapter.insertText(group!, " ");
+        defaultTreeAdapter.appendChild(group!, select);
+        const spinner = only(row, withId("loading-indicator"));
+        defaultTreeAdapter.insertBefore(row, group!, spinner);
+        defaultTreeAdapter.insertTextBefore(row, " ", spinner);
+        defaultTreeAdapter.insertBefore(row, label!, spinner);
+        defaultTreeAdapter.insertTextBefore(row, " ", spinner);
+        setAttribute(
+          row,
+          "class",
+          "flex flex-wrap items-center gap-x-8 gap-y-3",
+        );
+      }
+    },
+  },
 ];
 
 export const PAGE_DIVERGENCES: readonly PageDivergence[] = [

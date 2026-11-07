@@ -7,7 +7,7 @@ import {
   type ClassificationOutcome,
 } from "./classification-service.js";
 
-const KEY_PREFIX = "ssr-result:v1";
+const KEY_PREFIX = "ssr-result:v2";
 const TTL_SECONDS = 30 * 24 * 60 * 60;
 const TTL_JITTER = 0.2;
 const MEMORY_SECONDS = 10 * 60;

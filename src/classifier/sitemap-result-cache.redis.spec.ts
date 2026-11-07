@@ -150,7 +150,7 @@ describe("SitemapResultCache", () => {
     }
     expect(
       await raw.exists(
-        `ssr-result:v1:${key.collectionName}:10:laptop computer`,
+        `ssr-result:v2:${key.collectionName}:10:laptop computer`,
       ),
     ).toBe(1);
   });
