@@ -131,8 +131,9 @@ setup that the scaffold adds. The user asked to start with the scaffold.
 4. [x] Hydrate only the interactive parts of the home and mapping pages.
        Units 2 to 4 landed together in #32 (#28, #29, #30).
 5. [x] Delete `htmx.min.js`, the HTMX listeners and the old scripts. Port the
-       behavior tests. Remove the HTMX entries from AGENTS.md. #37. The
-       `/{TYPE}/fragment` route, which only HTMX called, is still served.
+       behavior tests. Remove the HTMX entries from AGENTS.md. #37. A
+       follow-up removes `/{TYPE}/fragment`, which only HTMX called, and
+       runs Python's recorded fragment cases against `/api/results`.
 
 ## Fixes outside the phases
 

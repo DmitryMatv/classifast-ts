@@ -96,7 +96,7 @@ export function buildClassifierCanonicalUrl(
   );
 }
 
-export interface FragmentPushOptions {
+export interface ResultsPageOptions {
   readonly version: string;
   readonly defaultVersion: string;
   readonly topK: number;
@@ -104,10 +104,10 @@ export interface FragmentPushOptions {
   readonly enhanceQuery: boolean;
 }
 
-export function buildFragmentPushUrl(
+export function buildResultsPageUrl(
   upperType: string,
   normalizedDescription: string,
-  options: FragmentPushOptions,
+  options: ResultsPageOptions,
   sitemapQueryPaths: ReadonlySet<string>,
 ): string {
   const slug = classifierSearchSlug(
@@ -127,7 +127,7 @@ export function buildFragmentPushUrl(
   return params.length ? `${path}?${urlencode(params)}` : path;
 }
 
-export function buildFragmentPageTitle(
+export function buildResultsPageTitle(
   classifierType: string,
   query: string,
 ): string {

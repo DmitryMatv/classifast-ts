@@ -10,7 +10,7 @@ import {
 } from "../classifier/classification-service.js";
 import { classifierPage } from "../classifier/classifier-config.js";
 import { resolveClassifierOptions } from "../classifier/classifier-options.js";
-import { buildFragmentPushUrl } from "../classifier/classifier-urls.js";
+import { buildResultsPageUrl } from "../classifier/classifier-urls.js";
 import {
   crawlerRequestOf,
   type GoogleCrawlerVerifier,
@@ -23,7 +23,6 @@ import {
 import {
   intParsingError,
   lastQueryValue,
-  parsePydanticBool,
   parsePydanticInt,
   queryValidationFailed,
   type QueryValidationError,
@@ -45,12 +44,10 @@ import type { QueryItem } from "./request-url.js";
 
 const logger = new Logger("Web");
 
-export interface FragmentQuery {
+export interface ResultsParams {
   readonly productDescription: string;
   readonly topK: number | undefined;
   readonly version: string | undefined;
-  readonly pushUrl: boolean | undefined;
-  readonly urlChange: boolean | undefined;
   readonly enhanceQuery: string | undefined;
 }
 
@@ -84,30 +81,11 @@ function topKQuery(
   return value;
 }
 
-function boolQuery(
-  items: readonly QueryItem[],
-  name: string,
-  errors: QueryValidationError[],
-): boolean | undefined {
-  const text = lastQueryValue(items, name);
-  if (text === undefined) return undefined;
-  const value = parsePydanticBool(text);
-  if (value === undefined) {
-    errors.push({
-      type: "bool_parsing",
-      loc: ["query", name],
-      msg: "Input should be a valid boolean, unable to interpret input",
-      input: text,
-    });
-  }
-  return value;
-}
-
 /**
- * The fragment route's query parameters, or FastAPI's 422 listing every
- * invalid one in declaration order.
+ * The results request's query parameters, or FastAPI's 422 listing every
+ * invalid one in declaration order, as Python's fragment route did.
  */
-export function parseFragmentQuery(items: readonly QueryItem[]): FragmentQuery {
+export function parseResultsParams(items: readonly QueryItem[]): ResultsParams {
   const errors: QueryValidationError[] = [];
   const productDescription = lastQueryValue(items, "product_description");
   if (productDescription === undefined) {
@@ -119,8 +97,6 @@ export function parseFragmentQuery(items: readonly QueryItem[]): FragmentQuery {
     });
   }
   const topK = topKQuery(items, errors);
-  const pushUrl = boolQuery(items, "push_url", errors);
-  const urlChange = boolQuery(items, "url_change", errors);
   if (productDescription === undefined || errors.length > 0) {
     throw queryValidationFailed(errors);
   }
@@ -128,22 +104,12 @@ export function parseFragmentQuery(items: readonly QueryItem[]): FragmentQuery {
     productDescription,
     topK,
     version: lastQueryValue(items, "version"),
-    pushUrl,
-    urlChange,
     enhanceQuery: lastQueryValue(items, "enhance_query"),
   };
 }
 
-/** An explicit push_url wins over the legacy url_change; both default on. */
-export function resolveFragmentPushUrl(
-  pushUrl: boolean | undefined,
-  urlChange: boolean | undefined,
-): boolean {
-  return pushUrl ?? urlChange ?? true;
-}
-
-export interface FragmentRequest {
-  readonly query: FragmentQuery;
+export interface ResultsRequest {
+  readonly query: ResultsParams;
   readonly upperType: string;
   readonly description: string;
   readonly enhance: boolean;
@@ -153,14 +119,15 @@ export interface FragmentRequest {
 }
 
 /**
- * The classification a fragment request asks for. FastAPI validates the
- * query parameters (422) before the handler looks up the type (404 or 410).
+ * The classification a results request asks for. Like Python's fragment
+ * route, it validates the query parameters (422) before it looks up the
+ * type (404 or 410).
  */
-export function resolveFragmentRequest(
+export function resolveResultsRequest(
   classifierType: string,
   items: readonly QueryItem[],
-): FragmentRequest {
-  const query = parseFragmentQuery(items);
+): ResultsRequest {
+  const query = parseResultsParams(items);
   const upperType = classifierTypeOr404(classifierType);
   const { version, topK, firstVersion } = resolveClassifierOptions(
     classifierPage(upperType).versions,
@@ -181,11 +148,11 @@ export function resolveFragmentRequest(
 }
 
 /** The classifier page URL that shows the request's results. */
-export function fragmentPageUrl(
-  request: FragmentRequest,
+export function resultsPageUrl(
+  request: ResultsRequest,
   sitemapQueryPaths: ReadonlySet<string>,
 ): string {
-  return buildFragmentPushUrl(
+  return buildResultsPageUrl(
     request.upperType,
     request.description,
     {
@@ -208,14 +175,14 @@ export function refuseHead(res: Response): void {
     .end();
 }
 
-export interface FragmentDeps {
+export interface ResultsDeps {
   readonly isVerifiedCrawler: () => Promise<boolean>;
   readonly resolveCaller: () => Promise<Caller>;
   readonly quota: Pick<Quota, "check" | "charge">;
   readonly classify: ClassificationService["classify"];
 }
 
-export type FragmentOutcome =
+export type ResultsOutcome =
   | { readonly kind: "results"; readonly outcome: ClassificationOutcome }
   | { readonly kind: "paywall"; readonly usage: UsageStatus }
   | { readonly kind: "quota-unavailable"; readonly message: string }
@@ -235,7 +202,7 @@ class QuotaDenied extends Error {
  * none.
  */
 async function prepareCharge(
-  deps: FragmentDeps,
+  deps: ResultsDeps,
   signal: AbortSignal,
 ): Promise<Authorize | undefined> {
   const isCrawler = await deps.isVerifiedCrawler();
@@ -254,12 +221,12 @@ async function prepareCharge(
   };
 }
 
-/** The quota and classification steps of Python's fragment route. */
-export async function classifyFragment(
-  deps: FragmentDeps,
+/** The quota and classification steps, in the order of Python's fragment route. */
+export async function classifyResults(
+  deps: ResultsDeps,
   request: ClassificationRequest,
   signal: AbortSignal,
-): Promise<FragmentOutcome> {
+): Promise<ResultsOutcome> {
   try {
     const authorize = await prepareCharge(deps, signal);
     signal.throwIfAborted();
@@ -279,20 +246,20 @@ export async function classifyFragment(
   }
 }
 
-export interface FragmentServices {
+export interface ResultsServices {
   readonly crawlers: Pick<GoogleCrawlerVerifier, "isVerified">;
   readonly quota: Pick<Quota, "resolveCaller" | "check" | "charge">;
   readonly classifier: Pick<ClassificationService, "classify">;
 }
 
-export function classifyFragmentRequest(
+export function classifyResultsRequest(
   req: Request,
-  services: FragmentServices,
-  request: FragmentRequest,
+  services: ResultsServices,
+  request: ResultsRequest,
   signal: AbortSignal,
-): Promise<FragmentOutcome> {
+): Promise<ResultsOutcome> {
   const { crawlers, quota, classifier } = services;
-  return classifyFragment(
+  return classifyResults(
     {
       isVerifiedCrawler: () => crawlers.isVerified(crawlerRequestOf(req)),
       resolveCaller: () => quota.resolveCaller(callerCredentialsOf(req)),
@@ -310,25 +277,22 @@ export function classifyFragmentRequest(
   );
 }
 
-export function resultsFragmentHeaders(
-  pushUrl: string | undefined,
-  outcome: ClassificationOutcome,
-): HeaderRecord {
+export function resultsHeaders(outcome: ClassificationOutcome): HeaderRecord {
   return {
     ...classificationResultHeaders(),
     "Cache-Tag": "classification-results",
-    ...(pushUrl === undefined ? {} : { "HX-Push-Url": pushUrl }),
     ...(isCacheableClassification(outcome) ? {} : cacheHeaders("NO_STORE")),
   };
 }
 
-export function paywallHeaders(
-  usage: UsageStatus,
-  pushUrl: string | undefined,
-): HeaderRecord {
+export function paywallHeaders(usage: UsageStatus): HeaderRecord {
   return {
     ...cacheHeaders("NO_STORE"),
-    ...(pushUrl === undefined ? {} : { "HX-Push-Url": pushUrl }),
     ...quotaHeaders(usage),
   };
+}
+
+// A Pro caller has no limit and never gets the paywall.
+export function paywallLimit(usage: UsageStatus): number {
+  return usage.kind === "metered" ? usage.limit : -1;
 }

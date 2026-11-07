@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   classificationTimeout,
   contract,
@@ -85,6 +86,14 @@ describe("results API refusals", () => {
       await results("/api/results/NOPE?product_description=laptop"),
       404,
       "Classifier 'NOPE' not found",
+    );
+  });
+
+  it("a removed classifier is a 410 error", async () => {
+    expectError(
+      await results("/api/results/GMDN?product_description=laptop"),
+      410,
+      "Classifier 'GMDN' is no longer available",
     );
   });
 
@@ -183,6 +192,50 @@ describe.runIf(fullMode)(
         url: "/UNSPSC/laptop_computer/",
         title: "UNSPSC codes for 'Laptop Computer'",
       });
+    });
+  },
+);
+
+const queueCapacity = 5;
+const overflow = 3;
+
+describe.runIf(fullMode)(
+  "results API queue overflow",
+  { timeout: classificationTimeout(queueCapacity + overflow) },
+  () => {
+    // Pre-queue work can stagger admission, so a burst can neither pin the
+    // capacity nor guarantee a refusal. ClassificationQueue's specs pin both.
+    it("a burst answers only results or the queue-full busy", async () => {
+      const run = randomUUID().slice(0, 8);
+      const started = performance.now();
+      const outcomes = await Promise.all(
+        Array.from({ length: queueCapacity + overflow }, async (_, index) => {
+          const reply = await results(
+            resultsPath(`contract overflow probe ${run} item ${index}`),
+          );
+          return { reply, ms: Math.round(performance.now() - started) };
+        }),
+      );
+      const timeline = outcomes
+        .map(({ reply, ms }) => `${reply.status} after ${ms} ms`)
+        .join(", ");
+      const statuses = outcomes.map(({ reply }) => reply.status);
+      expect(
+        statuses.filter((status) => status !== 200 && status !== 503),
+        timeline,
+      ).toEqual([]);
+      expect(
+        statuses.filter((status) => status === 200).length,
+        timeline,
+      ).toBeGreaterThanOrEqual(queueCapacity);
+      for (const { reply } of outcomes) {
+        if (reply.status === 503) {
+          expect(expectBody(reply, 503, "busy")).toEqual({
+            kind: "busy",
+            message: "Classification queue is full. Please try again later.",
+          });
+        }
+      }
     });
   },
 );

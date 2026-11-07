@@ -31,8 +31,8 @@ const CACHEABLE_RERANK_STATUSES: ReadonlySet<RerankStatus> = new Set([
 ]);
 
 /**
- * Whether a shared cache may keep a classification: the fragment at the
- * edge for a week, a sitemap result in Redis for a month. A degraded one
+ * Whether a shared cache may keep a classification: a results API answer
+ * at the edge for a week, a sitemap result in Redis for a month. A degraded one
  * (semantic-only ranking, a failed ID search or enhancement) or an empty
  * one, which an unfiltered nearest-neighbour search returns only for an
  * empty collection, is shown but not kept.

@@ -135,9 +135,9 @@ const redirects: RedirectCase[] = [
   },
   { path: "/?q=a++b", status: 308, location: "/?q=a%20b", methods: both },
   {
-    path: "/UNSPSC/fragment?product_description=%20laptop%0A%20computer%20",
+    path: "/api/results/UNSPSC?product_description=%20laptop%0A%20computer%20",
     status: 308,
-    location: "/UNSPSC/fragment?product_description=laptop%20computer",
+    location: "/api/results/UNSPSC?product_description=laptop%20computer",
     methods: getOnly,
   },
   { path: "/NOPE/?q=%20x", status: 308, location: "/NOPE/?q=x", methods: both },
@@ -166,12 +166,10 @@ const errors: ErrorCase[] = [
   { path: "/gmdn", status: 410 },
   { path: "/GMDN/x/", status: 410 },
   { path: "/GMDN/", status: 410, method: "HEAD" },
-  { path: "/GMDN/fragment?product_description=", status: 410 },
   { path: "/NOPE", status: 404 },
   { path: "/NOPE/", status: 404 },
   { path: "/NOPE/x/", status: 404 },
   { path: "/NOPE/", status: 404, method: "HEAD" },
-  { path: "/NOPE/fragment?product_description=", status: 404 },
   { path: "/mapping/nope", status: 404 },
   { path: "/mapping/nope/", status: 404 },
   { path: "/mapping/nope/sample", status: 404 },
@@ -200,15 +198,15 @@ describe("error statuses", () => {
   );
 });
 
-const invalidFragmentQueries = [
-  "/UNSPSC/fragment",
-  "/UNSPSC/fragment?product_description=&top_k=0",
-  "/UNSPSC/fragment?product_description=&top_k=101",
-  "/UNSPSC/fragment?product_description=&top_k=abc",
+const invalidResultsQueries = [
+  "/api/results/UNSPSC",
+  "/api/results/UNSPSC?product_description=&top_k=0",
+  "/api/results/UNSPSC?product_description=&top_k=101",
+  "/api/results/UNSPSC?product_description=&top_k=abc",
 ];
 
-describe("fragment query validation", () => {
-  it.each(invalidFragmentQueries)("GET %s -> 422", async (path) => {
+describe("results API query validation", () => {
+  it.each(invalidResultsQueries)("GET %s -> 422", async (path) => {
     const reply = await send(path);
     expectStatus(reply, 422);
     parseJson(reply);
@@ -258,7 +256,7 @@ const headOnGetOnlyRoutes = [
   "/health",
   "/mapping/unspsc-to-cpv-mapping/sample",
   "/api/v1/rapid/ping",
-  "/UNSPSC/fragment?product_description=",
+  "/api/results/UNSPSC?product_description=",
 ];
 
 describe("HEAD on GET-only routes", () => {
