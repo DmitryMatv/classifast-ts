@@ -100,27 +100,24 @@ describe("GoogleCrawlerVerifier", () => {
     expect(current).toHaveBeenCalledOnce();
   });
 
-  it("ignores CF-Connecting-IP without the explicit trust opt-in", async () => {
+  it("verifies nothing without the explicit CF-Connecting-IP opt-in", async () => {
     const { verifier, current } = verifierWith(
       crawlerConfig({ trustCfConnectingIp: false }),
     );
 
+    expect(await verifier.isVerified(crawlerRequest())).toBe(false);
+    expect(current).not.toHaveBeenCalled();
+  });
+
+  it("verifies nothing when CF-Connecting-IP is missing", async () => {
+    const { verifier, current } = verifierWith(crawlerConfig());
+
     const verified = await verifier.isVerified(
-      crawlerRequest({ clientHost: "203.0.113.10" }),
+      crawlerRequest({ cfConnectingIp: undefined }),
     );
 
     expect(verified).toBe(false);
-    expect(current).toHaveBeenCalledOnce();
-  });
-
-  it("uses the client host when CF-Connecting-IP is missing", async () => {
-    const { verifier } = verifierWith(crawlerConfig());
-
-    const verified = await verifier.isVerified(
-      crawlerRequest({ cfConnectingIp: undefined, clientHost: "66.249.64.1" }),
-    );
-
-    expect(verified).toBe(true);
+    expect(current).not.toHaveBeenCalled();
   });
 
   it("does not fetch ranges for a browser user agent", async () => {
