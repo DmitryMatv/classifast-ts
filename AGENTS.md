@@ -376,7 +376,9 @@ A code lookup reads `original_id_normalized_key`, a keyword copy of
 codes share it: `exactIdSearch` pages through the whole bucket, and
 `exactIdMatches` keeps exact codes and same-node codes (padding zeros only,
 such as `43000000` for `43`). Only code-shaped queries are looked up
-(`isCodeShaped`), because compaction would turn `10 стульев` into `10`. The
+(`isCodeShaped`), because compaction would turn `10 стульев` into `10`.
+Combining marks count as text as well; Python's check missed them, so a
+decomposed `é 10` became the code `e10`. The
 recorded cases are `exactIdSearches` in `classification.json`, from Python's
 classifast#24.
 

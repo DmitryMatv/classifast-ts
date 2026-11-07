@@ -79,10 +79,11 @@ export function reverseNormalizedId(value: string): string {
   return Array.from(value).reverse().join("");
 }
 
-// Python's [^\W0-9A-Za-z_]: a letter or digit outside ASCII, which
-// compaction would silently delete.
+// A letter or digit outside ASCII (Python's [^\W0-9A-Za-z_]), or a combining
+// mark, all of which compaction would silently delete. Python missed the
+// marks, so a decomposed "é 10" compacted to the code "e10".
 const NON_ASCII_WORD_CHARACTER = new RegExp(
-  `(?![0-9A-Za-z_])[${PY_WORD}]`,
+  `(?![0-9A-Za-z_])[${PY_WORD}\\p{M}]`,
   "u",
 );
 
