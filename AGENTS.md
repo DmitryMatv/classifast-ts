@@ -87,6 +87,9 @@ X-Forwarded-For entry. `proxy-client.json` recorded uvicorn's
 The Qdrant JS client requests `GET /` to check the server version when it is
 constructed, and logs a warning when that fails. Fake Qdrant servers in tests
 must answer `GET /` with a compatible `version` to keep the output clean.
+The client pins an exact `undici` (7.29.0 in 1.19, 7.29.1 in 1.20), and both
+have high-severity advisories, so `package.json` overrides `undici`. Remove
+the override once a client release pins 7.30.1 or later.
 
 Like Python's startup, Nest boot runs the read-only Qdrant schema check
 (`QdrantModule`) and fails when Qdrant is unreachable or any configured
