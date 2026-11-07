@@ -903,13 +903,12 @@ describe("the base classifier page", () => {
 });
 
 describe("crawler verification behind a proxy", () => {
-  // Production uvicorn runs with --forwarded-allow-ips "*", so Python reads
-  // the client from X-Forwarded-For. Supertest's address stands in for the
-  // proxy's, which is never Google's.
+  // Express reads the client from X-Forwarded-For, which any caller can
+  // write. Only Cloudflare's CF-Connecting-IP, with the opt-in, may verify.
   const verifier = new GoogleCrawlerVerifier(
     {
       bypassEnabled: true,
-      trustCfConnectingIp: false,
+      trustCfConnectingIp: true,
       ipRangeTtlSeconds: 60,
       ipRangeNegativeTtlSeconds: 300,
       ipRangeTimeoutSeconds: 2,
@@ -929,23 +928,28 @@ describe("crawler verification behind a proxy", () => {
     fake.verify = undefined;
   });
 
-  function googlebotFragment(forwardedFor: string): request.Test {
+  function googlebotFragment(headers: Record<string, string>): request.Test {
     return request(app.getHttpServer())
       .get("/UNSPSC/fragment?product_description=laptop")
       .set("User-Agent", "Googlebot/2.1 (+http://www.google.com/bot.html)")
-      .set("X-Forwarded-For", forwardedFor);
+      .set(headers);
   }
 
-  it("serves results without quota to Googlebot whose first X-Forwarded-For entry is Google's", async () => {
-    const response = await googlebotFragment("66.249.64.1, 172.18.0.5");
+  it("serves results without quota to Googlebot whose CF-Connecting-IP is Google's", async () => {
+    const response = await googlebotFragment({
+      "CF-Connecting-IP": "66.249.64.1",
+      "X-Forwarded-For": "203.0.113.10",
+    });
 
     expect(fake.events).toEqual(["crawler", "classify"]);
     expect(response.status).toBe(200);
     expect(response.headers["cache-tag"]).toBe("classification-results");
   });
 
-  it("paywalls Googlebot whose Google address is not the first X-Forwarded-For entry", async () => {
-    const response = await googlebotFragment("203.0.113.10, 66.249.64.1");
+  it("paywalls Googlebot that claims a Google address only in X-Forwarded-For", async () => {
+    const response = await googlebotFragment({
+      "X-Forwarded-For": "66.249.64.1, 172.18.0.5",
+    });
 
     expect(response.headers["cache-tag"]).toBeUndefined();
     expect(response.headers["x-ratelimit-remaining"]).toBe("0");
