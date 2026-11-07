@@ -132,11 +132,11 @@ differences:
 - The app does not start when Qdrant is unreachable or a collection fails the
   schema check. Without `HF_TOKEN` it starts, but `/health` answers 503 and
   the container becomes unhealthy, as with the Python image.
-- Google crawler verification uses the first `X-Forwarded-For` address, as
-  the Python app did through uvicorn's `--forwarded-allow-ips "*"`. Set
-  `GOOGLE_CRAWLER_TRUST_CF_CONNECTING_IP=true` to use Cloudflare's
-  `CF-Connecting-IP` instead, which a client cannot forge through Cloudflare.
-  Set it only when the origin receives requests through Cloudflare alone.
+- Google crawler verification reads only Cloudflare's `CF-Connecting-IP`,
+  which a client cannot forge through Cloudflare, and only with
+  `GOOGLE_CRAWLER_TRUST_CF_CONNECTING_IP=true`. Without it, no crawler is
+  verified and crawlers count against the quota like any visitor. Set it
+  only when the origin receives requests through Cloudflare alone.
 - The app does not log one line per request, as uvicorn did. It logs startup,
   warnings, errors, and classification steps.
 - The app accepts request headers up to 64 KiB (`--max-http-header-size` in

@@ -78,9 +78,10 @@ as Python does; `clientIp` in `src/usage/client-identity.ts` does.
 Production ran uvicorn with `--forwarded-allow-ips "*"`, so Python's
 `request.client.host` was the first X-Forwarded-For entry. The TCP peer counts
 only when that entry has no host. Behind Coolify's proxy the peer is the
-proxy. For the client host, such as in crawler verification, call
-`clientHost` in `src/usage/client-identity.ts`; never read
-`req.socket.remoteAddress`. `proxy-client.json` recorded uvicorn's
+proxy. For the client host, call `clientHost` in
+`src/usage/client-identity.ts`; never read `req.socket.remoteAddress`. Never
+trust it for anything a caller gains from: it is the caller's own
+X-Forwarded-For entry. `proxy-client.json` recorded uvicorn's
 `ProxyHeadersMiddleware`.
 
 The Qdrant JS client requests `GET /` to check the server version when it is
@@ -600,9 +601,11 @@ as `unavailable`.
   client-side JavaScript for any per-user state.
 - Two client-IP trust policies coexist: `clientIp` in
   `src/usage/client-identity.ts` always trusts `CF-Connecting-IP`;
-  `src/crawlers/google-crawlers.ts` requires the explicit
-  `GOOGLE_CRAWLER_TRUST_CF_CONNECTING_IP` opt-in. Pick one policy deliberately
-  for new IP-dependent code.
+  `src/crawlers/google-crawlers.ts` reads only `CF-Connecting-IP`, and only
+  with the explicit `GOOGLE_CRAWLER_TRUST_CF_CONNECTING_IP` opt-in. Without
+  it no crawler is verified. It never falls back to the client host, because
+  a Googlebot user agent with a Google address in X-Forwarded-For would then
+  skip the quota. Pick one policy deliberately for new IP-dependent code.
 - Legacy until unit 5: the HTMX entries below describe `common.ts`,
   `classifier.ts`, `paywall.ts` and `htmx.min.js`, which only cached
   pre-island classifier HTML still loads, with `/{TYPE}/fragment`. No page

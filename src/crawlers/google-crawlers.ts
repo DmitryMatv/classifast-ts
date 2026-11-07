@@ -2,7 +2,6 @@ import { Logger } from "@nestjs/common";
 import type { Request } from "express";
 import { z } from "zod";
 import type { AppConfig } from "../config/app-config.js";
-import { clientHost } from "../usage/client-identity.js";
 import {
   networkContains,
   parseIpAddress,
@@ -123,21 +122,19 @@ export class GoogleCrawlerRanges {
 export type CrawlerRequest = {
   readonly userAgent: string;
   readonly cfConnectingIp: string | undefined;
-  readonly clientHost: string | undefined;
 };
 
 export function crawlerRequestOf(req: Request): CrawlerRequest {
   return {
     userAgent: req.get("user-agent") ?? "",
     cfConnectingIp: req.headersDistinct["cf-connecting-ip"]?.[0],
-    clientHost: clientHost(req),
   };
 }
 
-// The client host is Python's request.client.host, which production uvicorn
-// takes from the first X-Forwarded-For entry. CF-Connecting-IP counts only
-// when the deployment opts in, because only infrastructure can guarantee that
-// every request traverses Cloudflare.
+// Only CF-Connecting-IP identifies a crawler, and only when the deployment
+// opts in, because only infrastructure can guarantee that every request
+// traverses Cloudflare. The client host is never a fallback: it is the
+// caller's own X-Forwarded-For entry.
 export class GoogleCrawlerVerifier {
   constructor(
     private readonly config: CrawlerConfig,
@@ -152,10 +149,8 @@ export class GoogleCrawlerVerifier {
     ) {
       return false;
     }
-    const clientIp =
-      (this.config.trustCfConnectingIp && request.cfConnectingIp) ||
-      request.clientHost;
-    const address = parseIpAddress(clientIp ?? "");
+    if (!this.config.trustCfConnectingIp) return false;
+    const address = parseIpAddress(request.cfConnectingIp ?? "");
     if (address === undefined) return false;
     const networks = await this.ranges.current();
     return networks.some((network) => networkContains(network, address));

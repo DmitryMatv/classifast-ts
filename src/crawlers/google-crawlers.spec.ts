@@ -30,7 +30,6 @@ function crawlerRequest(
   return {
     userAgent: GOOGLEBOT,
     cfConnectingIp: "66.249.64.1",
-    clientHost: "127.0.0.1",
     ...overrides,
   };
 }
