@@ -47,6 +47,7 @@ export function expectedPayloadSchema(): Record<string, PayloadIndexInfo> {
     original_id: keywordIndex(),
     original_id_normalized: normalizedIdIndex(),
     original_id_normalized_reversed: normalizedIdIndex(),
+    original_id_normalized_key: keywordIndex(),
     class_name: textIndex(),
   };
 }

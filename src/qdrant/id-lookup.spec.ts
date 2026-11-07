@@ -1,6 +1,9 @@
 import { readFileSync } from "node:fs";
 import { z } from "zod";
+import { classificationGolden } from "../../test/support/classification-golden.js";
 import {
+  exactIdLookupKeys,
+  isCodeShaped,
   normalizeOriginalIdForLookup,
   originalIdLookupText,
   reverseNormalizedId,
@@ -93,4 +96,20 @@ describe("ID lookup normalization matches the Python golden fixtures", () => {
     }
     expect(mismatches).toEqual([]);
   });
+});
+
+describe("code lookup matches app/id_lookup.py", () => {
+  it.each(classificationGolden.codeShaped)(
+    "calls $text code-shaped: $codeShaped",
+    ({ text, codeShaped }) => {
+      expect(isCodeShaped(text)).toBe(codeShaped);
+    },
+  );
+
+  it.each(classificationGolden.exactIdSearches)(
+    "probes Python's keys for $query",
+    ({ query, scrolls }) => {
+      expect(exactIdLookupKeys(query)).toEqual(scrolls[0]?.any ?? []);
+    },
+  );
 });

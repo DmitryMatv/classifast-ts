@@ -124,6 +124,34 @@ describe("performClassification ID shortcuts", () => {
     expect(outcome.results[0]!.score).toBe(0.9);
   });
 
+  it("leads with the code a padded ID names, then the partial matches", async () => {
+    const f = await setUp({
+      exact: [{ id: "class", payload: { original_id: "43210000" } }],
+      partial: [
+        { id: "commodity", payload: { original_id: "43211503" } },
+        { id: "class", payload: { original_id: "43210000" } },
+      ],
+      semantic: [pumpBody],
+      rerank: [0.9],
+    });
+
+    const outcome = await classify(f, { query: "4321", topK: 10 });
+
+    expect(ids(outcome.results)).toEqual(["class", "commodity", "semantic-1"]);
+    expect(outcome.results[0]!.score).toBe(0.9);
+    expect(f.rerankCalls).toHaveLength(0);
+  });
+
+  it("looks up no codes for a description in another script", async () => {
+    const f = await setUp({ semantic: [pumpBody], rerank: [0.7] });
+
+    await classify(f, { query: "насос 3101" });
+
+    expect(f.requests("exact")).toHaveLength(0);
+    expect(f.requests("partial")).toHaveLength(0);
+    expect(f.rerankCalls).toHaveLength(1);
+  });
+
   it("searches IDs with the query and embeds and reranks the semantic query", async () => {
     const f = await setUp({ semantic: [pumpBody], rerank: [0.7] });
 
@@ -134,7 +162,7 @@ describe("performClassification ID shortcuts", () => {
 
     expect(outcome.query).toBe("bolt");
     expect(f.requests("exact")[0]!.filter).toEqual({
-      must: [{ key: "original_id", match: { value: "bolt" } }],
+      must: [{ key: "original_id_normalized_key", match: { any: ["bolt"] } }],
     });
     expect(JSON.stringify(f.requests("partial")[0]!.filter)).toContain(
       '"text":"bolt"',

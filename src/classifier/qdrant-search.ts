@@ -1,19 +1,21 @@
 import type { QdrantClient, Schemas } from "@qdrant/js-client-rest";
 import {
-  ORIGINAL_ID_FIELD,
+  exactIdLookupKeys,
   ORIGINAL_ID_NORMALIZED_FIELD,
+  ORIGINAL_ID_NORMALIZED_KEY_FIELD,
   ORIGINAL_ID_NORMALIZED_REVERSED_FIELD,
   reverseNormalizedId,
 } from "../qdrant/id-lookup.js";
 import {
-  EXACT_ID_LIMIT,
-  EXACT_ID_SCORE,
+  EXACT_ID_PAGE_SIZE,
+  exactIdMatches,
   PARTIAL_ID_LIMIT,
   partialIdMatches,
   pointResult,
   type ClassificationResult,
+  type ExactIdMatches,
+  type StoredPoint,
 } from "./classification.js";
-import { sanitizeSearchText } from "./query-text.js";
 
 export type QdrantSearchClient = Pick<QdrantClient, "query" | "scroll">;
 
@@ -43,22 +45,42 @@ export async function semanticSearch(
   return points.map((point) => pointResult(point, point.score));
 }
 
+/** Looks up codes whose normalized ID equals the normalized query. */
 export async function exactIdSearch(
   client: QdrantSearchClient,
   collectionName: string,
   query: string,
-): Promise<ClassificationResult[]> {
-  const searchText = sanitizeSearchText(query);
-  if (searchText.kind === "invalid") return [];
-  const { points } = await client.scroll(collectionName, {
-    filter: {
-      must: [{ key: ORIGINAL_ID_FIELD, match: { value: searchText.query } }],
-    },
-    limit: EXACT_ID_LIMIT,
-    with_payload: true,
-    with_vector: false,
-  });
-  return points.map((point) => pointResult(point, EXACT_ID_SCORE));
+): Promise<ExactIdMatches> {
+  const keys = exactIdLookupKeys(query);
+  if (keys.length === 0) return { exact: [], sameNode: [] };
+  // Page through the whole key bucket: an exact match can sit past the first
+  // page when several codes differ only by padding zeros.
+  const points: StoredPoint[] = [];
+  let offset: Schemas["ExtendedPointId"] | undefined;
+  do {
+    const page = await client.scroll(collectionName, {
+      filter: {
+        must: [{ key: ORIGINAL_ID_NORMALIZED_KEY_FIELD, match: { any: keys } }],
+      },
+      limit: EXACT_ID_PAGE_SIZE,
+      offset,
+      with_payload: true,
+      with_vector: false,
+    });
+    points.push(...page.points);
+    offset = scrollOffset(page.next_page_offset);
+  } while (offset !== undefined);
+  return exactIdMatches(points, query);
+}
+
+function scrollOffset(
+  offset: Schemas["ScrollResult"]["next_page_offset"],
+): Schemas["ExtendedPointId"] | undefined {
+  if (offset === null || offset === undefined) return undefined;
+  if (typeof offset === "object") {
+    throw new Error(`unexpected scroll offset ${JSON.stringify(offset)}`);
+  }
+  return offset;
 }
 
 export async function partialIdSearch(
