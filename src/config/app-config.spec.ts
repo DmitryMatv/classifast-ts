@@ -94,7 +94,7 @@ describe("parseAppConfig", () => {
       rerank: {
         enabled: true,
         apiKey: "or",
-        model: "voyageai/rerank-3",
+        model: "voyageai/rerank-3-lite",
         timeoutSeconds: 30,
       },
       queryEnhancer: { enabled: true, apiKey: "or" },
