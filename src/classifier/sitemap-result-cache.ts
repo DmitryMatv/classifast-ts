@@ -134,7 +134,7 @@ const NEVER_ABORTED = new AbortController().signal;
  * A result Redis does not keep, because it is incomplete or the write
  * failed, is remembered in this process for 10 minutes. Without that, every
  * view during an OpenRouter or Redis outage would run a classification and
- * fill the queue that paying fragment users share.
+ * fill the queue that paying lookups share.
  */
 export class SitemapResultCache {
   readonly #fills = new Map<string, Promise<SitemapLookup>>();

@@ -19,7 +19,7 @@ export interface PageDivergence {
   readonly pages: readonly string[];
   /** It also edits each classifier page region case. */
   readonly regions?: true;
-  /** It also edits each result fragment case. */
+  /** It also edits the recorded result fragments the results API cases compare with. */
   readonly fragments?: true;
   readonly why: string;
   /** Edits whatever of its elements the expected page or snippet has. */

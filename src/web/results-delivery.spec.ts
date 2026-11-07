@@ -15,12 +15,11 @@ import {
   type UsageStatus,
 } from "../usage/quota.js";
 import {
-  classifyFragment,
-  parseFragmentQuery,
-  resolveFragmentPushUrl,
-  type FragmentDeps,
-  type FragmentOutcome,
-} from "./fragment-delivery.js";
+  classifyResults,
+  parseResultsParams,
+  type ResultsDeps,
+  type ResultsOutcome,
+} from "./results-delivery.js";
 
 const UNSPSC = buildClassifierConfig({}).UNSPSC!;
 const [versionName] = Object.keys(UNSPSC.versions);
@@ -90,9 +89,9 @@ interface Harness {
   readonly ran: string[];
   readonly submit: (
     query: string,
-    overrides?: Partial<FragmentDeps>,
+    overrides?: Partial<ResultsDeps>,
   ) => {
-    readonly result: Promise<FragmentOutcome>;
+    readonly result: Promise<ResultsOutcome>;
     readonly controller: AbortController;
   };
 }
@@ -126,7 +125,7 @@ function harness(ledger: Ledger): Harness {
     ran,
     submit: (query, overrides = {}) => {
       const controller = new AbortController();
-      const deps: FragmentDeps = {
+      const deps: ResultsDeps = {
         isVerifiedCrawler: () => Promise.resolve(false),
         resolveCaller: () =>
           Promise.resolve({
@@ -138,7 +137,7 @@ function harness(ledger: Ledger): Harness {
         classify,
         ...overrides,
       };
-      const result = classifyFragment(
+      const result = classifyResults(
         deps,
         { query, classifierType: "UNSPSC", topK: 10 },
         controller.signal,
@@ -148,9 +147,9 @@ function harness(ledger: Ledger): Harness {
   };
 }
 
-const kinds = (outcomes: FragmentOutcome[]) => outcomes.map((o) => o.kind);
+const kinds = (outcomes: ResultsOutcome[]) => outcomes.map((o) => o.kind);
 
-describe("classifyFragment ordering (ports of tests/test_classification_queue.py)", () => {
+describe("classifyResults ordering (ports of tests/test_classification_queue.py)", () => {
   it("charges inside the turn, in arrival order, and never charges an overflowed request", async () => {
     const { ledger, ran, submit } = harness(new Ledger("active"));
     const active = submit("active");
@@ -328,10 +327,10 @@ describe("classifyFragment ordering (ports of tests/test_classification_queue.py
   });
 });
 
-describe("parseFragmentQuery", () => {
-  it("reads the last value of each parameter", () => {
+describe("parseResultsParams", () => {
+  it("reads the last value of each parameter and ignores HTMX's push_url and url_change", () => {
     expect(
-      parseFragmentQuery([
+      parseResultsParams([
         ["product_description", "a"],
         ["product_description", "b"],
         ["top_k", "10"],
@@ -345,8 +344,6 @@ describe("parseFragmentQuery", () => {
       productDescription: "b",
       topK: 7,
       version: "v",
-      pushUrl: true,
-      urlChange: false,
       enhanceQuery: "1",
     });
   });
@@ -354,7 +351,7 @@ describe("parseFragmentQuery", () => {
   it("lists every invalid parameter in FastAPI's 422 body", () => {
     let error: unknown;
     try {
-      parseFragmentQuery([
+      parseResultsParams([
         ["top_k", "101"],
         ["url_change", ""],
       ]);
@@ -378,24 +375,7 @@ describe("parseFragmentQuery", () => {
           input: "101",
           ctx: { le: 100 },
         },
-        {
-          type: "bool_parsing",
-          loc: ["query", "url_change"],
-          msg: "Input should be a valid boolean, unable to interpret input",
-          input: "",
-        },
       ],
     });
-  });
-});
-
-describe("resolveFragmentPushUrl", () => {
-  it.each([
-    [undefined, undefined, true],
-    [undefined, false, false],
-    [true, false, true],
-    [false, true, false],
-  ])("push_url=%s url_change=%s pushes %s", (pushUrl, urlChange, pushes) => {
-    expect(resolveFragmentPushUrl(pushUrl, urlChange)).toBe(pushes);
   });
 });

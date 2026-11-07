@@ -1,7 +1,4 @@
-// Isomorphic. The interactive leaves of Results. renderToStaticMarkup
-// drops handlers and effects, so the static result fragment keeps its
-// markup, and the legacy scripts drive these buttons there by their
-// data-copy-original-id and id hooks.
+// Isomorphic. The interactive leaves of Results.
 import {
   useEffect,
   useLayoutEffect,

@@ -194,7 +194,8 @@ function ResultList({ results, tooltip, elapsed }: ResultsView) {
 }
 
 /**
- * Port of app/templates/results.html, without the fragment's page title.
+ * Port of app/templates/results.html, without the fragment's page title,
+ * which the island sets from the API's `title`.
  * It renders preformatted strings only (see toResultsView), so the browser
  * can render it from the results API.
  */
