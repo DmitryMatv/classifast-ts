@@ -14,13 +14,11 @@ import {
 import { RedisModule } from "../redis/redis.module.js";
 import { UsageModule } from "../usage/usage.module.js";
 import { ClassifierPageController } from "./classifier-page.controller.js";
-import { FragmentController } from "./fragment.controller.js";
 import { ResultsApiController } from "./results-api.controller.js";
 import { WebModule } from "./web.module.js";
 
 // Its routes match any first path segment, so AppModule imports it last.
-// ResultsApiController and FragmentController must precede the classifier
-// page catch-all.
+// ResultsApiController must precede the classifier page catch-all.
 @Module({
   imports: [
     ClassificationModule,
@@ -29,11 +27,7 @@ import { WebModule } from "./web.module.js";
     UsageModule,
     WebModule,
   ],
-  controllers: [
-    ResultsApiController,
-    FragmentController,
-    ClassifierPageController,
-  ],
+  controllers: [ResultsApiController, ClassifierPageController],
   providers: [
     {
       provide: SITEMAP_RESULT_STORE,

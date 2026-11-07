@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import request from "supertest";
 import { vi } from "vitest";
 import { z } from "zod";
@@ -41,6 +43,13 @@ import {
   HTTP_APP_OPTIONS,
 } from "../src/http-app.js";
 import { REDIS_CONNECTION } from "../src/redis/redis-client.js";
+import {
+  PaywallPanel,
+  StatusMessage,
+} from "../src/web/classifier/paywall-panel.js";
+import { jinjaEscape } from "../src/web/render.js";
+import type { ResultsResponse } from "../src/web/results-api.js";
+import { Results } from "../src/web/results.js";
 import { loadSitemapQueryPaths } from "../src/web/sitemap.js";
 import {
   Quota,
@@ -147,7 +156,15 @@ const golden = readGolden(
 type PageCase = (typeof golden.cases)[number];
 
 const sitemapQueryPaths = loadSitemapQueryPaths();
-const FRAGMENT_ROUTE = /^\/[^/]+\/fragment$/;
+
+// Python's /{classifier_type}/fragment requests. The route is gone; the
+// results API answers the same requests below.
+function isFragmentRequest(page: PageCase): boolean {
+  const route = page.path.split("?")[0]!;
+  return /^\/[^/]+\/fragment$/.test(route) && !route.startsWith("/mapping/");
+}
+const pageCases = golden.cases.filter((page) => !isFragmentRequest(page));
+const fragmentCases = golden.cases.filter(isFragmentRequest);
 const noStoreHeaders = Object.fromEntries(
   Object.entries(cacheHeaders("NO_STORE")).map(([name, value]) => [
     name.toLowerCase(),
@@ -168,21 +185,9 @@ const crawlerCases = new Map(
  * page, except that a full queue still gives a visitor a 200 shell that
  * loads results itself. A rendered page carries a Cache-Tag. The page
  * charges no quota either way.
- *
- * Decided divergence: a fragment whose classification a shared cache may
- * not keep (`isCacheableClassification`) answers NO_STORE, where Python
- * caches every result fragment. The parity cases reach that only with an
- * empty result list.
  */
 function nestCase(page: PageCase): PageCase {
   const route = page.path.split("?")[0]!;
-  if (
-    FRAGMENT_ROUTE.test(route) &&
-    page.status === 200 &&
-    page.classify === "empty"
-  ) {
-    return { ...page, headers: { ...page.headers, ...noStoreHeaders } };
-  }
   if (
     page.method !== "GET" ||
     page.path !== route ||
@@ -353,12 +358,6 @@ const fakeQuota: Pick<Quota, "resolveCaller" | "check" | "charge"> = {
   },
 };
 
-// Python writes the out-of-band title after the results; React would hoist
-// it to the front.
-function oobTitle(html: string): string | undefined {
-  return /<title\b[^>]*>[^<]*<\/title>/.exec(html)?.[0];
-}
-
 let qdrant: QdrantServer;
 let app: NestExpressApplication;
 
@@ -429,7 +428,7 @@ async function send(page: PageCase): Promise<request.Response> {
 }
 
 describe("pages match the FastAPI app (parity)", () => {
-  it.each(golden.cases.map(nestCase))(
+  it.each(pageCases.map(nestCase))(
     "$method $path -> $status",
     async (page) => {
       const response = await send(page);
@@ -501,14 +500,8 @@ describe("pages match the FastAPI app (parity)", () => {
             page.body.value,
           );
           break;
-        case "fragment": {
-          const recorded = golden.regions[page.body.region]!;
-          expect(normalizeFragment(body.toString("utf8"))).toBe(
-            normalizeFragment(expectedFragment(recorded)),
-          );
-          expect(oobTitle(body.toString("utf8"))).toBe(oobTitle(recorded));
-          break;
-        }
+        case "fragment":
+          throw new Error("fragment cases run against the results API");
       }
       if (body.includes(" data-island=")) {
         expect(body.toString("utf8"), "islands need site.js").toContain(
@@ -522,7 +515,7 @@ describe("pages match the FastAPI app (parity)", () => {
 describe("every golden classifier page hydrates", () => {
   it("with no recoverable error in either island", async () => {
     const pages: { url: string; html: string }[] = [];
-    for (const page of golden.cases.map(nestCase)) {
+    for (const page of pageCases.map(nestCase)) {
       if (page.method !== "GET") continue;
       const response = await send(page);
       const html = Buffer.isBuffer(response.body)
@@ -545,12 +538,195 @@ describe("every golden classifier page hydrates", () => {
   });
 });
 
+/**
+ * The results API answering Python's recorded fragment requests. The island
+ * renders the same markup from the JSON, so a case keeps Python's calls,
+ * quota events, cache headers and markup. The API answers a paywall with
+ * 402, an empty description with 422, and every failure with an `error`
+ * body. HTMX's push_url and url_change are no longer parameters.
+ */
+type ApiExpectation =
+  | { readonly status: 200; readonly kind: "results" }
+  | { readonly status: 402; readonly kind: "paywall"; readonly signedIn: boolean }
+  | { readonly status: 503; readonly kind: "busy" }
+  | { readonly status: number; readonly kind: "error"; readonly message: string };
+
+const HTMX_PARAMETERS = new Set(["push_url", "url_change"]);
+
+function apiPath(page: PageCase): string {
+  const [route, query = ""] = page.path.split("?");
+  const kept = query
+    .split("&")
+    .filter((item) => item && !HTMX_PARAMETERS.has(item.split("=")[0]!));
+  const type = route!.split("/")[1]!;
+  return `/api/results/${type}${kept.length ? `?${kept.join("&")}` : ""}`;
+}
+
+function apiExpectation(page: PageCase): ApiExpectation | undefined {
+  if (page.method !== "GET" || page.status === 308) return undefined;
+  if (page.body.kind === "json") {
+    const { detail } = page.body.value as { detail: unknown };
+    if (typeof detail === "string") {
+      return { status: page.status, kind: "error", message: detail };
+    }
+    const fields = (detail as { loc: string[] }[]).map(({ loc }) => loc[1]!);
+    if (fields.every((field) => HTMX_PARAMETERS.has(field))) return undefined;
+    return {
+      status: page.status,
+      kind: "error",
+      message: "Invalid query parameters",
+    };
+  }
+  const description = new URLSearchParams(page.path.split("?")[1])
+    .getAll("product_description")
+    .at(-1);
+  if (!description?.trim()) {
+    return { status: 422, kind: "error", message: "Please enter a query" };
+  }
+  if (page.status === 503) return { status: 503, kind: "busy" };
+  const denied =
+    page.quota?.startsWith("denied") || page.quota === "charge_denied";
+  // A verified crawler skips the quota.
+  if (denied && !page.crawler) {
+    return {
+      status: 402,
+      kind: "paywall",
+      signedIn: page.quota === "denied_signed_in",
+    };
+  }
+  return { status: 200, kind: "results" };
+}
+
+const apiCases = fragmentCases.flatMap((page) => {
+  const expected = apiExpectation(page);
+  return expected ? [{ page, path: apiPath(page), expected }] : [];
+});
+
+const API_HEADERS = [
+  "cache-control",
+  "cloudflare-cdn-cache-control",
+  "cache-tag",
+  "retry-after",
+  "x-ratelimit-limit",
+  "x-ratelimit-remaining",
+];
+
+// Python writes the out-of-band title after the results.
+function recordedRegion(page: PageCase): { markup: string; title?: string } {
+  if (page.body.kind !== "fragment") throw new Error("expected a fragment");
+  const recorded = golden.regions[page.body.region]!;
+  const title = /<title\b[^>]*>([^<]*)<\/title>/.exec(recorded);
+  return {
+    markup: recorded.replace(/<title\b[^>]*>[^<]*<\/title>/, ""),
+    ...(title ? { title: title[1] } : {}),
+  };
+}
+
+function renderedAnswer(body: ResultsResponse): string {
+  switch (body.kind) {
+    case "results":
+      return renderToStaticMarkup(
+        createElement(Results, { ...body, loaded: false }),
+      );
+    case "paywall":
+      return renderToStaticMarkup(
+        createElement(PaywallPanel, {
+          kind: "paywall",
+          limit: body.limit,
+          signedIn: body.signedIn,
+          upgrade: "ready",
+          notice: null,
+        }),
+      );
+    case "busy":
+      return renderToStaticMarkup(
+        createElement(StatusMessage, { message: body.message }),
+      );
+    case "error":
+      throw new Error(`no markup for an error: ${body.message}`);
+  }
+}
+
+describe("the results API answers Python's fragment requests", () => {
+  // Left out: three canonical-query 308s and a POST 405, which the
+  // middleware and router answer before any route, and the two 422s that
+  // only rejected push_url and url_change.
+  it("ports every fragment case but six", () => {
+    expect(fragmentCases).toHaveLength(51);
+    expect(apiCases).toHaveLength(45);
+  });
+
+  it.each(apiCases)(
+    "$page.path -> $expected.status $expected.kind",
+    async ({ page, path, expected }) => {
+      const response = await send({ ...page, path });
+      const body = JSON.parse(
+        (response.body as Buffer).toString("utf8"),
+      ) as ResultsResponse;
+
+      expect(response.status).toBe(expected.status);
+      expect(body).toMatchObject(
+        expected.kind === "paywall"
+          ? { kind: "paywall", signedIn: expected.signedIn }
+          : expected.kind === "error"
+            ? { kind: "error", message: expected.message }
+            : { kind: expected.kind },
+      );
+      if (page.calls !== undefined) expect(fake.calls).toEqual(page.calls);
+      expect(fake.events).toEqual(page.events ?? []);
+      if (body.kind === "error") return;
+
+      // Decided divergence: an uncacheable classification, here an empty
+      // list, answers NO_STORE where Python cached every result fragment.
+      const headers =
+        page.classify === "empty"
+          ? { ...page.headers, ...noStoreHeaders }
+          : page.headers;
+      for (const name of API_HEADERS) {
+        expect(response.headers[name], name).toBe(headers[name]);
+      }
+      const recorded = recordedRegion(page);
+      expect(normalizeFragment(renderedAnswer(body))).toBe(
+        normalizeFragment(expectedFragment(recorded.markup)),
+      );
+      if (body.kind === "busy") return;
+      if (page.headers["hx-push-url"] !== undefined) {
+        expect(body.url).toBe(page.headers["hx-push-url"]);
+      }
+      if (recorded.title !== undefined) {
+        expect(jinjaEscape(body.title)).toBe(recorded.title);
+      }
+    },
+  );
+});
+
+describe("the retired fragment route", () => {
+  it("redirects to the classifier page for 'fragment' without classifying", async () => {
+    fake.calls = [];
+    fake.events = [];
+    const reply = await request(app.getHttpServer()).get(
+      "/UNSPSC/fragment?product_description=laptop",
+    );
+    expect(reply.status).toBe(301);
+    expect(reply.headers["location"]).toBe(
+      "/UNSPSC/fragment/?product_description=laptop",
+    );
+    const page = await request(app.getHttpServer()).get(
+      reply.headers["location"]!,
+    );
+    expect(page.status).toBe(200);
+    expect(fake.events).toEqual([]);
+  });
+});
+
 describe("classifier page lifecycle", () => {
   afterEach(() => {
     fake.verify = undefined;
   });
 
-  it.each([["fragment", "/UNSPSC/fragment?product_description=laptop", false]])(
+  it.each([
+    ["results API", "/api/results/UNSPSC?product_description=laptop", false],
+  ])(
     "skips the %s's quota and classification when the client leaves during crawler verification",
     async (_, path, verified) => {
       let started!: () => void;
@@ -587,20 +763,6 @@ describe("classifier page lifecycle", () => {
     },
   );
 
-  it("refuses HEAD where the fragment would classify, before any check", async () => {
-    fake.calls = [];
-    fake.events = [];
-    const reply = await request(app.getHttpServer()).head(
-      "/UNSPSC/fragment?product_description=laptop",
-    );
-    expect(reply.status).toBe(405);
-    expect(reply.headers["allow"]).toBe("GET");
-    expect(reply.headers["cache-control"]).toBe(
-      cacheHeaders("NO_STORE")["Cache-Control"],
-    );
-    expect(fake.calls).toEqual([]);
-    expect(fake.events).toEqual([]);
-  });
 });
 
 describe("sitemap query pages (decided divergence from Python)", () => {
@@ -817,10 +979,9 @@ describe("sitemap query pages (decided divergence from Python)", () => {
   });
 });
 
-describe("result fragment caching (decided divergence from Python)", () => {
-  const parity = golden.cases.find(
-    (page) =>
-      page.method === "GET" &&
+describe("results API caching (decided divergence from Python)", () => {
+  const parity = apiCases.find(
+    ({ page }) =>
       page.path === "/UNSPSC/fragment?product_description=laptop%20computer" &&
       page.classify === "success" &&
       page.quota === "allowed" &&
@@ -839,12 +1000,12 @@ describe("result fragment caching (decided divergence from Python)", () => {
     ["skipped", "ok", "NO_STORE"],
     ["applied", "failed", "NO_STORE"],
   ] as const)(
-    "rerank %s with ID search %s answers %s and still renders the results",
+    "rerank %s with ID search %s answers %s and still sends the results",
     async (rerank, idSearch, profile) => {
       fake.rerank = rerank;
       fake.idSearch = idSearch;
 
-      const response = await send(parity);
+      const response = await send({ ...parity.page, path: parity.path });
 
       expect(response.status).toBe(200);
       expect(response.headers["cache-control"]).toBe(
@@ -854,17 +1015,13 @@ describe("result fragment caching (decided divergence from Python)", () => {
         cacheHeaders(profile)["Cloudflare-CDN-Cache-Control"],
       );
       expect(response.headers["cache-tag"]).toBe("classification-results");
-      expect(response.headers["hx-push-url"]).toBe(
-        parity.headers["hx-push-url"],
-      );
-      expect(fake.events).toEqual(parity.events);
-      if (parity.body.kind !== "fragment") throw new Error("expected fragment");
-      const html = (response.body as Buffer).toString("utf8");
-      const recorded = golden.regions[parity.body.region]!;
-      expect(normalizeFragment(html)).toBe(
-        normalizeFragment(expectedFragment(recorded)),
-      );
-      expect(oobTitle(html)).toBe(oobTitle(recorded));
+      expect(fake.events).toEqual(parity.page.events);
+      const body = JSON.parse((response.body as Buffer).toString("utf8")) as {
+        kind: string;
+        results: unknown[];
+      };
+      expect(body.kind).toBe("results");
+      expect(body.results).toHaveLength(golden.fake.results.length);
     },
   );
 });
@@ -928,15 +1085,15 @@ describe("crawler verification behind a proxy", () => {
     fake.verify = undefined;
   });
 
-  function googlebotFragment(headers: Record<string, string>): request.Test {
+  function googlebotLookup(headers: Record<string, string>): request.Test {
     return request(app.getHttpServer())
-      .get("/UNSPSC/fragment?product_description=laptop")
+      .get("/api/results/UNSPSC?product_description=laptop")
       .set("User-Agent", "Googlebot/2.1 (+http://www.google.com/bot.html)")
       .set(headers);
   }
 
   it("serves results without quota to Googlebot whose CF-Connecting-IP is Google's", async () => {
-    const response = await googlebotFragment({
+    const response = await googlebotLookup({
       "CF-Connecting-IP": "66.249.64.1",
       "X-Forwarded-For": "203.0.113.10",
     });
@@ -947,10 +1104,11 @@ describe("crawler verification behind a proxy", () => {
   });
 
   it("paywalls Googlebot that claims a Google address only in X-Forwarded-For", async () => {
-    const response = await googlebotFragment({
+    const response = await googlebotLookup({
       "X-Forwarded-For": "66.249.64.1, 172.18.0.5",
     });
 
+    expect(response.status).toBe(402);
     expect(response.headers["cache-tag"]).toBeUndefined();
     expect(response.headers["x-ratelimit-remaining"]).toBe("0");
     expect(fake.events).toEqual(["crawler", "caller", "check"]);

@@ -158,7 +158,7 @@ render its results and cannot classify there. In full mode it expects
 same results and "Finished in" time. With `CONTRACT_NO_OPENROUTER_KEY=1` the
 results are degraded, so the full-mode GET expects `NO_STORE`,
 `index, follow` and no `Cache-Tag`, and the two-GET case skips; the
-full-mode result fragments expect `NO_STORE` too. HEAD on a
+full-mode results API answers expect `NO_STORE` too. HEAD on a
 sitemap query page never classifies and answers `HTML_PAGE` without a
 `Cache-Tag`; that is accepted.
 
@@ -251,7 +251,7 @@ Python's `/{classifier_type}` routes and matches every path with a non-empty
 first segment, so `/no-such-page` answers the classifier 404
 (`Type 'no-such-page' not found`), as in Python. Nest registers controllers in
 module import order: `AppModule` imports `ClassifierPageModule` last, and any
-new route, including `/{classifier_type}/fragment`, must register before it.
+new route, including `/api/results/{TYPE}`, must register before it.
 The handler reads the decoded path itself instead of Express params.
 Python rebuilds its redirect from the decoded URL, so an encoded `?` or `#`
 in a classifier slug splits the path there: `/UNSPSC/a%3Fb/` redirects to
@@ -283,7 +283,7 @@ path. The results come from
   default.
 - Only complete results are stored: `rerank` is `applied` or `not_needed`,
   `idSearch` is `ok`, and at least one result was found
-  (`isCacheableClassification`, which the fragment also uses). An incomplete
+  (`isCacheableClassification`, which the results API also uses). An incomplete
   result still renders, but with `NO_STORE` on both cache headers, no
   `Cache-Tag`, and `index, follow`, so neither Redis nor Cloudflare keeps
   it.
@@ -291,7 +291,7 @@ path. The results come from
   could not store, for 10 minutes (at most 2,000 keys). A view in that window
   does not classify. Without this, an OpenRouter or Redis outage would make
   every crawler view a free classification that fills the queue paying
-  fragment users share. A remembered result keeps the headers of its first
+  lookups share. A remembered result keeps the headers of its first
   view.
 - A miss runs one fill per key through `ClassificationQueue`. No signal
   cancels a fill: a visitor who leaves does not stop it, and at shutdown the
@@ -314,41 +314,39 @@ path. The results come from
 `test/pages.e2e-spec.ts` replaces the store with an in-memory map
 (`SITEMAP_RESULT_STORE`) and clears it before each parity case.
 
-`FragmentController` registers before `ClassifierPageController` in the same
-module with the pattern `:classifierType/:leaf`; it checks the decoded path
-for `/{type}/fragment` and calls `next()` for every other two-segment path.
-HEAD answers like GET there for validation errors and empty descriptions, but
-answers 405 `Allow: GET` where GET would classify, so a probe never takes a
-queue turn or charges quota. Python sent HEAD to the classifier page (301).
-Fragment parity cases (`body.kind == "fragment"`) also fake `Quota` and
-record an `events` list (crawler, caller, check, classify, charge) that pins
-the order of quota checks and queue admission.
+`GET /api/results/{TYPE}` (`ResultsApiController`) answers the classifier
+island's lookups. It replaced Python's `/{classifier_type}/fragment`, which
+only HTMX called; that path now falls through to the classifier page and
+redirects to the page for the description "fragment" without classifying.
+Request resolution and the quota order live in `results-delivery.ts`. HEAD
+answers like GET for validation errors and empty descriptions, but answers
+405 `Allow: GET` where GET would classify, so a probe never takes a queue
+turn or charges quota. Every body is a `ResultsResponse`
+(`src/web/results-api.ts`): `results` 200 with `CLASSIFICATION_RESULT` and
+`Cache-Tag: classification-results`, `paywall` 402, `busy` 503 (full queue
+or quota unavailable), and `error` for everything else, all `NO_STORE`
+except `results`.
 
-React 19 hoists a `<title>` to the front of markup rendered without
-`<html>`, so the fragment's out-of-band `<title>` is appended as a string
-escaped by `jinjaEscape`. Python's fragment never sets `results_loaded`, so a
-classification with no results renders `Loading...`; the port copies that.
+`test/pages.e2e-spec.ts` sends Python's recorded fragment requests to the
+results API ("the results API answers Python's fragment requests"). Each
+case keeps the recorded classification calls, the `events` list (crawler,
+caller, check, classify, charge) that pins the order of quota checks and
+queue admission, the cache headers, and the markup the island renders from
+the JSON, compared with the recorded fragment. Python's fragment never set
+`results_loaded`, so a classification with no results renders `Loading...`;
+the port copies that.
 
-A result fragment sends `NO_STORE` on both cache headers, instead of
+A `results` answer sends `NO_STORE` on both cache headers, instead of
 `CLASSIFICATION_RESULT` (a week at Cloudflare), when its classification is
 not cacheable: the rerank `failed` or was `skipped`, an ID search `failed`,
-the requested enhancement `failed`, or the list is empty. It still renders
-the results and keeps `Cache-Tag` and `HX-Push-Url`. Python cached every
-result fragment except a failed enhancement.
+the requested enhancement `failed`, or the list is empty. It still carries
+the results and `Cache-Tag`. Python cached every result fragment except a
+failed enhancement.
 An empty list is not a genuine answer: the semantic search has no filter or
 score threshold, so it returns nothing only for an empty collection, such as
 one being rebuilt. `isCacheableClassification` in
-`src/classifier/classification-service.ts` is the one rule for the fragment
-and the sitemap result store. The parity case with `classify: "empty"`
-expects `NO_STORE` through `nestCase`.
-
-`GET /api/results/{TYPE}` (`ResultsApiController`) is the result fragment's
-JSON twin for the hydrated classifier page. It shares the fragment's request
-resolution, quota order and HEAD 405 (`fragment-delivery.ts`), and every
-body is a `ResultsResponse` (`src/web/results-api.ts`): `results` 200 with
-the fragment's cache headers and `Cache-Tag`, `paywall` 402, `busy` 503
-(full queue or quota unavailable), and `error` for everything else, all
-`NO_STORE` except `results`. Results arrive formatted by `toResultsView`
+`src/classifier/classification-service.ts` is the one rule for the results
+API and the sitemap result store. Results arrive formatted by `toResultsView`
 (`src/web/results-view.ts`), because the Python formatting ports depend on
 Node's Unicode data and a browser may format differently. Build the URL with
 `resultsApiPath`, whose fixed parameter order gives one edge cache key per
@@ -447,7 +445,7 @@ Self-hosted from Raspberry Pi 4 (4GB) via Coolify behind Cloudflare Tunnel (Full
 
 Cache headers are defined in `src/http/cache-profiles.ts` - edit the profiles there instead of hand-rolling headers.
 
-- Never add `Set-Cookie` to fragment responses - breaks CDN caching
+- Never add `Set-Cookie` to results API responses - breaks CDN caching
 - Paywalls must use `no-store` - prevents serving cached paywall to allowed users
 - Never set cookies on full pages either - the server has a blanket no-cookie
   policy; set per-user state from client-side JavaScript instead
@@ -498,8 +496,9 @@ through `useServices()`; tests hydrate them with fakes
   files Tailwind does not scan.
 - Golden page fixtures stay frozen. `test/support/page-divergences.ts` lists
   each deliberate markup change as a named edit of the expected page. An
-  entry can also edit the classifier region cases (`regions`) and the result
-  fragment cases (`fragments`). An entry that no longer changes its full page
+  entry can also edit the classifier region cases (`regions`) and the
+  recorded result fragments that the results API cases compare with
+  (`fragments`). An entry that no longer changes its full page
   fails, so remove it when its change is reverted.
 - `app/assets/ts/services/auth.ts` owns Clerk on island pages. The header
   island's home and classifier variants start it, and it injects Clerk's
@@ -616,7 +615,7 @@ as `unavailable`.
   `npm run build`, restart the server or the browser keeps loading the old
   JS with stale `?v=` values.
 - The server never sets cookies on any response, cacheable or not. `cf_track`
-  is set by client-side JavaScript, in the API client. On HTML or fragment routes a server-side
+  is set by client-side JavaScript, in the API client. On HTML pages and the results API a server-side
   cookie additionally breaks the `HTML_PAGE`/`CLASSIFICATION_RESULT` CDN cache
   profiles; on other routes it is still forbidden by design, so use
   client-side JavaScript for any per-user state.
@@ -671,12 +670,12 @@ as `unavailable`.
   turn per complete classification, query enhancement included. Each process
   admits one active and four waiting classifications (`QUEUE_CAPACITY`). The
   next request fails with `ClassificationQueueFull`. The
-  fragment and RapidAPI routes log a warning and return 503 with `no-store`.
+  results API and RapidAPI routes log a warning and return 503 with `no-store`.
   An overloaded SSR page falls back to client-side loading with `no-store`
   but stays indexable. Verified Google crawlers get that page as a 503 with
   `Retry-After` instead. Only genuine SSR failures send `noindex`, because
   Google drops a 200 page marked `noindex` but retries a 503.
-- A fragment request runs crawler verification, Clerk caller resolution, a
+- A results API request runs crawler verification, Clerk caller resolution, a
   read-only quota check (`Quota.check`), queue admission, the turn, the quota
   charge (`Quota.charge`), and the pipeline. Over-quota callers get the
   paywall without a queue slot. Racing requests can all pass the check, so
