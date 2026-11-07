@@ -117,9 +117,9 @@ describe.runIf(fullMode)(
       for (const result of results) {
         const bar = result.querySelector("[data-score-bar]");
         expect(bar).not.toBeNull();
-        const widthAttribute = bar?.getAttribute("data-score-width");
-        expect(widthAttribute).toMatch(/\S/);
-        const width = Number(widthAttribute);
+        const widthStyle = (bar as HTMLElement | null)?.style.width;
+        expect(widthStyle).toMatch(/^\S+%$/);
+        const width = Number.parseFloat(widthStyle!);
         expect(Number.isFinite(width)).toBe(true);
         expect(width).toBeGreaterThanOrEqual(0);
         expect(width).toBeLessThanOrEqual(100);
