@@ -81,8 +81,7 @@ const MAX_DELAY_MS = 1000;
 
 /**
  * The page's CSS grows each bar from zero to this width; rows after the
- * first start 100 ms apart, at most 1 s late. data-score-width stays for
- * the legacy classifier.js, which sizes bars in cached pre-island pages.
+ * first start 100 ms apart, at most 1 s late.
  */
 function scoreBarStyle(width: string, index: number): CSSProperties {
   return {
@@ -131,7 +130,6 @@ function ResultItem({
       <div
         className="absolute inset-y-0 left-0 score-bar"
         data-score-bar=""
-        data-score-width={result.scoreWidth}
         style={scoreBarStyle(result.scoreWidth, index)}
       ></div>
       <div className="relative p-3">
@@ -196,7 +194,8 @@ function ResultList({ results, tooltip, elapsed }: ResultsView) {
 }
 
 /**
- * Port of app/templates/results.html, without the fragment's page title.
+ * Port of app/templates/results.html, without the fragment's page title,
+ * which the island sets from the API's `title`.
  * It renders preformatted strings only (see toResultsView), so the browser
  * can render it from the results API.
  */

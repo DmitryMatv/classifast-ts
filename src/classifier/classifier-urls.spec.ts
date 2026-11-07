@@ -9,8 +9,8 @@ import {
   buildClassifierCanonicalPath,
   buildClassifierCanonicalUrl,
   buildClassifierRedirectUrl,
-  buildFragmentPageTitle,
-  buildFragmentPushUrl,
+  buildResultsPageTitle,
+  buildResultsPageUrl,
   decodeSearchQuery,
   shouldSsr,
   slugify,
@@ -123,7 +123,7 @@ describe("classifier URLs match Python", () => {
     "pushes $url",
     ({ type, description, url, ...options }) => {
       expect(
-        buildFragmentPushUrl(
+        buildResultsPageUrl(
           type,
           description,
           { ...options, defaultTopK: 10 },
@@ -134,6 +134,6 @@ describe("classifier URLs match Python", () => {
   );
 
   it.each(golden.pageTitles)("titles $query", ({ type, query, title }) => {
-    expect(buildFragmentPageTitle(type, query)).toBe(title);
+    expect(buildResultsPageTitle(type, query)).toBe(title);
   });
 });

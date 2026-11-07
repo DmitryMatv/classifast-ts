@@ -20,9 +20,9 @@ export interface ActivationRecord {
 }
 
 /**
- * The paywall's sessionStorage records. Keys and value shapes are the ones
- * paywall.ts writes: a payer whose checkout began on a page that still ran
- * paywall.ts resumes on an island page.
+ * The paywall's sessionStorage records. Keep the keys and value shapes
+ * stable: a payer whose checkout began before a deploy resumes under the
+ * next site.js.
  */
 export interface StoredPaywall {
   /** `classifast:upgrade-intent`: the return URL of an Upgrade waiting for sign-in. */

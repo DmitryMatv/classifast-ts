@@ -1,6 +1,4 @@
-// Isomorphic. The answers the results panel shows besides results. One
-// source for the classifier island and, until unit 5 deletes it, the
-// static fragment, whose ids the legacy paywall.js drives.
+// Isomorphic. The answers the results panel shows besides results.
 import type { ReactElement } from "react";
 import type { UpgradeButtonView } from "./paywall-machine.js";
 

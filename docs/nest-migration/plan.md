@@ -126,11 +126,14 @@ setup that the scaffold adds. The user asked to start with the scaffold.
 1. [x] Add a JSON results endpoint. Keep it a cacheable GET with canonical query
        parameters. Return a typed union of results, paywall, busy and error.
        `GET /api/results/{TYPE}`, #26.
-2. [ ] Hydrate the classifier page: the form, the results and Clerk auth.
-3. [ ] Port the paywall and checkout recovery as a reducer.
-4. [ ] Hydrate only the interactive parts of the home and mapping pages.
-5. [ ] Delete `htmx.min.js`, the HTMX listeners and the old scripts. Port the
-       behavior tests. Remove the HTMX entries from AGENTS.md.
+2. [x] Hydrate the classifier page: the form, the results and Clerk auth.
+3. [x] Port the paywall and checkout recovery as a reducer.
+4. [x] Hydrate only the interactive parts of the home and mapping pages.
+       Units 2 to 4 landed together in #32 (#28, #29, #30).
+5. [x] Delete `htmx.min.js`, the HTMX listeners and the old scripts. Port the
+       behavior tests. Remove the HTMX entries from AGENTS.md. #37. A
+       follow-up removes `/{TYPE}/fragment`, which only HTMX called, and
+       runs Python's recorded fragment cases against `/api/results`.
 
 ## Fixes outside the phases
 

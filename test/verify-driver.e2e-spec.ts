@@ -102,7 +102,7 @@ function processesMentioning(marker: string): number[] {
 
 const built =
   existsSync(join(root, "dist/main.js")) &&
-  existsSync(join(root, "app/static/js/common.js"));
+  existsSync(join(root, "app/static/js/site.js"));
 
 // A public launch whose processes carry a unique marker. `stop` kills
 // whatever is left of it, so a failed assertion leaves nothing running.

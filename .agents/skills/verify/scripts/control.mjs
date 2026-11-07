@@ -326,7 +326,7 @@ function serverArgs(envFile) {
 
 function checkPrerequisites(envFile) {
   for (const asset of [
-    "app/static/js/common.js",
+    "app/static/js/site.js",
     "app/static/css/styles.css",
   ]) {
     if (!existsSync(join(ROOT, asset))) {

@@ -1,7 +1,5 @@
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Test } from "@nestjs/testing";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import request from "supertest";
 import { vi } from "vitest";
 import { AppModule } from "../src/app.module.js";
@@ -39,8 +37,6 @@ import {
   type Caller,
   type UsageStatus,
 } from "../src/usage/quota.js";
-import { jinjaEscape } from "../src/web/render.js";
-import { Results } from "../src/web/results.js";
 import {
   resultsApiPath,
   type ResultsResponse,
@@ -308,13 +304,8 @@ describe("results", () => {
     expect(response.headers["cache-tag"]).toBe("classification-results");
   });
 
-  it("checks quota and admits to the queue in the fragment's order", async () => {
-    const fragment = await get(
-      `/UNSPSC/fragment?product_description=laptop&version=${encodeURIComponent(VERSION)}`,
-    );
-    expect(fragment.status).toBe(200);
-    const fragmentEvents = fake.events;
-    fake.events = [];
+  // pages.e2e-spec.ts pins this order against Python's fragment route.
+  it("checks quota and admits to the queue in order", async () => {
     await getJson(apiPath("laptop"));
     expect(fake.events).toEqual([
       "crawler",
@@ -323,7 +314,6 @@ describe("results", () => {
       "classify",
       "charge",
     ]);
-    expect(fake.events).toEqual(fragmentEvents);
   });
 
   it("charges a verified crawler nothing", async () => {
@@ -344,37 +334,7 @@ describe("results", () => {
   });
 });
 
-describe("the results, url and title match the fragment's", () => {
-  it.each<[string, string, { topK?: number; enhance?: boolean }]>([
-    ["the default options", "laptop computer", {}],
-    ["a non-default top_k", "laptop computer", { topK: 3 }],
-    ["an enhanced query", "office chair", { enhance: true }],
-    ["a hyphenated sitemap query", "laptop-computer", {}],
-    ["a query with quotes", "Bob's <b> & co", {}],
-  ])("for %s", async (_, query, options) => {
-    const { body } = await getJson(apiPath(query, options));
-    if (body.kind !== "results") throw new Error(`got ${body.kind}`);
-
-    const fragmentQuery = new URLSearchParams({
-      product_description: query,
-      version: VERSION,
-      top_k: String(options.topK ?? 10),
-      ...(options.enhance ? { enhance_query: "1" } : {}),
-    });
-    const fragment = await get(`/UNSPSC/fragment?${fragmentQuery.toString()}`);
-    expect(fragment.status).toBe(200);
-    expect(body.url).toBe(fragment.headers["hx-push-url"]);
-    // The classifier page's client renders Results from this body.
-    expect(fragment.text).toContain(
-      renderToStaticMarkup(
-        createElement(Results, { ...body, query, loaded: false }),
-      ),
-    );
-    expect(fragment.text).toContain(
-      `<title id="page-title" hx-swap-oob="true">${jinjaEscape(body.title)}</title>`,
-    );
-  });
-
+describe("the query page", () => {
   it("uses the sitemap's underscore path for a hyphenated query", async () => {
     const { body } = await getJson(apiPath("laptop-computer"));
     expect(body).toMatchObject({ url: "/UNSPSC/laptop_computer/" });

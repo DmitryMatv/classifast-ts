@@ -9,7 +9,7 @@ import {
 } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { ClassificationService } from "../classifier/classification-service.js";
-import { buildFragmentPageTitle } from "../classifier/classifier-urls.js";
+import { buildResultsPageTitle } from "../classifier/classifier-urls.js";
 import { GoogleCrawlerVerifier } from "../crawlers/google-crawlers.js";
 import { cacheHeaders, type HeaderRecord } from "../http/cache-profiles.js";
 import { errorReply, isUnexpectedError } from "../http/error-filter.js";
@@ -18,17 +18,17 @@ import { unquote } from "../python/urllib.js";
 import { Quota } from "../usage/quota.js";
 import { starletteUrlPath } from "./classifier-page-delivery.js";
 import {
-  classifyFragmentRequest,
-  fragmentPageUrl,
+  classifyResultsRequest,
+  resultsPageUrl,
   paywallHeaders,
+  paywallLimit,
   refuseHead,
-  resolveFragmentRequest,
-  resultsFragmentHeaders,
-  type FragmentOutcome,
-  type FragmentRequest,
-  type FragmentServices,
-} from "./fragment-delivery.js";
-import { paywallLimit } from "./fragments.js";
+  resolveResultsRequest,
+  resultsHeaders,
+  type ResultsOutcome,
+  type ResultsRequest,
+  type ResultsServices,
+} from "./results-delivery.js";
 import { parseQueryString } from "./request-url.js";
 import { disconnectSignal, rawQuery } from "./responses.js";
 import type { QueryPage, ResultsResponse } from "./results-api.js";
@@ -67,20 +67,20 @@ function failure(error: unknown, upperType: string): Reply {
 }
 
 /**
- * The JSON twin of the result fragment, for the classifier page's client.
- * It classifies, checks quota and refuses HEAD as the fragment does, but
- * answers the paywall with 402 and every failure with an `error` body.
+ * The classifier page's lookups. It resolves the request and checks quota
+ * as Python's fragment route did, answers the paywall with 402 and every
+ * failure with an `error` body, and refuses HEAD where GET would classify.
  */
 @Controller()
 export class ResultsApiController {
-  private readonly services: FragmentServices;
+  private readonly services: ResultsServices;
 
   constructor(
     @Inject(SITEMAP_QUERY_PATHS)
     private readonly sitemapQueryPaths: ReadonlySet<string>,
-    @Inject(ClassificationService) classifier: FragmentServices["classifier"],
-    @Inject(GoogleCrawlerVerifier) crawlers: FragmentServices["crawlers"],
-    @Inject(Quota) quota: FragmentServices["quota"],
+    @Inject(ClassificationService) classifier: ResultsServices["classifier"],
+    @Inject(GoogleCrawlerVerifier) crawlers: ResultsServices["crawlers"],
+    @Inject(Quota) quota: ResultsServices["quota"],
   ) {
     this.services = { classifier, crawlers, quota };
   }
@@ -91,9 +91,9 @@ export class ResultsApiController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    let request: FragmentRequest;
+    let request: ResultsRequest;
     try {
-      request = resolveFragmentRequest(
+      request = resolveResultsRequest(
         classifierType,
         parseQueryString(rawQuery(req)),
       );
@@ -116,30 +116,30 @@ export class ResultsApiController {
     // Listen before the crawler, Clerk and quota checks, which can wait on
     // the network.
     const signal = disconnectSignal(res);
-    const result = await classifyFragmentRequest(
+    const result = await classifyResultsRequest(
       req,
       this.services,
       request,
       signal,
     );
     if (signal.aborted) return;
-    // The fragment's rule, so both link a NACE code the same way.
+    // Python's fragment rule for linking a NACE code.
     const stripCodeDots = starletteUrlPath(
       unquote(splitRequestTarget(req.originalUrl).rawPath),
     ).includes("NACE");
     send(res, this.#reply(result, request, stripCodeDots));
   }
 
-  #queryPage(request: FragmentRequest): QueryPage {
+  #queryPage(request: ResultsRequest): QueryPage {
     return {
-      url: fragmentPageUrl(request, this.sitemapQueryPaths),
-      title: buildFragmentPageTitle(request.upperType, request.description),
+      url: resultsPageUrl(request, this.sitemapQueryPaths),
+      title: buildResultsPageTitle(request.upperType, request.description),
     };
   }
 
   #reply(
-    result: FragmentOutcome,
-    request: FragmentRequest,
+    result: ResultsOutcome,
+    request: ResultsRequest,
     stripCodeDots: boolean,
   ): Reply {
     const { upperType } = request;
@@ -148,7 +148,7 @@ export class ResultsApiController {
         const { outcome } = result;
         return {
           status: 200,
-          headers: resultsFragmentHeaders(undefined, outcome),
+          headers: resultsHeaders(outcome),
           body: {
             kind: "results",
             version: outcome.versionName,
@@ -166,7 +166,7 @@ export class ResultsApiController {
       case "paywall":
         return {
           status: 402,
-          headers: paywallHeaders(result.usage, undefined),
+          headers: paywallHeaders(result.usage),
           body: {
             kind: "paywall",
             signedIn: result.usage.caller.kind !== "anonymous",

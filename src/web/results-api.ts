@@ -57,9 +57,9 @@ export interface ResultsView {
 }
 
 /**
- * The classifier page that shows a query, as the fragment pushes it in
- * HX-Push-Url, and its document title. A paywall carries it too, so the
- * page can show the query's URL and return there after checkout.
+ * The classifier page that shows a query, and its document title. A
+ * paywall carries it too, so the page can show the query's URL and return
+ * there after checkout.
  */
 export interface QueryPage {
   readonly url: string;

@@ -19,7 +19,7 @@ export interface PageDivergence {
   readonly pages: readonly string[];
   /** It also edits each classifier page region case. */
   readonly regions?: true;
-  /** It also edits each result fragment case. */
+  /** It also edits the recorded result fragments the results API cases compare with. */
   readonly fragments?: true;
   readonly why: string;
   /** Edits whatever of its elements the expected page or snippet has. */
@@ -381,7 +381,7 @@ export const PAGE_DIVERGENCES: readonly PageDivergence[] = [
     pages: CLASSIFIER_PAGES,
     regions: true,
     fragments: true,
-    why: "Each score bar carries its width and, from the second row, its stagger (100 ms a row, at most 1 s) inline; CSS grows it. The legacy classifier.js read data-score-width and set both at runtime.",
+    why: "Each score bar carries its width and, from the second row, its stagger (100 ms a row, at most 1 s) inline; CSS grows it. classifier.js read data-score-width and set both at runtime, so the attribute is gone.",
     apply(page) {
       for (const bar of elements(
         page,
@@ -389,6 +389,7 @@ export const PAGE_DIVERGENCES: readonly PageDivergence[] = [
       )) {
         const index = siblingIndex(bar.parentNode as Element);
         const width = `width:${attribute(bar, "data-score-width")}%`;
+        removeAttribute(bar, "data-score-width");
         setAttribute(
           bar,
           "style",

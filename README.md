@@ -43,7 +43,7 @@ Classifast is a web application that provides easy classification of any text in
 ## Stack
 
 - **Backend**: NestJS (TypeScript) with server-rendered React pages
-- **Frontend**: TypeScript, Tailwind CSS, HTMX
+- **Frontend**: TypeScript, React islands, Tailwind CSS
 - **Vector Database**: Qdrant for semantic search
 - **Embedding Models**: Hugging Face Inference with Qwen embeddings
 - **Deployment**: Docker containerized
@@ -173,9 +173,9 @@ container take precedence. It exits 0 on success, 1 on a schema violation or a
 failed Qdrant operation, and 2 on invalid arguments.
 
 Each application process runs one classification at a time and admits up to
-four waiting classifications. When the queue is full, fragment and RapidAPI
-requests receive HTTP 503. Fragment callers already over quota receive the
-paywall instead, without taking a queue slot. Server-rendered pages still return
+four waiting classifications. When the queue is full, results API and RapidAPI
+requests receive HTTP 503. Results API callers already over quota receive the
+paywall (HTTP 402) instead, without taking a queue slot. Server-rendered pages still return
 200 to visitors and load results in the browser, while verified Google crawlers
 receive HTTP 503 with `Retry-After`. An active classification retains its turn
 through query enhancement and every pipeline stage. This bounds queued work
@@ -185,7 +185,7 @@ and keeps health checks, webhooks, and cached-page handling responsive.
 
 - `GET /` Homepage
 - `GET /{classifier_type}` Classification page (unspsc, etim, naics)
-- `GET /{classifier_type}/fragment` Classification results fragment
+- `GET /api/results/{classifier_type}` Classification results as JSON, for the classifier page
 - `GET /health` Health check endpoint
 
 ## Testing
