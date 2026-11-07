@@ -492,9 +492,6 @@ through `useServices()`; tests hydrate them with fakes
   in an effect, never during render.
 - `site.js` is one file. The `check-bundle` plugin in `vite.config.ts` fails
   the build if it imports anything, because a chunk would have no `?v=`.
-- `vite.legacy.config.ts` builds `common.js`, `classifier.js`, `paywall.js`
-  and `storefront.js` byte for byte as before, for cached pre-island HTML.
-  `npm run build` runs both configs.
 - `src/web/client-boundary.spec.ts` walks the imports from `site.tsx` and
   fails on server-only modules (`asset-url.ts`, `src/python/urllib.ts`,
   Nest), on files the Dockerfile frontend stage does not copy, and on `.tsx`
@@ -508,8 +505,7 @@ through `useServices()`; tests hydrate them with fakes
   island's home and classifier variants start it, and it injects Clerk's
   scripts, so island pages carry no Clerk tags. Islands read `useAuth()`;
   only the API client may call `authorization()`. Clerk refreshes its session
-  token itself, so add no refresh timer. Never load `common.ts` on an island
-  page: the page would have two Clerk owners.
+  token itself, so add no refresh timer.
 - Tailwind scans every file under `src/web`, specs and comments included. A
   utility word such as `truncate` or `isolate` anywhere there adds a rule to
   `styles.css`. Compare `styles.css` with `cmp` after a change that only
@@ -548,13 +544,11 @@ and decisions in the machines.
   server's `url` and `title`; autoload, restore and activation answers
   change neither.
 - Score bars carry their width and stagger inline and grow by a CSS
-  animation in `classifier-page-styles.ts`. `data-score-bar` and
-  `data-score-width` stay for the legacy `classifier.js` until unit 5.
-- The paywall's sessionStorage keys (`classifast:upgrade-intent`,
-  `classifast:checkout-recovery`) and shapes match `paywall.ts`, so a
-  checkout started on a cached HTMX page resumes on an island page. An
-  activation needs a signed-in visitor: signing out or an unavailable Clerk
-  stops it.
+  animation in `classifier-page-styles.ts`.
+- The paywall keeps an Upgrade intent and a checkout activation in
+  sessionStorage (`classifast:upgrade-intent`,
+  `classifast:checkout-recovery`). An activation needs a signed-in visitor:
+  signing out or an unavailable Clerk stops it.
 - `test/pages.e2e-spec.ts` hydrates every golden classifier page from the
   Nest app through `hydrateIslands` (`test/support/island-hydration.ts`) and
   expects both islands to hydrate with no recoverable error.
@@ -622,8 +616,7 @@ as `unavailable`.
   `npm run build`, restart the server or the browser keeps loading the old
   JS with stale `?v=` values.
 - The server never sets cookies on any response, cacheable or not. `cf_track`
-  is set by client-side JavaScript: the API client on island pages, and the
-  inline script of cached pre-island classifier HTML. On HTML or fragment routes a server-side
+  is set by client-side JavaScript, in the API client. On HTML or fragment routes a server-side
   cookie additionally breaks the `HTML_PAGE`/`CLASSIFICATION_RESULT` CDN cache
   profiles; on other routes it is still forbidden by design, so use
   client-side JavaScript for any per-user state.
@@ -634,35 +627,6 @@ as `unavailable`.
   it no crawler is verified. It never falls back to the client host, because
   a Googlebot user agent with a Google address in X-Forwarded-For would then
   skip the quota. Pick one policy deliberately for new IP-dependent code.
-- Legacy until unit 5: the HTMX entries below describe `common.ts`,
-  `classifier.ts`, `paywall.ts` and `htmx.min.js`, which only cached
-  pre-island classifier HTML still loads, with `/{TYPE}/fragment`. No page
-  the server renders now loads them. Keep them working, and keep
-  `vite.legacy.config.ts` building them byte for byte, until unit 5 deletes
-  them.
-- Legacy: `paywall.ts` is wrapped in a parse guard on purpose (class declarations
-  re-execute on bfcache/history-restore re-parsing). Do not remove the guard.
-- Legacy: System classification retries must use `requestCurrentClassifierSubmission`
-  so the current classifier owner can submit a remembered example after the
-  required textarea clears. Native `requestSubmit` stops at validation before
-  HTMX can supply the query; mocked `requestSubmit` hides this failure.
-- Legacy: HTMX 4's submit handler does not check `defaultPrevented`. The auth-readiness
-  gate must capture submission and stop immediate propagation until auth is ready,
-  even when HTMX processed the form before the classifier mounted.
-- Legacy: Vendored HTMX tests in jsdom need an explicit XPath result type, `CSS.escape`,
-  and `includeIndicatorCSS: false`. `paywall-retry.test.ts` supplies these while
-  retaining native form validation and recording final request parameters.
-- Legacy: HTMX 4 history restore preserves `document.body` and replaces its children.
-  Initialize restored controls after the BODY `htmx:after:swap` with
-  `HX-History-Restore-Request`, and retire handlers for the previous form.
-  Restored result autoload must use `push_url=false` to preserve Forward.
-- Legacy: On classifier pages, `common.ts` can load through both a versioned template URL and the classifier's
-  unversioned module import. Both instances must share one document owner for
-  Clerk bootstrap, token refresh, and global handlers.
-- Legacy: `htmx.min.js` is vendored in `app/static` and must use `asset_url` like the
-  application scripts. An unversioned URL can pair cached HTMX with incompatible
-  event handlers after an upgrade. `emptyOutDir: false` in `vite.config.ts`
-  protects it from build cleanup.
 - The app assumes a single Node process. The JWKS client, asset versions,
   crawler IP ranges, and the classification queue capacity are all
   process-local. Scaling workers changes their semantics.

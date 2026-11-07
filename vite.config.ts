@@ -24,8 +24,6 @@ function checkBundle(): Plugin {
   };
 }
 
-// vite.legacy.config.ts builds the scripts that cached pre-island HTML
-// still loads. `npm run build` runs both configs.
 export default defineConfig({
   plugins: [tailwindcss(), checkBundle()],
   oxc: { jsx: { runtime: "automatic" } },

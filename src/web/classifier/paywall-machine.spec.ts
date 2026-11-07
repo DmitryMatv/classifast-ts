@@ -61,7 +61,7 @@ function returnPage(browser: Partial<Browser> = {}): Classifier {
 }
 
 describe("paywall storage", () => {
-  it("reads the records paywall.ts wrote", () => {
+  it("reads the stored records", () => {
     const written = new Map([
       ["classifast:upgrade-intent", COFFEE],
       [
@@ -89,7 +89,7 @@ describe("paywall storage", () => {
     ).toEqual({ upgradeIntent: null, activation: null });
   });
 
-  it("writes the records in the shape paywall.ts reads", () => {
+  it("writes the records in the stored shape", () => {
     expect(
       storedPaywallWrites({
         upgradeIntent: COFFEE,

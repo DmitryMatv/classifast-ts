@@ -17,14 +17,6 @@ function createMatchMediaMock(): typeof window.matchMedia {
   });
 }
 
-function createHtmxMock(): HtmxInstance {
-  return {
-    trigger: vi.fn(),
-    process: vi.fn(),
-    ajax: vi.fn(async () => {}),
-  };
-}
-
 function createClerkMock(): ClerkInstance {
   return {
     load: vi.fn(async (_options?: ClerkLoadOptions) => {}),
@@ -37,31 +29,9 @@ function createClerkMock(): ClerkInstance {
 }
 
 beforeEach(() => {
-  window.__commonLifecycleAbort?.abort();
-  window.__classifierLifecycleAbort?.abort();
-  window.__classifierHistoryAbort?.abort();
-  delete window.__commonLifecycleAbort;
-  delete window.__commonController;
-  delete window.__classifierLifecycleAbort;
-  delete window.__classifierHistoryAbort;
-  delete window.__checkoutReturnUrl;
   document.body.innerHTML = "";
   document.head.innerHTML = "";
   document.documentElement.className = "";
-
-  delete window.__authReady;
-  delete window.__clerkAuthListenerRegistered;
-  delete window.__clerkInteractionListenersRegistered;
-  delete window.__clerkScriptFailed;
-  delete window.__internal_ClerkUICtor;
-  delete window.__initPaywall;
-  delete window.__paywallClerkListenerRegistered;
-  delete window.__paywallInitialized;
-  delete window.__paywallNavigate;
-  delete window.__paywallScriptParsed;
-  delete window.__storefrontInitialized;
-  delete window.__storefrontNavigate;
-  delete window.ShareLink;
 
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
@@ -105,7 +75,6 @@ beforeEach(() => {
     },
   });
 
-  window.htmx = createHtmxMock();
   window.Clerk = createClerkMock();
   window.__internal_ClerkUICtor = {};
 
