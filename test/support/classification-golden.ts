@@ -68,6 +68,25 @@ export const classificationGolden = readGolden(
       z.object({ id: pointId, payload: payload.nullable() }),
     ),
     partialIds: z.array(z.object({ query: z.string(), ids: z.array(pointId) })),
+    exactIdSearches: z.array(
+      z.object({
+        query: z.string(),
+        stored: z.array(z.tuple([z.string(), z.string()])),
+        scrolls: z.array(
+          z.object({
+            key: z.string(),
+            any: z.array(z.string()),
+            limit: z.number(),
+            offset: z.number().nullable(),
+          }),
+        ),
+        exact: z.array(z.string()),
+        sameNode: z.array(z.string()),
+      }),
+    ),
+    codeShaped: z.array(
+      z.object({ text: z.string(), codeShaped: z.boolean() }),
+    ),
     rerankResponses: z.array(
       z.object({
         payload: z.unknown(),
@@ -110,7 +129,7 @@ export const classificationGolden = readGolden(
           request: z.object({ path: z.string(), body: z.unknown() }),
         }),
         z.object({
-          call: z.enum(["exact", "partial"]),
+          call: z.literal("partial"),
           text: z.string(),
           request: z.object({ path: z.string(), body: z.unknown() }),
         }),

@@ -96,6 +96,17 @@ export function validCollections(
   };
 }
 
+/** Answers `retrieve` with the given points whose IDs the request names. */
+export function retrieveRoute(
+  points: () => readonly { readonly id: unknown }[],
+): QdrantRoute {
+  return ({ method, path, body }) => {
+    if (method !== "POST" || !path.endsWith("/points")) return undefined;
+    const ids = new Set((body as { ids: readonly unknown[] }).ids);
+    return { result: points().filter((point) => ids.has(point.id)) };
+  };
+}
+
 export function pointsRoute(
   action: "query" | "scroll",
   points: (body: unknown) => readonly unknown[],

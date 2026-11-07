@@ -371,6 +371,30 @@ backfills payloads and creates or replaces indexes in configured Qdrant
 collections. Runtime startup must validate Qdrant without creating, replacing,
 or deleting indexes. The CLI lives in `src/cli/sync-payload-indexes.ts`; the
 Python `utilities/sync_payload_indexes.py` no longer exists.
+Adding a field to `PAYLOAD_INDEX_FIELDS` makes startup fail on every
+collection that lacks it, so run `apply` against production before deploying
+that code. Collection builders (the ignored `embedders/` tree) must write
+every field of `buildNormalizedIdPayload` and create every index.
+
+A code lookup reads `original_id_normalized_key`, a keyword copy of
+`original_id_normalized`. The key strips zeros at both ends, so unrelated
+codes share it: `exactIdSearch` pages through the whole bucket, and
+`exactIdMatches` keeps exact codes and same-node codes (padding zeros only,
+such as `43000000` for `43`). Only code-shaped queries are looked up
+(`isCodeShaped`), because compaction would turn `10 стульев` into `10`.
+A code-shaped query holds only ASCII letters and digits between
+punctuation, spaces and format characters. Python rejected only non-ASCII
+letters and digits, so a decomposed `é 10` became the code `e10` and
+`10 ℃` the code `10`. The
+recorded cases are `exactIdSearches` in `classification.json`, from Python's
+classifast#24.
+
+`partialIdSearch` departs from Python on purpose. Python ranked only the
+first 100 points scrolled, but scroll pages follow point IDs, and a
+three-digit prefix such as `503` matches about 13,000 UNSPSC codes. The
+port scrolls every match with only `original_id` and
+`original_id_normalized`, ranks them all, and then retrieves whole payloads
+for the best 100.
 
 The ID normalization in `src/qdrant/id-lookup.ts` must keep producing what
 Python's did, because the payloads already in Qdrant hold Python's values

@@ -1,11 +1,15 @@
 import { Logger } from "@nestjs/common";
 import { pyFormatFixed } from "../python/numbers.js";
-import { normalizeOriginalIdForLookup } from "../qdrant/id-lookup.js";
+import {
+  isCodeShaped,
+  normalizeOriginalIdForLookup,
+} from "../qdrant/id-lookup.js";
 import {
   ClassificationError,
   MIN_RERANK_BUDGET_SECONDS,
   applyRerankScores,
   excludeIdMatches,
+  type ExactIdMatches,
   exactIdShortcutResults,
   isPartialIdQuery,
   mergeClassificationResults,
@@ -72,6 +76,8 @@ export interface PreparedClassification {
   readonly version: ClassifierVersion;
   readonly query: string;
   readonly exactResults: readonly ClassificationResult[];
+  /** Codes that differ from the query only by padding zeros; they lead the partial matches. */
+  readonly sameNodeResults: readonly ClassificationResult[];
   readonly exactSearch: IdSearchStatus;
   readonly exactMs: number;
 }
@@ -139,24 +145,25 @@ export async function prepareClassification(
   );
 
   const exactStart = deps.clock.now();
-  let exactResults: ClassificationResult[];
+  let matches: ExactIdMatches;
   let exactSearch: IdSearchStatus = "ok";
   try {
-    exactResults = await exactIdSearch(
+    matches = await exactIdSearch(
       deps.qdrant,
       resolved.version.collectionName,
       sanitized.query,
     );
   } catch (error) {
     logger.warn(`Exact ID search failed: ${errorText(error)}`);
-    exactResults = [];
+    matches = { exact: [], sameNode: [] };
     exactSearch = "failed";
   }
   return {
     ...resolved,
     classifierType,
     query: sanitized.query,
-    exactResults,
+    exactResults: matches.exact,
+    sameNodeResults: matches.sameNode,
     exactSearch,
     exactMs: deps.clock.now() - exactStart,
   };
@@ -205,7 +212,7 @@ async function partialIdResults(
   query: string,
 ): Promise<{ results: ClassificationResult[]; status: IdSearchStatus }> {
   const normalizedIdQuery = normalizeOriginalIdForLookup(query);
-  if (!isPartialIdQuery(normalizedIdQuery))
+  if (!isCodeShaped(query) || !isPartialIdQuery(normalizedIdQuery))
     return { results: [], status: "ok" };
   try {
     return {
@@ -373,7 +380,10 @@ export async function completeClassification(
       version.collectionName,
       prepared.query,
     );
-    const partialResults = partial.results;
+    const partialResults = [
+      ...prepared.sameNodeResults,
+      ...excludeIdMatches(partial.results, prepared.sameNodeResults),
+    ];
     logger.log(
       `ID_SEARCH: exact=0 partial=${partialResults.length} exact_ms=${pyFormatFixed(prepared.exactMs, 2)} partial_ms=${pyFormatFixed(deps.clock.now() - partialStart, 2)}`,
     );

@@ -1,7 +1,13 @@
+import { PY_WHITESPACE } from "../python/str.js";
+
 export const ORIGINAL_ID_FIELD = "original_id";
 export const ORIGINAL_ID_NORMALIZED_FIELD = "original_id_normalized";
 export const ORIGINAL_ID_NORMALIZED_REVERSED_FIELD =
   "original_id_normalized_reversed";
+// The same value as ORIGINAL_ID_NORMALIZED_FIELD, keyword-indexed for
+// equality lookups: Qdrant allows one index per field, and that one is a
+// prefix text index.
+export const ORIGINAL_ID_NORMALIZED_KEY_FIELD = "original_id_normalized_key";
 
 // Python casefolds before it strips everything but ASCII letters and digits.
 // These are the only non-ASCII code points whose case folding (Unicode 16)
@@ -30,7 +36,8 @@ const NON_ASCII_ASCII_FOLDS: ReadonlyMap<string, string> = new Map([
 
 const ASCII_ALNUM = /^[0-9A-Za-z]$/;
 
-function foldToAsciiAlnum(value: string): string {
+/** Python's compact_original_id: casefolded, ASCII letters and digits only. */
+export function compactOriginalId(value: string): string {
   let folded = "";
   for (const character of value) {
     folded += ASCII_ALNUM.test(character)
@@ -61,7 +68,7 @@ function stripZeros(value: string): string {
 }
 
 export function normalizeOriginalIdForLookup(value: string): string {
-  const compacted = foldToAsciiAlnum(value);
+  const compacted = compactOriginalId(value);
   if (/^0\d{6}0[1-9]$/.test(compacted)) {
     return compacted.slice(1, -2) + compacted.slice(-1);
   }
@@ -70,4 +77,48 @@ export function normalizeOriginalIdForLookup(value: string): string {
 
 export function reverseNormalizedId(value: string): string {
   return Array.from(value).reverse().join("");
+}
+
+// A code is ASCII letters and digits between separators: punctuation,
+// spaces, and invisible format characters such as a soft hyphen. Compaction
+// deletes everything else, so anything else is description text: a
+// non-ASCII letter or digit (Python's only test), a combining mark ("é"
+// typed as e + U+0301 became the code "e10"), or a symbol ("10 ℃" became the
+// code "10").
+const CODE_SHAPED = new RegExp(
+  `^[0-9A-Za-z\\p{P}\\p{Z}\\p{Cf}${PY_WHITESPACE}]*$`,
+  "u",
+);
+
+/** True when compaction removes only separators, never description text. */
+export function isCodeShaped(value: string): boolean {
+  return CODE_SHAPED.test(value);
+}
+
+/**
+ * The normalized keys a code query looks up, or none for a query that is not
+ * code-shaped. Restoring a dropped leading zero changes the key of nine-digit
+ * CPV codes ("3111000-2" against "03111000-2"), so both forms are probed.
+ */
+export function exactIdLookupKeys(query: string): string[] {
+  const compact = compactOriginalId(query);
+  if (compact === "" || !isCodeShaped(query)) return [];
+  return [
+    ...new Set([
+      normalizeOriginalIdForLookup(compact),
+      normalizeOriginalIdForLookup(`0${compact}`),
+    ]),
+  ].sort();
+}
+
+/** The fields the payload migration writes for an original_id. */
+export function buildNormalizedIdPayload(
+  originalId: string,
+): Record<string, string> {
+  const normalized = normalizeOriginalIdForLookup(originalId);
+  return {
+    [ORIGINAL_ID_NORMALIZED_FIELD]: normalized,
+    [ORIGINAL_ID_NORMALIZED_REVERSED_FIELD]: reverseNormalizedId(normalized),
+    [ORIGINAL_ID_NORMALIZED_KEY_FIELD]: normalized,
+  };
 }

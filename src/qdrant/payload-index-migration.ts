@@ -4,12 +4,12 @@ import {
   type CollectionLayout,
 } from "../classifier/classifier-config.js";
 import {
-  normalizeOriginalIdForLookup,
+  buildNormalizedIdPayload,
   ORIGINAL_ID_FIELD,
   ORIGINAL_ID_NORMALIZED_FIELD,
+  ORIGINAL_ID_NORMALIZED_KEY_FIELD,
   ORIGINAL_ID_NORMALIZED_REVERSED_FIELD,
   originalIdLookupText,
-  reverseNormalizedId,
 } from "./id-lookup.js";
 import {
   errorMessage,
@@ -129,14 +129,6 @@ function nextScrollOffset(
   return offset;
 }
 
-function buildNormalizedIdPayload(originalId: string): Record<string, string> {
-  const normalized = normalizeOriginalIdForLookup(originalId);
-  return {
-    [ORIGINAL_ID_NORMALIZED_FIELD]: normalized,
-    [ORIGINAL_ID_NORMALIZED_REVERSED_FIELD]: reverseNormalizedId(normalized),
-  };
-}
-
 async function flushPayloadBackfillBatch(
   client: QdrantIndexClient,
   collectionName: string,
@@ -176,6 +168,7 @@ export async function backfillNormalizedIdPayloads(
           ORIGINAL_ID_FIELD,
           ORIGINAL_ID_NORMALIZED_FIELD,
           ORIGINAL_ID_NORMALIZED_REVERSED_FIELD,
+          ORIGINAL_ID_NORMALIZED_KEY_FIELD,
         ],
         with_vector: false,
       });

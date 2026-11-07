@@ -55,6 +55,7 @@ describe("migrateCollectionPayloadIndexes", () => {
           "original_id",
           "original_id_normalized",
           "original_id_normalized_reversed",
+          "original_id_normalized_key",
           "class_name",
         ] as const
       ).map((field) => [
@@ -208,12 +209,12 @@ describe("migrateCollectionPayloadIndexes", () => {
       false,
     );
 
-    expect(client.createPayloadIndex).toHaveBeenCalledTimes(4);
+    expect(client.createPayloadIndex).toHaveBeenCalledTimes(5);
   });
 });
 
 describe("backfillNormalizedIdPayloads", () => {
-  it("writes normalized and reversed IDs only for stale points", async () => {
+  it("writes the normalized, reversed and key IDs only for stale points", async () => {
     const client = fakeQdrant();
     client.scroll.mockResolvedValueOnce({
       points: [
@@ -224,10 +225,19 @@ describe("backfillNormalizedIdPayloads", () => {
             original_id: "EC000123",
             original_id_normalized: "ec000123",
             original_id_normalized_reversed: "321000ce",
+            original_id_normalized_key: "ec000123",
           },
         },
         { id: "point-3", payload: {} },
         { id: 4, payload: { original_id: 4300 } },
+        {
+          id: "point-5",
+          payload: {
+            original_id: "43211500",
+            original_id_normalized: "432115",
+            original_id_normalized_reversed: "511234",
+          },
+        },
       ],
       next_page_offset: null,
     });
@@ -246,6 +256,7 @@ describe("backfillNormalizedIdPayloads", () => {
             "original_id",
             "original_id_normalized",
             "original_id_normalized_reversed",
+            "original_id_normalized_key",
           ],
           with_vector: false,
         },
@@ -261,6 +272,7 @@ describe("backfillNormalizedIdPayloads", () => {
                 payload: {
                   original_id_normalized: "3111002",
                   original_id_normalized_reversed: "2001113",
+                  original_id_normalized_key: "3111002",
                 },
                 points: ["point-1"],
               },
@@ -270,8 +282,19 @@ describe("backfillNormalizedIdPayloads", () => {
                 payload: {
                   original_id_normalized: "43",
                   original_id_normalized_reversed: "34",
+                  original_id_normalized_key: "43",
                 },
                 points: [4],
+              },
+            },
+            {
+              set_payload: {
+                payload: {
+                  original_id_normalized: "432115",
+                  original_id_normalized_reversed: "511234",
+                  original_id_normalized_key: "432115",
+                },
+                points: ["point-5"],
               },
             },
           ],
@@ -280,7 +303,7 @@ describe("backfillNormalizedIdPayloads", () => {
       ],
     ]);
     expect(logged()).toContain(
-      "  * Normalized ID payload backfill: scanned=4 updated=2 skipped=1 missing_original_id=1",
+      "  * Normalized ID payload backfill: scanned=5 updated=3 skipped=1 missing_original_id=1",
     );
   });
 
@@ -333,6 +356,7 @@ describe("backfillNormalizedIdPayloads", () => {
           payload: {
             original_id_normalized: "3111002",
             original_id_normalized_reversed: "2001113",
+            original_id_normalized_key: "3111002",
           },
           points: ["point-1"],
         },
@@ -400,6 +424,7 @@ describe("backfillNormalizedIdPayloads", () => {
                 payload: {
                   original_id_normalized: "10121",
                   original_id_normalized_reversed: "12101",
+                  original_id_normalized_key: "10121",
                 },
                 points: [3],
               },
@@ -409,6 +434,7 @@ describe("backfillNormalizedIdPayloads", () => {
                 payload: {
                   original_id_normalized: "true",
                   original_id_normalized_reversed: "eurt",
+                  original_id_normalized_key: "true",
                 },
                 points: [4],
               },

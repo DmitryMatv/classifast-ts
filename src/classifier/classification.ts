@@ -2,6 +2,7 @@ import type { Schemas } from "@qdrant/js-client-rest";
 import { pyFloat, pyRound } from "../python/numbers.js";
 import { codePointLength } from "../python/str.js";
 import {
+  compactOriginalId,
   ORIGINAL_ID_FIELD,
   ORIGINAL_ID_NORMALIZED_FIELD,
   normalizeOriginalIdForLookup,
@@ -53,8 +54,10 @@ export interface RankedResults {
 
 export const EXACT_ID_SCORE = 1.0;
 export const PARTIAL_ID_SCORE = 0.9;
-export const EXACT_ID_LIMIT = 3;
+export const EXACT_ID_PAGE_SIZE = 100;
 export const PARTIAL_ID_LIMIT = 100;
+/** Partial-ID pages carry only the two ID fields, so a page can be large. */
+export const PARTIAL_ID_PAGE_SIZE = 1000;
 export const MIN_PARTIAL_ID_LENGTH = 3;
 export const DEFAULT_RERANK_CANDIDATE_LIMIT = 100;
 export const MIN_RERANK_BUDGET_SECONDS = 2.0;
@@ -166,27 +169,93 @@ function storedNormalizedId(payload: Payload): string | undefined {
     : normalizeOriginalIdForLookup(originalId);
 }
 
-/** Keeps points whose normalized ID starts or ends with the query, once each. */
+/**
+ * Keeps points whose normalized ID starts or ends with the query, once each.
+ * Qdrant filters return arbitrary order, so hierarchy (prefix) matches come
+ * first, then shallower codes.
+ */
 export function partialIdMatches(
   points: readonly StoredPoint[],
   normalizedQuery: string,
 ): ClassificationResult[] {
   const seen = new Set<PointId>();
-  const matches: ClassificationResult[] = [];
+  const matches: {
+    suffix: boolean;
+    normalizedId: string;
+    result: ClassificationResult;
+  }[] = [];
   for (const point of points) {
     if (!point.payload || Object.keys(point.payload).length === 0) continue;
     if (seen.has(point.id)) continue;
     const normalizedId = storedNormalizedId(point.payload);
-    if (
-      normalizedId !== undefined &&
-      (normalizedId.startsWith(normalizedQuery) ||
-        normalizedId.endsWith(normalizedQuery))
-    ) {
-      matches.push(pointResult(point, PARTIAL_ID_SCORE));
+    if (normalizedId === undefined) continue;
+    const prefix = normalizedId.startsWith(normalizedQuery);
+    if (prefix || normalizedId.endsWith(normalizedQuery)) {
+      matches.push({
+        suffix: !prefix,
+        normalizedId,
+        result: pointResult(point, PARTIAL_ID_SCORE),
+      });
       seen.add(point.id);
     }
   }
-  return matches;
+  return matches
+    .toSorted(
+      (a, b) =>
+        Number(a.suffix) - Number(b.suffix) ||
+        codePointLength(a.normalizedId) - codePointLength(b.normalizedId) ||
+        (a.normalizedId < b.normalizedId
+          ? -1
+          : a.normalizedId > b.normalizedId
+            ? 1
+            : 0),
+    )
+    .map(({ result }) => result);
+}
+
+export interface ExactIdMatches {
+  /** IDs equal to the query but for case and separators. */
+  readonly exact: ClassificationResult[];
+  /** IDs that differ from the query only by padding zeros, such as 43000000 for 43. */
+  readonly sameNode: ClassificationResult[];
+}
+
+/**
+ * Sorts the points of a normalized-key bucket. The key strips zeros at both
+ * ends, so "1000" shares a key with "01" and "10". A same-node code keeps
+ * every zero the user typed: it may add trailing padding ("43" to
+ * "43000000") or leading zeros the user dropped ("101" to "0101"), but "01"
+ * is not "10000000".
+ */
+export function exactIdMatches(
+  points: readonly StoredPoint[],
+  query: string,
+): ExactIdMatches {
+  const compactQuery = compactOriginalId(query);
+  const queryCore = compactQuery.replace(/^0+/, "");
+  const queryLeadingZeros = compactQuery.length - queryCore.length;
+  const exact: ClassificationResult[] = [];
+  const sameNode: ClassificationResult[] = [];
+  for (const point of points) {
+    const payload = point.payload ?? {};
+    const originalId = pythonStr(
+      Object.hasOwn(payload, ORIGINAL_ID_FIELD)
+        ? payload[ORIGINAL_ID_FIELD]
+        : "",
+    );
+    if (originalId === undefined) continue;
+    const compactId = compactOriginalId(originalId);
+    const storedCore = compactId.replace(/^0+/, "");
+    if (compactId === compactQuery) {
+      exact.push(pointResult(point, EXACT_ID_SCORE));
+    } else if (
+      storedCore.startsWith(queryCore) &&
+      compactId.length - storedCore.length >= queryLeadingZeros
+    ) {
+      sameNode.push(pointResult(point, PARTIAL_ID_SCORE));
+    }
+  }
+  return { exact, sameNode };
 }
 
 export function isPartialIdQuery(normalizedIdQuery: string): boolean {

@@ -4,6 +4,7 @@ import type { CollectionLayout } from "../classifier/classifier-config.js";
 import {
   ORIGINAL_ID_FIELD,
   ORIGINAL_ID_NORMALIZED_FIELD,
+  ORIGINAL_ID_NORMALIZED_KEY_FIELD,
   ORIGINAL_ID_NORMALIZED_REVERSED_FIELD,
 } from "./id-lookup.js";
 
@@ -11,6 +12,7 @@ export const PAYLOAD_INDEX_FIELDS = [
   ORIGINAL_ID_FIELD,
   ORIGINAL_ID_NORMALIZED_FIELD,
   ORIGINAL_ID_NORMALIZED_REVERSED_FIELD,
+  ORIGINAL_ID_NORMALIZED_KEY_FIELD,
   "class_name",
 ] as const;
 
@@ -83,6 +85,10 @@ const INDEX_SPECS: Readonly<Record<PayloadIndexField, IndexSpec>> = {
   [ORIGINAL_ID_NORMALIZED_REVERSED_FIELD]: {
     params: NORMALIZED_ID_TEXT_INDEX,
     defaults: TEXT_INDEX_DEFAULTS,
+  },
+  [ORIGINAL_ID_NORMALIZED_KEY_FIELD]: {
+    params: { type: "keyword" },
+    defaults: KEYWORD_INDEX_DEFAULTS,
   },
   class_name: {
     params: {
