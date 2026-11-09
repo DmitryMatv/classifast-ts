@@ -123,12 +123,23 @@ function resolveVersion(
   return { config, versionName, version: config.versions[versionName]! };
 }
 
-export async function prepareClassification(
+export type ValidClassification = Pick<
+  PreparedClassification,
+  "config" | "versionName" | "version" | "query"
+>;
+
+/**
+ * Throws the `ClassificationError` that a request would end in before any
+ * outbound call: an unknown classifier or version, no embedder, or a query
+ * `sanitizeQueryText` refuses. `ClassificationService` runs it before the
+ * request takes a queue slot or is charged.
+ */
+export function validateClassification(
   deps: PipelineDeps,
   query: string,
   classifierType: string,
   version: string | undefined,
-): Promise<PreparedClassification> {
+): ValidClassification {
   const resolved = resolveVersion(deps, classifierType, version);
   if (!deps.embedder) {
     throw new ClassificationError(
@@ -140,8 +151,18 @@ export async function prepareClassification(
   if (sanitized.kind === "invalid") {
     throw new ClassificationError(400, sanitized.detail);
   }
+  return { ...resolved, query: sanitized.query };
+}
+
+export async function prepareClassification(
+  deps: PipelineDeps,
+  query: string,
+  classifierType: string,
+  version: string | undefined,
+): Promise<PreparedClassification> {
+  const valid = validateClassification(deps, query, classifierType, version);
   logger.log(
-    `CLASSIFICATION_QUERY: classifier=${classifierType} query='${sanitized.query}'`,
+    `CLASSIFICATION_QUERY: classifier=${classifierType} query='${valid.query}'`,
   );
 
   const exactStart = deps.clock.now();
@@ -150,8 +171,8 @@ export async function prepareClassification(
   try {
     matches = await exactIdSearch(
       deps.qdrant,
-      resolved.version.collectionName,
-      sanitized.query,
+      valid.version.collectionName,
+      valid.query,
     );
   } catch (error) {
     logger.warn(`Exact ID search failed: ${errorText(error)}`);
@@ -159,9 +180,8 @@ export async function prepareClassification(
     exactSearch = "failed";
   }
   return {
-    ...resolved,
+    ...valid,
     classifierType,
-    query: sanitized.query,
     exactResults: matches.exact,
     sameNodeResults: matches.sameNode,
     exactSearch,

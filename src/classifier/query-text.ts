@@ -21,10 +21,12 @@ const REPEATED_URL_ENCODING = /(?:25){2,}/;
 const HEX_SEQUENCE = /[0-9A-Fa-f]{4,}/g;
 const HEX_LETTER = /[A-Fa-f]/g;
 const DECIMAL = /\p{Nd}/u;
-const ALLOWED_QUERY = new RegExp(
-  `^[${PY_WORD}${PY_WHITESPACE}\\-.,:;()\\[\\]{}/\\\\&@#%+=*?!~\`'"<>\\u00a0-\\uffff]+$`,
-  "u",
-);
+// Python accepted only word characters, some ASCII punctuation and the
+// rest of the Basic Multilingual Plane, so it refused `$`, `^`, `|` and
+// emoji, which product listings carry. The port refuses only what no
+// description needs: control characters that are not whitespace (whitespace
+// is collapsed to spaces first) and lone surrogates.
+const REFUSED_CHARACTER = /[\p{Cc}\p{Cs}]/u;
 
 function invalid(detail: string): QueryValidation {
   return { kind: "invalid", detail };
@@ -61,7 +63,7 @@ export function sanitizeQueryText(raw: string): QueryValidation {
   const suspicious = suspiciousEncodingDetail(query);
   if (suspicious !== undefined) return invalid(suspicious);
   const collapsed = collapseWhitespace(query);
-  if (!ALLOWED_QUERY.test(collapsed)) {
+  if (REFUSED_CHARACTER.test(collapsed)) {
     return invalid(
       "Query contains invalid characters. Please use standard text characters only.",
     );

@@ -91,15 +91,15 @@ function fakeClassify(
 ): Promise<ClassificationOutcome> {
   fake.events.push("classify");
   return (async () => {
-    if (fake.classify === "queue_full") throw new ClassificationQueueFull();
-    await authorize?.();
-    if (fake.classify === "failure") throw new Error("fake failure");
     if (fake.classify === "missing_version") {
       throw new ClassificationError(
         404,
         `Version '${request.version}' not found`,
       );
     }
+    if (fake.classify === "queue_full") throw new ClassificationQueueFull();
+    await authorize?.();
+    if (fake.classify === "failure") throw new Error("fake failure");
     return {
       results: RESULTS,
       versionName: request.version!,

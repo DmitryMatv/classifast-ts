@@ -676,11 +676,12 @@ as `unavailable`.
   `Retry-After` instead. Only genuine SSR failures send `noindex`, because
   Google drops a 200 page marked `noindex` but retries a 503.
 - A results API request runs crawler verification, Clerk caller resolution, a
-  read-only quota check (`Quota.check`), queue admission, the turn, the quota
-  charge (`Quota.charge`), and the pipeline. Over-quota callers get the
-  paywall without a queue slot. Racing requests can all pass the check, so
-  the charge decides. Overflowed and cancelled waiting requests are never
-  charged. Keep networked checks out of the charge, which holds the only
+  read-only quota check (`Quota.check`), request validation
+  (`validateClassification`), queue admission, the turn, the quota charge
+  (`Quota.charge`), and the pipeline. Over-quota callers get the paywall
+  without a queue slot. Racing requests can all pass the check, so the
+  charge decides. Overflowed, cancelled and invalid requests (an unknown
+  version, a refused query) are never charged; Python charged invalid ones. Keep networked checks out of the charge, which holds the only
   turn. A Clerk key fetch can take 30 seconds.
 - Cancelling a waiting classification frees its slot without running it.
   `ClassificationQueue` cancels through an `AbortSignal` and cannot see stage
