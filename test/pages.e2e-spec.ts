@@ -427,6 +427,35 @@ async function send(page: PageCase): Promise<request.Response> {
     .parse(rawBody);
 }
 
+/**
+ * The inline scripts in `html` whose hash the policy's `script-src-elem`
+ * does not list. The policy has no 'unsafe-inline', so the browser would
+ * block each of them. JSON-LD is data and never runs.
+ */
+function inlineScriptsOutsidePolicy(
+  html: string,
+  policy: string | undefined,
+): string[] {
+  const sources =
+    policy
+      ?.split(";")
+      .map((directive) => directive.trim().split(/\s+/))
+      .find(([name]) => name === "script-src-elem")
+      ?.slice(1) ?? [];
+  return [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)]
+    .filter(
+      ([, attributes, text]) =>
+        text !== "" &&
+        !/\bsrc=/.test(attributes!) &&
+        !/type="application\/ld\+json"/.test(attributes!),
+    )
+    .map(([, , text]) => {
+      const hash = createHash("sha256").update(text!).digest("base64");
+      return `'sha256-${hash}'`;
+    })
+    .filter((source) => !sources.includes(source));
+}
+
 describe("pages match the FastAPI app (parity)", () => {
   it.each(pageCases.map(nestCase))(
     "$method $path -> $status",
@@ -503,6 +532,12 @@ describe("pages match the FastAPI app (parity)", () => {
         case "fragment":
           throw new Error("fragment cases run against the results API");
       }
+      expect(
+        inlineScriptsOutsidePolicy(
+          body.toString("utf8"),
+          response.headers["content-security-policy"],
+        ),
+      ).toEqual([]);
       if (body.includes(" data-island=")) {
         expect(body.toString("utf8"), "islands need site.js").toContain(
           '<script type="module" src="/static/js/site.js?v=fixture">',

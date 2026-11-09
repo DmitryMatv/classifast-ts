@@ -614,6 +614,13 @@ as `unavailable`.
 - Asset `?v=` hashes are cached per process (`src/web/asset-url.ts`). After
   `npm run build`, restart the server or the browser keeps loading the old
   JS with stale `?v=` values.
+- The Content-Security-Policy (`SECURITY_HEADERS` in `src/http/middleware.ts`)
+  has no `'unsafe-inline'` for scripts. It allows the one inline script,
+  `GTAG_SCRIPT` in `src/web/analytics.tsx`, by its SHA-256 hash, computed at
+  startup. `test/pages.e2e-spec.ts` fails a page whose inline script the
+  policy would block. Cloudflare's JavaScript detections inject an inline
+  script that only a nonce or `'unsafe-inline'` allows, so with them on the
+  browser blocks it and logs a CSP error.
 - The server never sets cookies on any response, cacheable or not. `cf_track`
   is set by client-side JavaScript, in the API client. On HTML pages and the results API a server-side
   cookie additionally breaks the `HTML_PAGE`/`CLASSIFICATION_RESULT` CDN cache
