@@ -15,9 +15,9 @@ const REDIS_7_FOR_EXPIRE_NX = "7.4.2";
 // ignore-scripts, so nothing prebuilds it). Its default cache lives in
 // node_modules, which every `npm ci` deletes; this one survives.
 const DOWNLOAD_DIR =
-  process.env.REDISMS_DOWNLOAD_DIR ??
+  process.env.REDISMS_DOWNLOAD_DIR ||
   join(
-    process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache"),
+    process.env.XDG_CACHE_HOME || join(homedir(), ".cache"),
     "redis-memory-server",
     "redis-binaries",
   );

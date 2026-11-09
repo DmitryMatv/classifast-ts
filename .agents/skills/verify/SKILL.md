@@ -25,11 +25,12 @@ The command prints the instance URL and `run_dir`. Copy the printed `run_dir` in
 
 Full mode is the default. It loads the configured Qdrant, Hugging Face, and OpenRouter targets from the environment, and startup validates the Qdrant collections read-only. Do not run `utilities/qdrant_config.py` or `npm run qdrant:indexes -- apply` as part of verification. Full mode requires a Redis `PING` at `127.0.0.1:16379` and points the app there, even if the env file names a different Redis host. `health_gate_passed: true` and `local_redis_ready: true` are required before a lookup; only a completed lookup proves the external classification path. Concurrent full-mode runs share Redis quota keys and external service credentials.
 
-Start a disposable Redis at that address before a full-mode launch. Without Docker, use the Redis 7.4.2 binary that the `redis` test project compiles into `~/.cache/redis-memory-server/` (or `$REDISMS_DOWNLOAD_DIR`) on its first run (`npx vitest run --project redis`):
+Start a disposable Redis at that address before a full-mode launch. Without Docker, use the Redis 7.4.2 binary that the `redis` test project compiles on its first run (`npx vitest run --project redis`). It lives in `$REDISMS_DOWNLOAD_DIR` when that is set, and otherwise in `redis-memory-server/redis-binaries` under `$XDG_CACHE_HOME` (default `~/.cache`), as `test/support/redis-server.global-setup.ts` resolves it:
 
 ```bash
 mkdir -p .cache/verify/redis
-setsid ~/.cache/redis-memory-server/redis-binaries/7.4.2/redis-server \
+REDIS_BINARIES="${REDISMS_DOWNLOAD_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/redis-memory-server/redis-binaries}"
+setsid "$REDIS_BINARIES/7.4.2/redis-server" \
   --port 16379 --bind 127.0.0.1 --save "" --appendonly no \
   > .cache/verify/redis/redis.log 2>&1 < /dev/null &
 sleep 1
