@@ -1,9 +1,11 @@
+import { createHash } from "node:crypto";
 import { gzip } from "node:zlib";
 import { HttpException, Logger } from "@nestjs/common";
 import type { Request, RequestHandler, Response } from "express";
 import { pyRepr } from "../python/float-repr.js";
 import { pyStrip } from "../python/str.js";
 import { unquote } from "../python/urllib.js";
+import { GTAG_SCRIPT } from "../web/analytics.js";
 import {
   canonicalQuery,
   isSuspiciousRequestUrl,
@@ -14,6 +16,11 @@ import { compressionPlan, GZIP_EXCLUDED_PATHS } from "./gzip.js";
 
 const logger = new Logger("HTTP");
 
+// Pages run one inline script, the Analytics snippet; the policy allows it
+// by hash instead of 'unsafe-inline', so an injected inline script does not
+// run. JSON-LD blocks are data and need no hash.
+const GTAG_SCRIPT_HASH = `'sha256-${createHash("sha256").update(GTAG_SCRIPT).digest("base64")}'`;
+
 export const SECURITY_HEADERS: HeaderRecord = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
@@ -23,8 +30,8 @@ export const SECURITY_HEADERS: HeaderRecord = {
   "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
   "Content-Security-Policy":
     "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com https://*.clerk.com https://clerk.classifast.com https://accounts.google.com https://challenges.cloudflare.com; " +
-    "script-src-elem 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com https://*.clerk.com https://clerk.classifast.com https://accounts.google.com https://challenges.cloudflare.com; " +
+    `script-src 'self' ${GTAG_SCRIPT_HASH} https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com https://*.clerk.com https://clerk.classifast.com https://accounts.google.com https://challenges.cloudflare.com; ` +
+    `script-src-elem 'self' ${GTAG_SCRIPT_HASH} https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com https://*.clerk.com https://clerk.classifast.com https://accounts.google.com https://challenges.cloudflare.com; ` +
     "worker-src 'self' blob:; " +
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
     "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; " +

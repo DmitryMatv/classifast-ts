@@ -1,4 +1,5 @@
 import type { PopularLookupLink } from "../classifier/popular-lookups.js";
+import { GoogleAnalytics } from "./analytics.js";
 import { assetUrl } from "./asset-url.js";
 import { BODY_STYLE } from "./body-style.js";
 import { HOME_PAGE_CSS } from "./home-page-styles.js";
@@ -11,14 +12,6 @@ export interface HomePageProps {
   readonly currentYear: number;
   readonly popularLookupLinks: readonly PopularLookupLink[];
 }
-
-const GTAG_SCRIPT = `
-        window.dataLayer = window.dataLayer || [];
-        function gtag() { dataLayer.push(arguments); }
-        gtag('js', new Date());
-
-        gtag('config', 'G-JK3ESE6CJR');
-    `;
 
 const WEB_APPLICATION_JSON_LD = `
     {
@@ -202,11 +195,7 @@ export function HomePage({
           }
           rel="stylesheet"
         />
-        <script
-          async
-          src="https://www.googletagmanager.com/gtag/js?id=G-JK3ESE6CJR"
-        ></script>
-        <script dangerouslySetInnerHTML={{ __html: GTAG_SCRIPT }} />
+        <GoogleAnalytics />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: WEB_APPLICATION_JSON_LD }}

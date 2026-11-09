@@ -264,6 +264,58 @@ describe("ClassificationService queue turn", () => {
     expect(authorized).toBe(false);
   });
 
+  it.each([
+    ["an unknown classifier", { classifierType: "NOPE" }, 404],
+    ["an unknown version", { version: "bogus" }, 404],
+    ["a one-character query", { query: "a" }, 400],
+    ["a control character", { query: "bolt\u0000" }, 400],
+  ] as const)(
+    "refuses %s before the queue, without authorizing",
+    async (_, overrides, status) => {
+      const queue = new ClassificationQueue();
+      const { fixture, service } = await setUp({ queue });
+      for (let i = 0; i < QUEUE_CAPACITY; i += 1) {
+        void queue.run(new AbortController().signal, never);
+      }
+      let authorized = false;
+      await expect(
+        service.classify(
+          new AbortController().signal,
+          request(overrides),
+          async () => {
+            authorized = true;
+          },
+        ),
+      ).rejects.toMatchObject({ status });
+      expect(authorized).toBe(false);
+      expect(fixture.qdrant.requests).toHaveLength(0);
+    },
+  );
+
+  it("refuses a request without an embedder before the queue", async () => {
+    const queue = new ClassificationQueue();
+    const { service } = await setUp({ queue, embedder: null });
+    for (let i = 0; i < QUEUE_CAPACITY; i += 1) {
+      void queue.run(new AbortController().signal, never);
+    }
+    let authorized = false;
+    await expect(
+      service.classify(new AbortController().signal, request(), async () => {
+        authorized = true;
+      }),
+    ).rejects.toMatchObject({ status: 503 });
+    expect(authorized).toBe(false);
+  });
+
+  it("classifies a description with characters Python refused", async () => {
+    const { service } = await setUp();
+    const outcome = await service.classify(
+      new AbortController().signal,
+      request({ query: 'bolt 15" $9 | M8 😀' }),
+    );
+    expect(outcome.query).toBe('bolt 15" $9 | M8 😀');
+  });
+
   it("propagates pipeline errors to the caller", async () => {
     const { service } = await setUp({ embedder: null });
     await expect(

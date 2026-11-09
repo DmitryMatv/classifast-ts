@@ -5,6 +5,7 @@ import type {
 } from "../classifier/classifier-config.js";
 import type { PopularLookupLink } from "../classifier/popular-lookups.js";
 import { pyTitle } from "../python/str.js";
+import { GoogleAnalytics } from "./analytics.js";
 import { assetUrl } from "./asset-url.js";
 import { BODY_STYLE } from "./body-style.js";
 import { CLASSIFIER_GUIDES } from "./classifier-guides.js";
@@ -48,14 +49,6 @@ export interface ClassifierPageProps {
   readonly popularLookupLinks: readonly PopularLookupLink[];
   readonly stripCodeDots: boolean;
 }
-
-const GTAG_SCRIPT = `
-        window.dataLayer = window.dataLayer || [];
-        function gtag() { dataLayer.push(arguments); }
-        gtag('js', new Date());
-
-        gtag('config', 'G-JK3ESE6CJR');
-    `;
 
 // Jinja autoescapes every value it interpolates, also inside the JSON-LD.
 const e = jinjaEscape;
@@ -811,11 +804,7 @@ export function ClassifierPage(props: ClassifierPageProps) {
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
           rel="stylesheet"
         />
-        <script
-          async
-          src="https://www.googletagmanager.com/gtag/js?id=G-JK3ESE6CJR"
-        ></script>
-        <script dangerouslySetInnerHTML={{ __html: GTAG_SCRIPT }} />
+        <GoogleAnalytics />
         {jsonLdScripts(props).map((script, index) => (
           <script
             key={index}

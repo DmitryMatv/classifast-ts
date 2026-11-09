@@ -59,13 +59,38 @@ describe("sanitizeQueryText matches sanitize_query_text", () => {
     );
   });
 
-  it("accepts exactly the characters Python accepts between two letters", () => {
-    expectSweep(
-      (c) => sanitizeQueryText(`a${c}b`).kind === "valid",
-      golden.sanitizeAcceptedRanges,
-    );
+  // Decided divergence: Python refused `$`, `^`, `|` and everything outside
+  // the Basic Multilingual Plane. The port refuses only non-whitespace
+  // control characters and lone surrogates.
+  it("accepts every character Python accepts between two letters", () => {
+    const pythonAccepted = codePointSet(golden.sanitizeAcceptedRanges);
+    expect(
+      sweepMismatches(
+        (c) =>
+          isValidBetweenLetters(c) || pythonAccepted[c.codePointAt(0)!] !== 1,
+        () => true,
+      ),
+    ).toEqual([]);
+  });
+
+  it("refuses only control characters and lone surrogates between two letters", () => {
+    expectSweep((c) => !isValidBetweenLetters(c), REFUSED_RANGES);
   });
 });
+
+// Python's whitespace (U+0009-U+000D, U+001C-U+001F, U+0085) collapses to a
+// space before the check, so those controls pass.
+const REFUSED_RANGES = [
+  "0000-0008",
+  "000E-001B",
+  "007F-0084",
+  "0086-009F",
+  "D800-DFFF",
+];
+
+function isValidBetweenLetters(character: string): boolean {
+  return sanitizeQueryText(`a${character}b`).kind === "valid";
+}
 
 describe("sanitizeSearchText matches sanitize_query_text(for_search=True)", () => {
   it.each(golden.sanitizeForSearch)(

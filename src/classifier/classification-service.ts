@@ -4,6 +4,7 @@ import {
   exactOutcome,
   performClassification,
   prepareClassification,
+  validateClassification,
   type Classification,
   type PipelineDeps,
 } from "./classification-pipeline.js";
@@ -51,9 +52,11 @@ export function isCacheableClassification(
 export type Authorize = () => Promise<void>;
 
 /**
- * Runs each classification inside one queue turn. `authorize` runs first in
- * that turn, so a request that waited in the queue is charged only when it
- * runs. It must not make network calls, because it holds the only turn.
+ * Runs each classification inside one queue turn. A request that
+ * `validateClassification` refuses fails before it takes a queue slot, so
+ * it is never charged. `authorize` runs first in the turn, so a request that
+ * waited in the queue is charged only when it runs. It must not make network
+ * calls, because it holds the only turn.
  */
 export class ClassificationService {
   constructor(
@@ -68,6 +71,12 @@ export class ClassificationService {
     authorize?: Authorize,
   ): Promise<ClassificationOutcome> {
     const started = this.deps.clock.now();
+    validateClassification(
+      this.deps,
+      request.query,
+      request.classifierType,
+      request.version,
+    );
     return this.queue.run(signal, async (turnSignal) => {
       await authorize?.();
       turnSignal.throwIfAborted();

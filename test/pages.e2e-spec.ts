@@ -273,8 +273,8 @@ const fake = {
 };
 const fakeClassifiers = classifierConfigFor({ model: "fake", dims: 1 });
 
-// Like ClassificationService, it refuses a full queue before `authorize`
-// and runs `authorize` before the pipeline.
+// Like ClassificationService, it refuses an unknown version, then a full
+// queue, before `authorize`, and runs `authorize` before the pipeline.
 async function fakeClassify(
   _signal: AbortSignal,
   request: ClassificationRequest,
@@ -290,10 +290,6 @@ async function fakeClassify(
     ...(enhance === undefined ? {} : { enhance }),
   });
   fake.events.push("classify");
-  if (fake.mode === "queue_full") throw new ClassificationQueueFull();
-  await fake.gate;
-  await authorize?.();
-  if (fake.mode === "failure") throw new Error("fake classification failure");
   const { versions } = fakeClassifiers[classifierType]!;
   if (versionName && !Object.hasOwn(versions, versionName)) {
     throw new ClassificationError(
@@ -301,6 +297,10 @@ async function fakeClassify(
       `Version '${versionName}' for classifier '${classifierType}' not found`,
     );
   }
+  if (fake.mode === "queue_full") throw new ClassificationQueueFull();
+  await fake.gate;
+  await authorize?.();
+  if (fake.mode === "failure") throw new Error("fake classification failure");
   const tooltip = golden.fake.tooltips[classifierType];
   return {
     results: fake.mode === "empty" ? [] : golden.fake.results,
@@ -427,6 +427,35 @@ async function send(page: PageCase): Promise<request.Response> {
     .parse(rawBody);
 }
 
+/**
+ * The inline scripts in `html` whose hash the policy's `script-src-elem`
+ * does not list. The policy has no 'unsafe-inline', so the browser would
+ * block each of them. JSON-LD is data and never runs.
+ */
+function inlineScriptsOutsidePolicy(
+  html: string,
+  policy: string | undefined,
+): string[] {
+  const sources =
+    policy
+      ?.split(";")
+      .map((directive) => directive.trim().split(/\s+/))
+      .find(([name]) => name === "script-src-elem")
+      ?.slice(1) ?? [];
+  return [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)]
+    .filter(
+      ([, attributes, text]) =>
+        text !== "" &&
+        !/\bsrc=/.test(attributes!) &&
+        !/type="application\/ld\+json"/.test(attributes!),
+    )
+    .map(([, , text]) => {
+      const hash = createHash("sha256").update(text!).digest("base64");
+      return `'sha256-${hash}'`;
+    })
+    .filter((source) => !sources.includes(source));
+}
+
 describe("pages match the FastAPI app (parity)", () => {
   it.each(pageCases.map(nestCase))(
     "$method $path -> $status",
@@ -503,6 +532,12 @@ describe("pages match the FastAPI app (parity)", () => {
         case "fragment":
           throw new Error("fragment cases run against the results API");
       }
+      expect(
+        inlineScriptsOutsidePolicy(
+          body.toString("utf8"),
+          response.headers["content-security-policy"],
+        ),
+      ).toEqual([]);
       if (body.includes(" data-island=")) {
         expect(body.toString("utf8"), "islands need site.js").toContain(
           '<script type="module" src="/static/js/site.js?v=fixture">',
@@ -543,13 +578,20 @@ describe("every golden classifier page hydrates", () => {
  * renders the same markup from the JSON, so a case keeps Python's calls,
  * quota events, cache headers and markup. The API answers a paywall with
  * 402, an empty description with 422, and every failure with an `error`
- * body. HTMX's push_url and url_change are no longer parameters.
+ * body. HTMX's push_url and url_change are no longer parameters. Python
+ * charged a request before the classifier refused its version; the API
+ * refuses it first, so that case's events lose the charge.
  */
 type ApiExpectation =
   | { readonly status: 200; readonly kind: "results" }
   | { readonly status: 402; readonly kind: "paywall"; readonly signedIn: boolean }
   | { readonly status: 503; readonly kind: "busy" }
-  | { readonly status: number; readonly kind: "error"; readonly message: string };
+  | {
+      readonly status: number;
+      readonly kind: "error";
+      readonly message: string;
+      readonly events?: readonly string[];
+    };
 
 const HTMX_PARAMETERS = new Set(["push_url", "url_change"]);
 
@@ -567,7 +609,14 @@ function apiExpectation(page: PageCase): ApiExpectation | undefined {
   if (page.body.kind === "json") {
     const { detail } = page.body.value as { detail: unknown };
     if (typeof detail === "string") {
-      return { status: page.status, kind: "error", message: detail };
+      return {
+        status: page.status,
+        kind: "error",
+        message: detail,
+        ...(page.status === 404
+          ? { events: page.events?.filter((event) => event !== "charge") }
+          : {}),
+      };
     }
     const fields = (detail as { loc: string[] }[]).map(({ loc }) => loc[1]!);
     if (fields.every((field) => HTMX_PARAMETERS.has(field))) return undefined;
@@ -673,7 +722,11 @@ describe("the results API answers Python's fragment requests", () => {
             : { kind: expected.kind },
       );
       if (page.calls !== undefined) expect(fake.calls).toEqual(page.calls);
-      expect(fake.events).toEqual(page.events ?? []);
+      expect(fake.events).toEqual(
+        (expected.kind === "error" ? expected.events : undefined) ??
+          page.events ??
+          [],
+      );
       if (body.kind === "error") return;
 
       // Decided divergence: an uncacheable classification, here an empty

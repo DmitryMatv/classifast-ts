@@ -150,7 +150,10 @@ setup that the scaffold adds. The user asked to start with the scaffold.
       the example clears hit the same block. Fixed in `classifier.ts`
       `submitForm`, which skips htmx validation only when the query lives
       outside the textarea.
-- [ ] Charge the quota after the query passes validation, not before.
+- [x] Charge the quota after the query passes validation, not before.
+      `ClassificationService` validates before queue admission, and a query
+      may hold any character except non-whitespace controls and lone
+      surrogates, where Python refused `$`, `^`, `|` and emoji.
 - [ ] Backfill normalized ID payloads in `HTS_2026_Qwen3-8B_v1`,
       `ISIC_Rev4_Qwen3-8B_v1` and `ISIC_Rev5_Qwen3-8B_v1`. On 2026-10-07 none
       of their points had `original_id_normalized` or
