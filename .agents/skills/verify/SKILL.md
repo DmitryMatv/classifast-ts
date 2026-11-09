@@ -19,7 +19,7 @@ RUN_DIR=$(mktemp -d "$PWD/.cache/verify/run-XXXXXX")
 node .agents/skills/verify/scripts/control.mjs launch "$RUN_DIR" --env-file /path/to/.env
 ```
 
-The command prints the instance URL and `run_dir`. Copy the printed `run_dir` into `RUN_DIR` at the start of every later shell tool call; shell variables do not persist between calls. The server binds to a free `127.0.0.1` port and writes `instance.json` under `RUN_DIR`. That file records the PID and `/proc` start time of every process the launch started. Launch refuses a run directory that already has `instance.json`. Run one launch or cleanup per run directory at a time; the script does not lock the directory. The app starts with `NODE_ENV=production` and `--max-http-header-size=65536`, as the `Dockerfile` does.
+The command prints the instance URL and `run_dir`. Copy the printed `run_dir` into `RUN_DIR` at the start of every later shell tool call; shell variables do not persist between calls. The server binds to a free `127.0.0.1` port and writes `instance.json` under `RUN_DIR`. That file records the PID and `/proc` start time of every process the launch started. Launch refuses a run directory that already has `instance.json`. Run one launch or cleanup per run directory at a time; the script does not lock the directory. The app starts with `NODE_ENV=production`, `--max-http-header-size=65536` and `--enable-source-maps`, as the `Dockerfile` does.
 
 `--env-file <path>` passes the file to the app through `node --env-file`. Variables already in the environment win over the file. The app also loads the checkout's own `.env` when one exists. A worktree has none, so pass the main checkout's `.env` explicitly. Never print, copy, or commit the env file.
 

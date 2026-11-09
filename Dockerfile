@@ -36,9 +36,6 @@ WORKDIR /service_root
 # colours even without a terminal.
 ENV NODE_ENV=production NO_COLOR=1
 
-RUN apt-get update && apt-get install --no-install-recommends -y curl \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY package.json ./
 COPY --from=prod-deps /build/node_modules ./node_modules
 COPY --from=server-builder /build/dist ./dist
@@ -50,8 +47,9 @@ USER node
 EXPOSE 8001
 
 HEALTHCHECK --interval=10m --timeout=30s --start-period=60s --retries=3 \
-    CMD ["node", "--input-type=module", "-e", "import { parsePythonInt } from './dist/config/python-number.js'; import { execFileSync } from 'node:child_process'; import { isIP } from 'node:net'; const port = parsePythonInt(process.env.PORT ?? '8001'); if (port === undefined) process.exit(1); const configuredHost = process.env.HOST ?? '0.0.0.0'; const host = new Map([['0.0.0.0', '127.0.0.1'], ['::', '::1'], ['', '127.0.0.1']]).get(configuredHost) ?? configuredHost; const address = isIP(host) === 6 ? '[' + host + ']' : host; execFileSync('curl', ['-f', 'http://' + address + ':' + port + '/health'], { stdio: 'inherit' });"]
+    CMD ["node", "--input-type=module", "-e", "import { parsePythonInt } from './dist/config/python-number.js'; import { isIP } from 'node:net'; const port = parsePythonInt(process.env.PORT ?? '8001'); if (port === undefined) process.exit(1); const configuredHost = process.env.HOST ?? '0.0.0.0'; const host = new Map([['0.0.0.0', '127.0.0.1'], ['::', '::1'], ['', '127.0.0.1']]).get(configuredHost) ?? configuredHost; const address = isIP(host) === 6 ? '[' + host + ']' : host; const response = await fetch('http://' + address + ':' + port + '/health', { signal: AbortSignal.timeout(25000) }); if (!response.ok) { console.error('/health answered ' + response.status); process.exit(1); }"]
 
 # Node rejects request headers over 16 KiB with 431, where uvicorn accepted
 # about 64 KiB. A long query URL plus cookies can pass that.
-CMD ["node", "--max-http-header-size=65536", "dist/main.js"]
+# --enable-source-maps maps logged stack traces to the TypeScript source.
+CMD ["node", "--max-http-header-size=65536", "--enable-source-maps", "dist/main.js"]
