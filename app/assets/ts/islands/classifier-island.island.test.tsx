@@ -38,7 +38,9 @@ function answer(
     title: `UNSPSC codes for '${query}'`,
     results: codes.map((originalId, index) => ({
       originalId,
-      codeTokens: [...originalId].map((char) => ({ char, gapAfter: false })),
+      codeTokens: originalId
+        .split("")
+        .map((char) => ({ char, gapAfter: false })),
       definition: `Definition ${index}`,
       scoreLabel: `${90 - index * 10}.0`,
       scoreWidth: `${90 - index * 10}.00`,
