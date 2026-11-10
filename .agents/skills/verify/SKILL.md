@@ -19,17 +19,18 @@ RUN_DIR=$(mktemp -d "$PWD/.cache/verify/run-XXXXXX")
 node .agents/skills/verify/scripts/control.mjs launch "$RUN_DIR" --env-file /path/to/.env
 ```
 
-The command prints the instance URL and `run_dir`. Copy the printed `run_dir` into `RUN_DIR` at the start of every later shell tool call; shell variables do not persist between calls. The server binds to a free `127.0.0.1` port and writes `instance.json` under `RUN_DIR`. That file records the PID and `/proc` start time of every process the launch started. Launch refuses a run directory that already has `instance.json`. Run one launch or cleanup per run directory at a time; the script does not lock the directory. The app starts with `NODE_ENV=production` and `--max-http-header-size=65536`, as the `Dockerfile` does.
+The command prints the instance URL and `run_dir`. Copy the printed `run_dir` into `RUN_DIR` at the start of every later shell tool call; shell variables do not persist between calls. The server binds to a free `127.0.0.1` port and writes `instance.json` under `RUN_DIR`. That file records the PID and `/proc` start time of every process the launch started. Launch refuses a run directory that already has `instance.json`. Run one launch or cleanup per run directory at a time; the script does not lock the directory. The app starts with `NODE_ENV=production`, `--max-http-header-size=65536` and `--enable-source-maps`, as the `Dockerfile` does.
 
 `--env-file <path>` passes the file to the app through `node --env-file`. Variables already in the environment win over the file. The app also loads the checkout's own `.env` when one exists. A worktree has none, so pass the main checkout's `.env` explicitly. Never print, copy, or commit the env file.
 
 Full mode is the default. It loads the configured Qdrant, Hugging Face, and OpenRouter targets from the environment, and startup validates the Qdrant collections read-only. Do not run `utilities/qdrant_config.py` or `npm run qdrant:indexes -- apply` as part of verification. Full mode requires a Redis `PING` at `127.0.0.1:16379` and points the app there, even if the env file names a different Redis host. `health_gate_passed: true` and `local_redis_ready: true` are required before a lookup; only a completed lookup proves the external classification path. Concurrent full-mode runs share Redis quota keys and external service credentials.
 
-Start a disposable Redis at that address before a full-mode launch. Without Docker, use the Redis 7.4.2 binary that the `redis` test project compiles into `node_modules/.cache/redis-memory-server/` on its first run (`npx vitest run --project redis`):
+Start a disposable Redis at that address before a full-mode launch. Without Docker, use the Redis 7.4.2 binary that the `redis` test project compiles on its first run (`npx vitest run --project redis`). It lives in `$REDISMS_DOWNLOAD_DIR` when that is set, and otherwise in `redis-memory-server/redis-binaries` under `$XDG_CACHE_HOME` (default `~/.cache`), as `test/support/redis-server.global-setup.ts` resolves it:
 
 ```bash
 mkdir -p .cache/verify/redis
-setsid node_modules/.cache/redis-memory-server/redis-binaries/7.4.2/redis-server \
+REDIS_BINARIES="${REDISMS_DOWNLOAD_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/redis-memory-server/redis-binaries}"
+setsid "$REDIS_BINARIES/7.4.2/redis-server" \
   --port 16379 --bind 127.0.0.1 --save "" --appendonly no \
   > .cache/verify/redis/redis.log 2>&1 < /dev/null &
 sleep 1

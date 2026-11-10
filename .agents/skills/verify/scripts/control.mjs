@@ -320,6 +320,7 @@ function serverArgs(envFile) {
     ...(envFile ? [`--env-file=${envFile}`] : []),
     // Matches the CMD in Dockerfile.
     "--max-http-header-size=65536",
+    "--enable-source-maps",
     "dist/main.js",
   ];
 }

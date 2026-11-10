@@ -1,619 +1,143 @@
 # AGENTS.md
 
-The role of this file is to describe common mistakes and confusion points that agents might encounter as they work in this project. If you ever encounter something in this project that surprises you, please alert the developer working with you and indicate that this is the case in the AGENTS.md file to help prevent future agents from having the same issue.
+This file lists the mistakes and surprises agents meet in this project. When
+something surprises you, tell the developer and add it here.
 
-## Testing
+## Project
 
-Always use `npm test` or `npm run test:watch` for TypeScript tests. `npm test`
-runs three Vitest projects: `assets` (frontend, jsdom, `app/assets/ts`),
-`server` (Nest unit specs in `src/`), and `redis` (`src/**/*.redis.spec.ts`
-against a real Redis). Select one with `npx vitest run --project assets`.
-Run the Nest e2e tests with `npm run test:e2e`. `npm run typecheck` checks both the root `tsconfig.json`
-(Nest, `src/` and `test/`) and `app/assets/tsconfig.json` (frontend and the
-Vite and Vitest configs).
+Classifast classifies text, mostly product descriptions, into industry
+classifications (UNSPSC, NAICS, CN/HS, ISIC, ETIM, CPV and more) with
+embeddings and vector search.
 
-The NestJS app in `src/` is what production runs. Start it with
-`npm run start:dev`. The root `test/` directory holds the e2e specs, the
-contract suite and the golden fixtures.
+- **Server:** NestJS in `src/`, rendering pages with React. `Dockerfile`
+  builds the production image.
+- **Frontend:** React islands and Tailwind in `app/assets/`, built by Vite
+  into `app/static/`.
+- **Services:** Qdrant (vectors), Redis (quota, caches), Hugging Face
+  Inference (embeddings), OpenRouter (reranking, query enhancement), Clerk
+  (auth), Polar (payments).
+- **Offline tools:** Python scripts in `utilities/`, with their own
+  virtualenv from `utilities/requirements.txt`. The `test_*.py` files there
+  are manual live helpers, not a test suite.
+- **Deploy:** a Raspberry Pi 4 (4 GB) runs the image through Coolify behind a
+  Cloudflare Tunnel. Coolify builds `Dockerfile`, not `docker-compose.yaml`.
+  Merging to `main` deploys production.
 
 The app is a port of a FastAPI app, deleted after the cutover. "Python" in
-this file and in `src/` comments means that app. The fixtures in
-`test/fixtures/golden/` recorded its answers and are now frozen: the exporter
-went with it. When you change behavior on purpose, edit the fixture's
-expected values by hand or override the case in the spec, as `nestCase` in
-`test/pages.e2e-spec.ts` does, and say why in the commit.
-
-The Nest app listens on `HOST` and `PORT` (default `0.0.0.0:8001`). Like Python's
-`load_dotenv()`, it loads the repository-root `.env` when the file exists, and
-variables already in the environment win. A worktree has no `.env`, so pass
-`node --env-file=<path> dist/main.js` there. Node's `.env` grammar differs
-from python-dotenv: it does not expand `${VAR}`, and it treats `#` as a
-comment start in more places. On 2026-10-08 every key in the local `.env`
-parsed the same under both. Production is unaffected, because the image has
-no `.env` and Coolify or compose supplies the variables.
-`src/config/app-config.ts` parses every variable the app reads; add new
-variables to that schema instead of reading `process.env` elsewhere.
-`Dockerfile` builds the image that production runs.
-
-The `redis` project's globalSetup starts Redis 7.4.2 through
-`redis-memory-server`. Because `.npmrc` sets `ignore-scripts=true`, the first
-run in a checkout downloads the source from download.redis.io and compiles it
-with `make`, then caches it in
-`node_modules/.cache/redis-memory-server`. All Redis specs share that one
-server: isolate a spec with unique ids in its keys (`uniqueId` in
-`test/support/redis.ts`), and never flush the database. Quota and rate-limit
-specs must not mock Redis; MULTI, `EXPIRE NX` and `SET EX NX` are the behavior
-under test.
-
-node-redis waits forever by default: `connect()` retries until it succeeds and
-commands queue while the client is disconnected. Its command `timeout` stops
-counting once a command is written, and its `socketTimeout` is an idle
-timeout, so neither fails a command that a hung Redis never answers.
-Reconnecting a node-redis client in place is also unsafe: the replacement
-`connect()` has no deadline, `multi().exec()` queues during it despite
-`disableOfflineQueue`, overlapping reconnects leave two live sockets, and a
-`destroy()` during TCP setup does not stop the socket from being installed.
-Never call `connect()` on a used client. Use `RedisConnection` in
-`src/redis/redis-client.ts`: run every command through `run()`, which applies
-redis-py's five-second `socket_timeout` and drops a client that times out or
-breaks. The next call makes a new client with one bounded connect attempt.
-`close()` destroys an in-flight attempt and bounds shutdown to five seconds.
-
-`TextDecoder` and `Response.text()` strip a leading UTF-8 BOM; Python's
-`.decode()` keeps it. Decode Redis bytes with `ignoreBOM: true` (a cached tier
-of `\ufeffpro` is not Pro in Python). `httpx`'s `response.json()` parses bytes
-and does strip a leading body BOM, so `Response.text()` matches it there.
-
-Python's `check_usage` and `reserve_usage` each call
-`get_or_create_tracking_id`. A request without a valid `cf_track` cookie
-therefore reads one random tracking key and charges another; only the IP
-counter limits it. The TypeScript `Quota` resolves the tracking id once per
-request. The IP counter decides the same outcome either way.
-
-Node joins repeated request headers such as `CF-Connecting-IP` into one
-comma-separated string, while Starlette's `headers.get` returns the first
-value. Read `req.headersDistinct`, not `req.headers`, to read the first value
-as Python does; `clientIp` in `src/usage/client-identity.ts` does.
-
-Production ran uvicorn with `--forwarded-allow-ips "*"`, so Python's
-`request.client.host` was the first X-Forwarded-For entry. The TCP peer counts
-only when that entry has no host. Behind Coolify's proxy the peer is the
-proxy. For the client host, call `clientHost` in
-`src/usage/client-identity.ts`; never read `req.socket.remoteAddress`. Never
-trust it for anything a caller gains from: it is the caller's own
-X-Forwarded-For entry. `proxy-client.json` recorded uvicorn's
-`ProxyHeadersMiddleware`.
-
-The Qdrant JS client requests `GET /` to check the server version when it is
-constructed, and logs a warning when that fails. Fake Qdrant servers in tests
-must answer `GET /` with a compatible `version` to keep the output clean.
-The client pins an exact `undici` (7.29.0 in 1.19, 7.29.1 in 1.20), and both
-have high-severity advisories, so `package.json` overrides `undici`. Remove
-the override once a client release pins 7.30.1 or later.
-
-Like Python's startup, Nest boot runs the read-only Qdrant schema check
-(`QdrantModule`) and fails when Qdrant is unreachable or any configured
-collection breaks the contract. A Nest e2e test that boots `AppModule` needs a
-fake Qdrant that serves every configured collection: use `startQdrantServer`
-with `validCollections` from `test/support/qdrant-server.ts`. Pipeline Qdrant
-calls do not take the queue's `AbortSignal`, because the JS client has no
-per-call signal, so a Qdrant stage runs to completion after cancellation.
-
-The repository has no `tsx`. To run a one-off script against the Nest code,
-build with `npx nest build` and import the compiled modules from `dist/`.
-
-`npm run test:contract` runs the HTTP contract suite in `test/contract/`
-against the server at `BASE_URL`, which is required. `npm test` does not run
-it. The suite refuses a `BASE_URL` host other than `localhost`, `127.0.0.0/8`,
-or `::1`, because its checkout probes increment Redis rate-limit counters and
-full mode charges quota and runs live classifications. Set
-`CONTRACT_ALLOW_NON_LOOPBACK=1` to target another host deliberately.
-`npm run test:contract:nest` launches a public-mode instance through the
-verify driver in a temporary run directory, runs the suite, stops the
-instance, and exits with the suite's code. Its arguments go to
-`control.mjs launch`, such as `--env-file <path>`. Both modes require
-`DEBUG_MODE=false`. Set
-`CONTRACT_MODE=full` only against a server with Qdrant, Redis, and
-embeddings. Full mode has not been verified against configured live
-dependencies. A full-mode case that needs more server configuration runs only
-when a variable declares that the server has it, and otherwise reports the
-missing variable as its skip reason:
-
-- `CONTRACT_RAPIDAPI_SECRET` holds the server's `RAPIDAPI_SECRET`. It enables
-  the RapidAPI 401 and JSON cases.
-- `CONTRACT_POLAR_WEBHOOK_SECRET` holds the server's `POLAR_WEBHOOK_SECRET`.
-  It enables the unsigned and signed webhook cases.
-- `CONTRACT_POLAR_PRO_PRODUCT_ID` holds the server's `POLAR_PRO_PRODUCT_ID`.
-  It enables the signed event for another product, which the server answers
-  with 500 when it has no Pro product.
-- `CONTRACT_NO_OPENROUTER_KEY=1` declares a server without
-  `OPENROUTER_API_KEY`. It enables the failed query enhancement case. That
-  server has no enhancer, so every enhanced lookup fails without calling
-  OpenRouter. No request makes a configured enhancer fail deterministically.
-- `CONTRACT_ANON_LIMIT` and `CONTRACT_CHECKOUT_RATE_LIMIT` default to 10 and
-  must equal the server's `ANON_LIMIT` and `CHECKOUT_RATE_LIMIT`.
-
-Polar's Python SDK accepts both raw UTF-8 secrets and base64-decoded Standard
-Webhooks keys. Canonical fixtures decode base64 secrets after removing the
-optional `whsec_` prefix. Non-base64 legacy secrets use UTF-8 bytes. A separate
-fixture covers raw-key compatibility.
-
-Two properties stay outside the suite because HTTP cannot observe them. The
-queue overflow case checks that at least five lookups in a burst succeed and
-that any refusal is the queue-full 503, but staggered admission can hide both
-the capacity and the refusal; `ClassificationQueue`'s specs pin them. The
-signed non-Pro webhook carries no user, so it cannot show that a missing
-product filter would grant Pro.
-
-Some cases pin decisions where Nest departed from Python. FastAPI's `/docs`,
-`/redoc`, `/openapi.json` and `/llms.txt` answer 404 (`retiredRoutes`).
-HEAD on a GET-only route answers like GET with an empty body; Python sent it
-to the classifier catch-all. `.gif` and `.webmanifest` static files are
-`STATIC_MEDIA`, where Python served them as `STATIC_TEXT`. The public-mode
-RapidAPI ping expects `database: "healthy"`, because Nest refuses to boot
-without Qdrant. A GET of a sitemap query page such as `/UNSPSC/laptop_computer/` expects
-`NO_STORE` and `noindex, nofollow` in public mode, because Nest tries to
-render its results and cannot classify there. In full mode it expects
-`HTML_PAGE` with `Cache-Tag: sitemap-results`, and two GETs must render the
-same results and "Finished in" time. With `CONTRACT_NO_OPENROUTER_KEY=1` the
-results are degraded, so the full-mode GET expects `NO_STORE`,
-`index, follow` and no `Cache-Tag`, and the two-GET case skips; the
-full-mode results API answers expect `NO_STORE` too. HEAD on a
-sitemap query page never classifies and answers `HTML_PAGE` without a
-`Cache-Tag`; that is accepted.
-
-Inside test files Vitest replaces `process.env.BASE_URL` with Vite's base
-path, so the config passes the URL on as `CONTRACT_BASE_URL`.
-
-The public-mode cases expect a server without `POLAR_WEBHOOK_SECRET`,
-`RAPIDAPI_SECRET`, or Redis. The verify driver's public mode
-(`.agents/skills/verify/scripts/control.mjs`) sets every credential to an
-empty value, which the app treats as absent, and points Redis at the
-unreachable `127.0.0.1:1`. The cases therefore hold even when an env file
-supplies those keys. Public mode also starts a detached fake Qdrant;
-`instance.json` records it with the server, and `cleanup` stops both. The
-driver starts the app with `NODE_ENV=production` and
-`--max-http-header-size=65536`, as `Dockerfile` does. React's development
-build is not what production renders, and Node's default 16 KiB header limit
-answers 431 to requests uvicorn accepted.
-
-Starlette's `add_vary_header` appends without deduplicating, so Python sent
-`Vary: Accept-Encoding, Accept-Encoding` on gzipped static files. The Nest
-port matches it; compare `Vary` as a token set.
-
-The Nest app is created with `bodyParser: false` (`HTTP_APP_OPTIONS` in
-`src/http-app.ts`). Nest's global parsers run before routing, so a malformed
-or oversized JSON body sent to `/robots.txt` answered 400 or 413 where Python
-answers 405. A route that reads a body, such as the checkout JSON or the raw
-Polar webhook body, must add its own parser. Pass `HTTP_APP_OPTIONS` to every
-`NestFactory.create` and `createNestApplication` call. The payment routes read
-the raw stream with `readRawBody` (`src/payments/raw-body.ts`), capped at
-1 MiB with 413; Starlette has no cap.
-
-The exception filter renders `{"detail": ...}` from an error's `detail`.
-`HttpStatusError` exposes its message as `detail`; before that, unit 6's
-errors (rate limit, Clerk, quota) rendered only the reason phrase.
-
-The Polar webhook port (`src/payments/`) mirrors Python's `polar.v2026_10`
-SDK module, not just the FastAPI route. The SDK decodes the body as UTF-8 before it checks the
-signature, so an unsigned non-UTF-8 body gets 400, not 403. The SDK drops
-payload keys that `Subscription` does not declare. Python's product-id probes
-of `items`, `products`, `subscriptions`, and `order_items` therefore never see
-data; only `product_id`, `product.id`, `prices`, and the metadata keys count.
-The zod schema checks nested objects only as far as the fields it reads, and
-known non-subscription events only by envelope. Python rejects deeper schema
-errors in those with 400. `test/fixtures/golden/payments.json` holds 83
-webhook requests and the FastAPI route's answers. Python's payment routes
-sent no cache headers; the Nest routes send `NO_STORE` on every answer.
-
-Nest answers `If-None-Match: *` on `/favicon.ico`, `/robots.txt`, and
-`/sitemap.xml` with 304, as `/static` files do. Python's `FileResponse`
-routes ignored the header and answered 200. HTTP allows both.
-
-Fresh checkouts may lack `node_modules` and the generated frontend assets
-because they are ignored. Run `npm ci` before tests or builds. The
-verification driver (`.agents/skills/verify/`) and the contract suite's
-static and DOM cases need `npm run build`, and the driver also needs
-`npm run build:server`.
-
-The scripts in `utilities/` are offline Python tools. Install
-`utilities/requirements.txt` into a virtualenv to run them. The
-`utilities/test_*.py` files are manual live or debug helpers, not a test
-suite. The ignored `embedders/` tree holds separate experiments.
-
-HTTP e2e tests that import `AppModule` need a fake Qdrant server with valid
-schemas for every configured collection, because startup validates them.
-Use `test/support/qdrant-server.ts` and clear inherited Qdrant and
-embedding-dimension configuration.
-
-The pages in `src/web/` are React components that ported the Jinja
-templates. `test/pages.e2e-spec.ts` compares each page, redirect and error
-with responses recorded from the FastAPI app in
-`test/fixtures/golden/pages.json` and `pages/*.html`, which the exporter
-rendered without the app's lifespan and with a fixed date. Compare HTML with
-`test/support/html-normalizer.ts`, which accounts for these React 19
-behaviors:
-
-- React moves `<title>`, `<meta>`, non-stylesheet `<link>` and async
-  `<script src>` to the start of `<head>`, so the normalizer compares those
-  as a set.
-- React adds `<link rel="preload" as="image">` for each `<img>`.
-- JSX drops a line break between an inline element and its neighbour. Write
-  `{" "}` where the template had whitespace between inline elements; the
-  normalizer reports the missing space.
-
-Nest removes a trailing slash from every route path, so `@Get("mapping/")`
-matches `/mapping`. Routes that tell `/x` from `/x/` take an optional slash
-(`@Get("mapping{/}")`) and check `req.path` in the handler.
-
-`ClassifierPageController` (`src/web/classifier-page.module.ts`) ports
-Python's `/{classifier_type}` routes and matches every path with a non-empty
-first segment, so `/no-such-page` answers the classifier 404
-(`Type 'no-such-page' not found`), as in Python. Nest registers controllers in
-module import order: `AppModule` imports `ClassifierPageModule` last, and any
-new route, including `/api/results/{TYPE}`, must register before it.
-The handler reads the decoded path itself instead of Express params.
-Python rebuilds its redirect from the decoded URL, so an encoded `?` or `#`
-in a classifier slug splits the path there: `/UNSPSC/a%3Fb/` redirects to
-`/UNSPSC/ab/?b/`, and `/UNSPSC/a%23b/?x=1` loses its query. Nest keeps the
-request's own query string. This is a decided divergence.
-
-Classifier page parity cases use a recording fake classification service and
-a crawler switch: `test/pages.e2e-spec.ts` overrides `ClassificationService`
-and `GoogleCrawlerVerifier`, as the exporter patched the FastAPI app. Five
-base pages keep full HTML; the other cases keep only selected element groups
-(`body.kind == "regions"`, stored once in the fixture's `regions` table),
-which `test/support/page-regions.ts` selects.
-
-Nest renders a sitemap query page's results for every visitor; Python
-renders them only for a verified Google crawler. This is a decided
-divergence (plan unit 12). `nestCase` in `test/pages.e2e-spec.ts` rewrites
-the golden visitor cases for those pages from the crawler case at the same
-path. The results come from
-`SitemapResultCache` (`src/classifier/sitemap-result-cache.ts`) in Redis:
-
-- The key is `ssr-result:v2:{collectionName}:{topK}:{query}`, with the
-  whitespace-collapsed query. The value is JSON
-  `{results, versionName, query, elapsedSeconds, computedAt}`, parsed with
-  zod on read. A malformed value or a Redis error is a miss.
-- The TTL is 30 days, plus or minus 20%. Never flush these keys. The key
-  does not include the embedding model, the rerank model, or the rerank and
-  query instructions, so bump the version after changing them or the value
-  shape; the old keys expire by TTL. `v2` came with the `rerank-3-lite`
-  default.
-- Only complete results are stored: `rerank` is `applied` or `not_needed`,
-  `idSearch` is `ok`, and at least one result was found
-  (`isCacheableClassification`, which the results API also uses). An incomplete
-  result still renders, but with `NO_STORE` on both cache headers, no
-  `Cache-Tag`, and `index, follow`, so neither Redis nor Cloudflare keeps
-  it.
-- The process remembers an incomplete result, and a complete one that Redis
-  could not store, for 10 minutes (at most 2,000 keys). A view in that window
-  does not classify. Without this, an OpenRouter or Redis outage would make
-  every crawler view a free classification that fills the queue paying
-  lookups share. A remembered result keeps the headers of its first
-  view.
-- A miss runs one fill per key through `ClassificationQueue`. No signal
-  cancels a fill: a visitor who leaves does not stop it, and at shutdown the
-  queue rejects waiting fills and lets the active one finish and store.
-  Waiters get the result when it is classified, not when the Redis write
-  settles; the key stays claimed until then.
-- A full queue or a queue closed for shutdown is `overloaded`, not a
-  failure: a verified crawler gets 503 with `Retry-After` and a visitor a
-  200 `NO_STORE` loading shell. Only genuine failures send `noindex`.
-- These views charge no quota. The page verifies a crawler only when the
-  queue is full or closed, the one case where a crawler gets a different
-  answer. The base `/{TYPE}/` page follows the same rule. It never uses the
-  result cache, but Cloudflare still caches it as `HTML_PAGE`.
-- A page rendered from complete results sends `Cache-Tag: sitemap-results`,
-  so a Cloudflare purge by tag drops every such page.
-- A stored result keeps the "Finished in" time of the classification that
-  filled it, so every view of the page shows the same time. This is a
-  decided choice.
-
-`test/pages.e2e-spec.ts` replaces the store with an in-memory map
-(`SITEMAP_RESULT_STORE`) and clears it before each parity case.
-
-`GET /api/results/{TYPE}` (`ResultsApiController`) answers the classifier
-island's lookups. It replaced Python's `/{classifier_type}/fragment`, which
-only HTMX called; that path now falls through to the classifier page and
-redirects to the page for the description "fragment" without classifying.
-Request resolution and the quota order live in `results-delivery.ts`. HEAD
-answers like GET for validation errors and empty descriptions, but answers
-405 `Allow: GET` where GET would classify, so a probe never takes a queue
-turn or charges quota. Every body is a `ResultsResponse`
-(`src/web/results-api.ts`): `results` 200 with `CLASSIFICATION_RESULT` and
-`Cache-Tag: classification-results`, `paywall` 402, `busy` 503 (full queue
-or quota unavailable), and `error` for everything else, all `NO_STORE`
-except `results`.
-
-`test/pages.e2e-spec.ts` sends Python's recorded fragment requests to the
-results API ("the results API answers Python's fragment requests"). Each
-case keeps the recorded classification calls, the `events` list (crawler,
-caller, check, classify, charge) that pins the order of quota checks and
-queue admission, the cache headers, and the markup the island renders from
-the JSON, compared with the recorded fragment. Python's fragment never set
-`results_loaded`, so a classification with no results renders `Loading...`;
-the port copies that.
-
-A `results` answer sends `NO_STORE` on both cache headers, instead of
-`CLASSIFICATION_RESULT` (a week at Cloudflare), when its classification is
-not cacheable: the rerank `failed` or was `skipped`, an ID search `failed`,
-the requested enhancement `failed`, or the list is empty. It still carries
-the results and `Cache-Tag`. Python cached every result fragment except a
-failed enhancement.
-An empty list is not a genuine answer: the semantic search has no filter or
-score threshold, so it returns nothing only for an empty collection, such as
-one being rebuilt. `isCacheableClassification` in
-`src/classifier/classification-service.ts` is the one rule for the results
-API and the sitemap result store. Results arrive formatted by `toResultsView`
-(`src/web/results-view.ts`), because the Python formatting ports depend on
-Node's Unicode data and a browser may format differently. Build the URL with
-`resultsApiPath`, whose fixed parameter order gives one edge cache key per
-query. Cloudflare caches the route only if a cache rule in the dashboard
-covers `/api/results/*`.
-
-Git rerere may automatically stage an old conflict resolution. Inspect every
-conflicted file even when no conflict markers remain.
-
-jsdom prints an exception thrown inside an event listener, but the test still
-passes and `npm test` exits 0. Read the test output as well as the exit status.
-To prove a listener does not throw, capture `window` `error` events in the test,
-as `common.test.ts` does for `ResultCopier`.
-
-`utilities/qdrant_config.py` is an executable migration-style script, not passive configuration. Importing or running it updates a hardcoded Qdrant collection, so review it carefully before execution.
-
-`npm run qdrant:indexes -- check` is read-only.
-`npm run qdrant:indexes -- apply` is a migration-style command that
-backfills payloads and creates or replaces indexes in configured Qdrant
-collections. Runtime startup must validate Qdrant without creating, replacing,
-or deleting indexes. The CLI lives in `src/cli/sync-payload-indexes.ts`; the
-Python `utilities/sync_payload_indexes.py` no longer exists.
-Adding a field to `PAYLOAD_INDEX_FIELDS` makes startup fail on every
-collection that lacks it, so run `apply` against production before deploying
-that code. Collection builders (the ignored `embedders/` tree) must write
-every field of `buildNormalizedIdPayload` and create every index.
-
-A code lookup reads `original_id_normalized_key`, a keyword copy of
-`original_id_normalized`. The key strips zeros at both ends, so unrelated
-codes share it: `exactIdSearch` pages through the whole bucket, and
-`exactIdMatches` keeps exact codes and same-node codes (padding zeros only,
-such as `43000000` for `43`). Only code-shaped queries are looked up
-(`isCodeShaped`), because compaction would turn `10 стульев` into `10`.
-A code-shaped query holds only ASCII letters and digits between
-punctuation, spaces and format characters. Python rejected only non-ASCII
-letters and digits, so a decomposed `é 10` became the code `e10` and
-`10 ℃` the code `10`. The
-recorded cases are `exactIdSearches` in `classification.json`, from Python's
-classifast#24.
-
-`partialIdSearch` departs from Python on purpose. Python ranked only the
-first 100 points scrolled, but scroll pages follow point IDs, and a
-three-digit prefix such as `503` matches about 13,000 UNSPSC codes. The
-port scrolls every match with only `original_id` and
-`original_id_normalized`, ranks them all, and then retrieves whole payloads
-for the best 100.
-
-The ID normalization in `src/qdrant/id-lookup.ts` must keep producing what
-Python's did, because the payloads already in Qdrant hold Python's values
-and the runtime looks IDs up with the same function that `apply` writes.
-Python casefolds, so `ß` becomes `ss`; JavaScript's `toLowerCase` does not.
-The fixture covers every code point that Python folds to ASCII.
-Python normalizes `str()` of any `original_id` payload value.
-`originalIdLookupText` converts only the JSON values whose `String()` matches
-it after normalization, and `apply` fails on the rest, including `0`, because
-`JSON.parse` reads Python's `0.0` as `0`.
-
-Ports of Python text, URL and number logic must use `src/python/` (`str.ts`,
-`urllib.ts`, `numbers.ts`) instead of JavaScript built-ins. JavaScript's `\s`,
-`\w`, `\d`, `trim`, `encodeURIComponent`, `Number()` and `toFixed` all
-disagree with Python on some inputs. Each ported function has a spec that
-reads a fixture recorded from Python, one file per area. Parity with
-Python holds only where Node and Python implement the same Unicode version.
-The fixtures record Python's Unicode 16.0, while Node 24.21 (the `node:24`
-line in `Dockerfile`, verified locally) and Node 26 ship Unicode 17.0
-(ICU 78). Code-point sweeps (`test/support/golden.ts`) therefore skip the
-code points unassigned in the fixtures' version, plus the assigned ones whose
-general category or case mapping Node's newer data changed (U+0295, U+A7D3
-and U+A7D5 at Unicode 17). They fail if Node's Unicode is older than the
-fixtures' or any other code point differs. Two Python quirks surprised the port. In
-`URLEncodingValidationMiddleware`, `(\d{2,4})\1{15,}` refers back to the
-`(%25)` group and never matches; a verbatim JavaScript copy rejects any URL
-with two adjacent digits. `QueryNormalizationMiddleware` answers 500 when the
-redirect would carry a non-Latin-1 path or the raw query bytes are not UTF-8,
-and its `Location` holds the percent-decoded path. Ignore patterns for
-root-only directories must start with `/`. An unanchored `mapping/` once kept
-`src/mapping/` out of git without a warning.
-
-## Project Snapshot
-
-Classifast is a classification service web application that uses embeddings and vector search (Qdrant) to classify any text input (mostly product descriptions) into categories of various industry standard classifications, like UNSPSC, NAICS, CN/HS codes, ISIC, ETIM, CPV, etc.
-
-## Tech Stack
-
-- Backend: NestJS (`src/`), built by `Dockerfile`. `app/` holds only the
-  frontend sources (`app/assets`) and the static files (`app/static`).
-- Offline tools: Python scripts in `utilities/`.
-- Frontend: TypeScript with Tailwind CSS (built with Node/npm and Vite, served by the backend)
-- Infrastructure: Redis (usage tracking), Qdrant (vector database), Hugging Face Inference (embeddings), OpenRouter (deployed-service reranking and opt-in query enhancement), Clerk (authentication), Polar (payments)
-
-## Hardware, Deployment, Cache
-
-Self-hosted from Raspberry Pi 4 (4GB) via Coolify behind Cloudflare Tunnel (Full HTTPS/TLS Setup for All Resources). Coolify builds `./Dockerfile` with its Dockerfile build pack, not `docker-compose.yaml`. The app uses Cloudflare's CDN edge caching to reduce API costs and improve performance. Classification results are cached at edge for 7 days.
-
-## When Modifying Cache Behaviour
-
-Cache headers are defined in `src/http/cache-profiles.ts` - edit the profiles there instead of hand-rolling headers.
-
-- Never add `Set-Cookie` to results API responses - breaks CDN caching
-- Paywalls must use `no-store` - prevents serving cached paywall to allowed users
-- Never set cookies on full pages either - the server has a blanket no-cookie
-  policy; set per-user state from client-side JavaScript instead
-- Generate per-user state client-side when possible (e.g., tracking IDs via `crypto.randomUUID()`) instead of server-side templating - keeps HTML cacheable across all users
-- `Cloudflare-CDN-Cache-Control` controls Cloudflare independently of browser
-  `Cache-Control`. Responses that may be requested with `Authorization` must
-  explicitly include `public` (or another authorization-compatible shared-cache
-  directive) in the Cloudflare-specific header.
-
-## Built Frontend Files
-
-The root `.dockerignore` pattern `*.csv` excludes root-level CSVs only.
-The nested public samples in `app/static/mapping_samples/` remain in the Docker
-build context and are copied by `Dockerfile`. Check Docker's context
-archive before assuming an ignore pattern excludes a nested asset.
-
-`app/static/js/*.js` and `app/static/css/styles.css` are Vite build outputs
-from `app/assets/ts/` and `app/assets/css/`. Never hand-edit them; edit the TS
-sources and run `npm run build`.
-
-`app/assets/css/input.css` limits Tailwind's class scan to `app/assets/ts` and
-`src/web`, the only markup the Docker frontend stage copies. Local and Docker
-builds therefore produce the same `styles.css`. A Tailwind class written
-anywhere else in `src/` is not generated. When markup moves to a new
-directory, add a `@source` line for it and a `COPY` to the frontend stage.
-
-## Islands
-
-Pages stay `renderToStaticMarkup`; their interactive parts are React islands.
-`<Island name props>` (`src/web/islands/render-island.tsx`) renders the
-component as its own `renderToString` root inside a host element with
-`data-island`, `data-island-version` and `data-island-props`. The one client
-entry, `app/assets/ts/site.tsx`, hydrates every host whose name and version
-`ISLANDS` (`src/web/islands/registry.ts`) knows. Islands reach the browser only
-through `useServices()`; tests hydrate them with fakes
-(`app/assets/ts/test/islands.tsx`) and assert zero hydration errors first.
-
-- Cloudflare serves HTML about a day old to browsers that load the newest
-  `site.js`. Bump an island's `version` on any props or markup change that
-  old HTML would not hydrate under; the old host then stays static.
-- The first render must depend on props alone. Read the URL, storage or time
-  in an effect, never during render.
-- `site.js` is one file. The `check-bundle` plugin in `vite.config.ts` fails
-  the build if it imports anything, because a chunk would have no `?v=`.
-- `src/web/client-boundary.spec.ts` walks the imports from `site.tsx` and
-  fails on server-only modules (`asset-url.ts`, `src/python/urllib.ts`,
-  Nest), on files the Dockerfile frontend stage does not copy, and on `.tsx`
-  files Tailwind does not scan.
-- Golden page fixtures stay frozen. `test/support/page-divergences.ts` lists
-  each deliberate markup change as a named edit of the expected page. An
-  entry can also edit the classifier region cases (`regions`) and the
-  recorded result fragments that the results API cases compare with
-  (`fragments`). An entry that no longer changes its full page
-  fails, so remove it when its change is reverted.
-- `app/assets/ts/services/auth.ts` owns Clerk on island pages. The header
-  island's home and classifier variants start it, and it injects Clerk's
-  scripts, so island pages carry no Clerk tags. Islands read `useAuth()`;
-  only the API client may call `authorization()`. Clerk refreshes its session
-  token itself, so add no refresh timer.
-- Tailwind scans every file under `src/web`, specs and comments included. A
-  utility word such as `truncate` or `isolate` anywhere there adds a rule to
-  `styles.css`. Compare `styles.css` with `cmp` after a change that only
-  touched tests or comments.
-
-### The classifier island
-
-The `classifier` island (`src/web/classifier/classifier-island.tsx`) covers
-all of `#classifier-form-section`. `classifier-machine.ts` decides and
-`paywall-machine.ts`, nested in it, owns checkout and activation; the doc
-comment of each command type is the interpreter's contract. The island's
-`createInterpreter` is the only code that runs commands. Keep effects there
-and decisions in the machines.
-
-- Form fields are uncontrolled. The island reads them from the DOM for each
-  event (`readFields`) and writes them only for Back/Forward
-  (`write-fields`). Do not make them controlled: React resets a prefilled
-  textarea on hydration, and `captureEdits` in `hydrate-islands.tsx` writes
-  back what the visitor typed before `site.js` ran and reports it as an
-  edit, which cancels an autoload.
-- The base page renders the textarea empty with the example as its
-  placeholder; the machine's `fallbackQuery` sends the example until the
-  first edit. A manual submit of an empty or blank textarea shows the
-  native required message (`report-empty-query`), because the form is
-  `noValidate` and the submit handler is the one validation point.
-- Every lookup goes through `ApiClient.results`, which waits for auth,
-  writes the `cf_track` cookie before the first lookup, and answers `error`
-  for network, auth and malformed answers. Only an abort rejects. A
-  description whose URL exceeds the server's URL guard (`fitsUrlLimit` in
-  `src/web/url-limit.ts`) gets "too long" with no request: a 4,000-letter
-  description does, and so does one of 500 Chinese characters, because
-  percent-encoding counts each as 9.
-- History entries live under `history.state.classifast`. A results answer is
-  stored in its entry and Back/Forward shows it with no request; a paywall,
-  busy or error entry refetches. Manual and resubmit answers push the
-  server's `url` and `title`; autoload, restore and activation answers
-  change neither.
-- Score bars carry their width and stagger inline and grow by a CSS
-  animation in `classifier-page-styles.ts`.
-- The paywall keeps an Upgrade intent and a checkout activation in
-  sessionStorage (`classifast:upgrade-intent`,
-  `classifast:checkout-recovery`). An activation needs a signed-in visitor:
-  signing out or an unavailable Clerk stops it.
-- `test/pages.e2e-spec.ts` hydrates every golden classifier page from the
-  Nest app through `hydrateIslands` (`test/support/island-hydration.ts`) and
-  expects both islands to hydrate with no recoverable error.
-
-`scripts/serve-fake-backend.mjs` is a dev-only tool, not part of the image.
-After `npm run build && npm run build:server` it serves the built app with a
-fake Qdrant, classification, quota and crawler check, so a browser can see
-every classifier panel without Redis or embeddings. A word in the
-description picks the answer (`paywall`, `member`, `busy`, `error`,
-`degraded`, `empty`); `POST 127.0.0.1:<port+1>/mode` with
-`{"answer": "...", "delayMs": 700, "crawler": false}` overrides it for every
-lookup. Production Clerk rejects localhost, so a signed-in flow such as a
-checkout return needs Clerk's two scripts replaced in the browser, for
-example with a Playwright route that serves a stand-in `window.Clerk`.
-
-## Rapid API
-
-`src/rapidapi/` serves the `/api/v1/rapid/` endpoints for the Rapid API
-platform. Ignore it unless explicitly asked to work on Rapid API service
-integration.
-
-`rapidapi-query.json` recorded the FastAPI router, so it pins FastAPI's 422
-bodies and pydantic's lax `top_k` parsing: `3.0`, `1_0` and `3` padded with
-any Unicode `White_Space` are accepted, while `3.`, `1e1`, a zero-width space
-and fullwidth digits are rejected.
-`classifier-config.json` pins the display and link fields of the classifier
-table in `src/classifier/classifier-config.ts`. `FastApiErrorFilter` writes
-only the status and the `detail` body. To send a header with an error, such as
-`WWW-Authenticate` or the no-store profile, set it on the response before
-throwing. The canonical-query middleware answers 308 to `?query=%20a` before
-the route strips the value. The app cannot boot without
-Qdrant, so `/ping` reports the database as `healthy` or `unhealthy` and never
-as `unavailable`.
-
-## Gotchas and Non-Obvious Behaviors
-
-- `HfEmbeddingClient` deliberately gives a budgeted hf-inference task-discovery
-  GET the entire remaining outbound budget, even when the configured embedding
-  timeout is shorter. Provider-mapping GETs and embedding POSTs use the smaller
-  limit. Keep the task-discovery timeout exception and its regression test.
-- `src/auth/clerk.ts` refetches Clerk's JWKS for an unknown key ID at most
-  once per 30 seconds after a successful fetch, as PyJWT 2.14 and later do,
-  to prevent unauthenticated JWKS request amplification. The owner adopted
-  this cooldown, including brief rejection of newly rotated keys.
-  `src/auth/clerk.spec.ts` covers rotation and cached-key reuse.
-- The `polar.v2026_10` webhook schema requires `api_version` and complete
-  subscription fields even when their values are null. Check the dashboard
-  endpoint version when migrating older webhook payloads.
-  Invalid signatures return 403. Verified unknown event types are acknowledged
-  without changing entitlements; malformed webhook payloads return 400.
-- `data/`, `embedders/`, and `mapping/` are gitignored and may be absent from
-  a checkout. Ripgrep silently returns zero hits inside them because it
-  respects `.gitignore`; use `--no-ignore` or explicit paths.
-- `groupOriginalIdTokens` accepts a narrower parsed-scalar domain than Python's
-  object helper: strings, null, booleans, safe integers and ordinary fractions
-  with absolute values in [1e-4, 1e16). Other types and numbers throw.
-  Parsed integral numbers mean integer IDs; JSON parsing cannot recover the
-  distinction between `12` and `12.0`, or `0` and `0.0`. Preserve source numeric
-  metadata or Python display text if a future decoder needs that distinction.
-- `loadSitemapQueryPaths` (`src/web/sitemap.ts`) parses
-  `app/static/sitemap.xml` at startup to build `SITEMAP_QUERY_PATHS`, which
-  gates SSR eligibility and homepage anchor links. Editing the sitemap only
-  changes app behavior after a restart.
-- Asset `?v=` hashes are cached per process (`src/web/asset-url.ts`). After
-  `npm run build`, restart the server or the browser keeps loading the old
-  JS with stale `?v=` values.
+this file and in `src/` comments means that app.
+
+## Never
+
+- Print, copy or commit `.env`. It is a personal cross-project secrets file.
+- Run `npm run qdrant:indexes -- apply` unless asked. It backfills payloads
+  and creates or replaces indexes in the configured (production) Qdrant
+  collections. `-- check` is read-only.
+- Flush Redis, in tests or anywhere else. The Redis specs share one server,
+  and production keys (quota, `ssr-result:*`) live for months.
+- Point a browser check at classifast.com. Use a local instance.
+
+## Commands
+
+- Install with `npm ci`; `node_modules` and the built assets are not
+  committed. Use Node 24 (`.nvmrc`), the version production runs.
+- `npm test` runs three Vitest projects: `assets` (frontend, jsdom),
+  `server` (Nest unit specs) and `redis` (`*.redis.spec.ts`). Select one with
+  `npx vitest run --project <name>`. `npm run test:e2e` runs `test/*.e2e-spec.ts`.
+- `npm run typecheck`, `npm run lint` and `npm run format:check` cover the
+  server, the tests and the frontend.
+- `npm run build` builds the frontend; `npm run build:server` builds the
+  server into `dist/`. There is no `tsx`: to run a one-off script against
+  server code, build and import from `dist/`.
+- `npm run test:contract:nest` starts a public-mode instance from the built
+  app (run both builds first), runs the HTTP contract suite in
+  `test/contract/` against it, and stops it. `npm run test:contract` needs `BASE_URL` and
+  refuses a non-loopback host unless `CONTRACT_ALLOW_NON_LOOPBACK=1`, because
+  it charges quota and increments rate limits. `CONTRACT_MODE=full` needs a
+  server with live Qdrant, Redis and embeddings and has never run against
+  them. `test/contract/support/env.ts` lists the variables that enable the
+  cases needing more server configuration.
+- `scripts/serve-fake-backend.mjs` serves the built app with fake services,
+  so a browser can see every classifier panel. A word in the description
+  picks the answer (`paywall`, `member`, `busy`, `error`, `degraded`,
+  `empty`); `POST 127.0.0.1:<port+1>/mode` overrides it. The verify skill
+  (`.agents/skills/verify/`) launches real instances.
+
+## Tests and fixtures
+
+- `test/fixtures/golden/` holds answers recorded from Python. They are
+  frozen; the exporter is gone. When you change behavior on purpose, edit
+  the expected values by hand or override the case in the spec (as `nestCase`
+  and `apiExpectation` in `test/pages.e2e-spec.ts` do), and say why in the
+  commit.
+- `test/pages.e2e-spec.ts` compares every page with Python's recording,
+  normalized by `test/support/html-normalizer.ts`. React 19 hoists `<title>`,
+  `<meta>`, non-stylesheet `<link>` and async `<script src>` to the start of
+  `<head>`, and adds an image preload per `<img>`; JSX drops a line break
+  between inline elements, so write `{" "}` where the markup needs a space.
+  `test/support/page-divergences.ts` lists each deliberate markup change as a
+  named edit; an entry that no longer changes its page fails.
+- The same spec sends Python's recorded fragment requests to the results
+  API. Each case keeps the classification calls, the `events` list that pins
+  the order of crawler check, caller, quota check, classification and charge,
+  the cache headers and the rendered markup.
+- A test that boots `AppModule` needs a fake Qdrant serving every configured
+  collection, because startup validates them: `startQdrantServer` with
+  `validCollections` from `test/support/qdrant-server.ts`. Fake Qdrant
+  servers must answer `GET /` with a version, which the JS client checks.
+- The `redis` project compiles Redis 7.4.2 from source on first use
+  (`.npmrc` sets `ignore-scripts`) and keeps it in
+  `~/.cache/redis-memory-server`. Isolate a spec with unique key ids
+  (`uniqueId` in `test/support/redis.ts`). Quota and rate-limit specs must
+  not mock Redis: MULTI, `EXPIRE NX` and `SET EX NX` are what they test.
+- jsdom prints an exception thrown in an event listener, but the test still
+  passes. Read the output, and to prove a listener does not throw, capture
+  `window` `error` events as `app/assets/ts/test/islands.tsx` does.
+- Inside test files Vitest replaces `process.env.BASE_URL`, so the contract
+  config passes the URL as `CONTRACT_BASE_URL`.
+- `src/redis/redis-client.redis.spec.ts` has failed a socket-timing test
+  intermittently; rerun before chasing it.
+
+## Porting Python logic
+
+- Text, URL and number logic must use `src/python/` (`str.ts`, `urllib.ts`,
+  `numbers.ts`), not JavaScript built-ins: `\s`, `\w`, `\d`, `trim`,
+  `encodeURIComponent`, `Number()` and `toFixed` all disagree with Python on
+  some inputs. Each port has a spec reading a Python-recorded fixture.
+- The fixtures record Python's Unicode 16.0; Node 24.21 ships 17.0. The
+  code-point sweeps in `test/support/golden.ts` skip what Unicode 17 changed
+  and fail if Node's Unicode is older than the fixtures'.
+- `TextDecoder` and `Response.text()` strip a leading BOM; decode Redis bytes
+  with `ignoreBOM: true`.
+- Node joins repeated headers into one string; read `req.headersDistinct`
+  for the first value.
+
+## HTTP and routing
+
+- Every `NestFactory.create` and `createNestApplication` call takes
+  `HTTP_APP_OPTIONS` (`src/http-app.ts`), which disables Nest's global body
+  parsers. A route that reads a body adds its own; the payment routes use
+  `readRawBody` (`src/payments/raw-body.ts`, 1 MiB cap).
+- Nest strips a trailing slash from route paths, so `@Get("mapping/")`
+  matches `/mapping`. A route that tells `/x` from `/x/` takes `{/}` and
+  checks `req.path`.
+- `ClassifierPageController` matches every path with a non-empty first
+  segment, so an unknown path answers the classifier 404. Nest registers
+  controllers in import order: `AppModule` imports `ClassifierPageModule`
+  last, and every new route must register before it.
+- Errors render `{"detail": ...}` from the error's `detail`. To send a header
+  with an error, set it on the response before throwing.
+- Client identity lives in `src/usage/client-identity.ts`. `clientIp` trusts
+  `CF-Connecting-IP`. `clientHost` is the first X-Forwarded-For entry, as
+  uvicorn's proxy middleware had it; never read `req.socket.remoteAddress`,
+  and never trust `clientHost` for anything a caller gains from.
+- Crawler verification (`src/crawlers/google-crawlers.ts`) reads only
+  `CF-Connecting-IP`, and only with `GOOGLE_CRAWLER_TRUST_CF_CONNECTING_IP`;
+  without it no crawler is verified. It never falls back to the client host,
+  which a caller controls.
+- `src/config/app-config.ts` parses every environment variable; add new ones
+  there instead of reading `process.env`. The app loads the root `.env` when
+  present (a worktree has none: pass `node --env-file=<path>`). Node's `.env`
+  grammar does not expand `${VAR}`.
 - The Content-Security-Policy (`SECURITY_HEADERS` in `src/http/middleware.ts`)
   has no `'unsafe-inline'` for scripts. It allows the one inline script,
   `GTAG_SCRIPT` in `src/web/analytics.tsx`, by its SHA-256 hash, computed at
@@ -621,90 +145,165 @@ as `unavailable`.
   policy would block. Cloudflare's JavaScript detections inject an inline
   script that only a nonce or `'unsafe-inline'` allows, so with them on the
   browser blocks it and logs a CSP error.
-- The server never sets cookies on any response, cacheable or not. `cf_track`
-  is set by client-side JavaScript, in the API client. On HTML pages and the results API a server-side
-  cookie additionally breaks the `HTML_PAGE`/`CLASSIFICATION_RESULT` CDN cache
-  profiles; on other routes it is still forbidden by design, so use
-  client-side JavaScript for any per-user state.
-- Two client-IP trust policies coexist: `clientIp` in
-  `src/usage/client-identity.ts` always trusts `CF-Connecting-IP`;
-  `src/crawlers/google-crawlers.ts` reads only `CF-Connecting-IP`, and only
-  with the explicit `GOOGLE_CRAWLER_TRUST_CF_CONNECTING_IP` opt-in. Without
-  it no crawler is verified. It never falls back to the client host, because
-  a Googlebot user agent with a Google address in X-Forwarded-For would then
-  skip the quota. Pick one policy deliberately for new IP-dependent code.
-- The app assumes a single Node process. The JWKS client, asset versions,
-  crawler IP ranges, and the classification queue capacity are all
-  process-local. Scaling workers changes their semantics.
-- No test proves deployed Qdrant, Redis, or Hugging Face connectivity. The
-  e2e specs use fakes, and the contract suite's full mode has not run
-  against live dependencies. Manual live helpers live in
-  `utilities/test_*.py`.
-- `/health` requires initialized embedding and Qdrant clients, then probes
-  Qdrant only. If `HF_TOKEN` is missing, public pages can still serve while
-  `/health` returns 503, provided Qdrant startup succeeds. It does not check
-  Redis or live Hugging Face requests. A Qdrant startup failure stops the app.
-- `.env` is a personal cross-project secrets file (it contains keys unrelated
-  to classifast too). Never print, copy, or commit it.
-- Checkout endpoints are rate limited per IP via
-  `src/rate-limit/checkout-rate-limit.ts`
-  (fixed-window Redis counter, fails closed with 503). Checkout grace
-  (`checkout_grace:*` in Redis) is activated only by the signature-verified
-  Polar webhook; the success URL carries no token and grants nothing.
-- The homepage and classifier pages load production Clerk scripts and
-  Google Analytics. Production Clerk rejects localhost, while analytics may
-  still send traffic. The UI can render a fallback `Sign In` link when Clerk
-  fails; that link does not prove authentication works. Use a Clerk test
-  configuration that accepts the local origin to verify sign-in.
-  On localhost the page renders the signed-out Clerk buttons rather than the
-  fallback links, and their Sign In opens an empty Clerk modal backdrop. On
-  `127.0.0.1`, where the verify driver serves, `Clerk.load` fails with a 400
-  from `/v1/client` and both auth owners show the fallback links after about
-  1.5 s. Blocking the `clerk.browser.js` request shows them at once.
-- Page links render as absolute URLs with the request origin, as the
-  templates' `url_for` did.
-  Browser checks should use accessible names or inspect the URL pathname,
-  rather than match an exact relative `href`.
-- Checkout rate limiting requires Redis 7+ for `EXPIRE NX`. Queue `INCR` and
-  `EXPIRE NX` in one transactional pipeline. This assigns missing TTLs, including
-  on stranded counters, while preserving existing deadlines. Redis errors must
-  still return 503, and counters above the allowance must still return 429.
-- Tier-cache lookup fills use `SET EX NX` and reread the winning value.
-  Webhook tier updates use authoritative `SETEX`; a lookup completing afterward
-  must preserve and return that tier. Upgrade and downgrade overlap tests also
-  verify quota behavior without checkout grace.
-- `ClassificationQueue` (`src/classifier/classification-queue.ts`) holds one
-  turn per complete classification, query enhancement included. Each process
-  admits one active and four waiting classifications (`QUEUE_CAPACITY`). The
-  next request fails with `ClassificationQueueFull`. The
-  results API and RapidAPI routes log a warning and return 503 with `no-store`.
-  An overloaded SSR page falls back to client-side loading with `no-store`
-  but stays indexable. Verified Google crawlers get that page as a 503 with
-  `Retry-After` instead. Only genuine SSR failures send `noindex`, because
-  Google drops a 200 page marked `noindex` but retries a 503.
-- A results API request runs crawler verification, Clerk caller resolution, a
-  read-only quota check (`Quota.check`), request validation
-  (`validateClassification`), queue admission, the turn, the quota charge
-  (`Quota.charge`), and the pipeline. Over-quota callers get the paywall
-  without a queue slot. Racing requests can all pass the check, so the
-  charge decides. Overflowed, cancelled and invalid requests (an unknown
-  version, a refused query) are never charged; Python charged invalid ones. Keep networked checks out of the charge, which holds the only
-  turn. A Clerk key fetch can take 30 seconds.
-- Cancelling a waiting classification frees its slot without running it.
-  `ClassificationQueue` cancels through an `AbortSignal` and cannot see stage
-  boundaries. An aborted active job returns immediately but keeps its slot
-  until the promise returned by `work` settles. Pass the signal to every
-  abortable call, such as `fetch`, and call `signal.throwIfAborted()` between
-  stages; a stage that ignores the signal holds the slot until it finishes.
-  Shutdown rejects waiting jobs and drains the active one before shared
-  clients close. Waiting jobs rejected at shutdown and `run` calls made after
-  shutdown begins both fail with `ClassificationQueueClosed`.
-- Checkout recovery (the paywall machine's activation) checks at once, then
-  two seconds after each answer that is not results, within a 60-second
-  deadline kept in sessionStorage. An edit, or a manual submit that sends a
-  lookup, stops it and shows "still pending. Try again.", with the paywall's
-  buttons when the panel held a paywall; after the deadline only Try again
-  shows, and it restarts the window. A blank submit only shows the native
-  required message and the checks go on. While it checks, the panel shows
-  the activation card instead of whatever answer it held.
-  Successful recovery shows the results without recreating a warning.
+
+## Caching
+
+Cache headers come from the profiles in `src/http/cache-profiles.ts`; never
+hand-roll them. Cloudflare caches HTML pages (`HTML_PAGE`) for an hour plus a
+day stale, and result answers (`CLASSIFICATION_RESULT`) for a week.
+
+- The server never sets a cookie on any response. A cookie would break the
+  edge cache of pages and results; per-user state (the `cf_track` tracking
+  id) is set by client-side JavaScript.
+- Paywalls and every per-user or degraded answer use `NO_STORE`.
+- `Cloudflare-CDN-Cache-Control` controls Cloudflare apart from
+  `Cache-Control`. A response that may carry `Authorization` must say
+  `public` there.
+- Cloudflare caches `/api/results/*` only if a dashboard cache rule covers it.
+- Asset `?v=` hashes are computed once per process (`src/web/asset-url.ts`);
+  restart the server after `npm run build`.
+- `app/static/sitemap.xml` is parsed at startup (`src/web/sitemap.ts`) and
+  decides which query pages render results; editing it needs a restart.
+
+## Classification
+
+- **Queue.** `ClassificationQueue` admits one active and four waiting
+  classifications per process (`QUEUE_CAPACITY`); the next gets
+  `ClassificationQueueFull`, a 503. Cancelling a waiting job frees its slot.
+  An aborted active job returns at once but keeps the slot until its work
+  settles, so pass the `AbortSignal` to every abortable call and call
+  `signal.throwIfAborted()` between stages. Qdrant calls cannot take a
+  signal. Shutdown rejects waiting jobs and drains the active one.
+- **Quota order.** A results API request runs crawler verification, Clerk
+  caller resolution, a read-only `Quota.check`, request validation
+  (`validateClassification`), queue admission, then in the turn
+  `Quota.charge` and the pipeline. Over-quota callers get the paywall
+  without a queue slot; racing requests can all pass the check, so the charge
+  decides. Overflowed, cancelled and invalid requests (an unknown version, a
+  refused query) are never charged. A query may hold any character except
+  non-whitespace controls and lone surrogates. Keep network
+  calls out of the charge, which holds the only turn: a Clerk key fetch can
+  take 30 seconds.
+- **Cacheable results.** `isCacheableClassification`
+  (`src/classifier/classification-service.ts`) is the one rule for the
+  results API and the sitemap store: rerank `applied` or `not_needed`, ID
+  search `ok`, no failed enhancement, and at least one result. Anything else
+  is shown with `NO_STORE` and no `Cache-Tag`.
+- **Results API.** `GET /api/results/{TYPE}` (`ResultsApiController`,
+  request handling in `results-delivery.ts`) answers the classifier island
+  with a `ResultsResponse` (`src/web/results-api.ts`): `results` 200,
+  `paywall` 402, `busy` 503 or `error`. HEAD answers 405 where GET would
+  classify, so a probe never spends a turn. Build URLs with `resultsApiPath`,
+  whose fixed parameter order gives one edge cache key per query.
+- **Sitemap query pages** (`/UNSPSC/laptop_computer/`) render results for
+  every visitor from `SitemapResultCache` in Redis. The key is
+  `ssr-result:v2:{collection}:{topK}:{query}`, kept 30 days ±20%. It does not
+  include the embedding or rerank model or their instructions: bump the
+  version when you change those or the value shape. Only cacheable results
+  are stored; the process remembers a failed or unstored result for 10
+  minutes so an outage does not turn every crawler view into a free
+  classification. These views charge no quota. A full queue is `overloaded`:
+  a verified crawler gets 503 with `Retry-After`, a visitor a `NO_STORE`
+  loading shell. Only genuine failures send `noindex`.
+- **Code lookups.** IDs are matched through `original_id_normalized_key`, a
+  keyword copy of the normalized ID with zeros stripped at both ends, so
+  unrelated codes share a key and `exactIdSearch` pages the whole bucket.
+  Only code-shaped queries (`isCodeShaped`: ASCII letters and digits between
+  punctuation and spaces) are looked up. `partialIdSearch` ranks every match
+  and fetches full payloads for the best 100.
+- **ID normalization** (`src/qdrant/id-lookup.ts`) must keep producing
+  Python's values, because the payloads in Qdrant hold them. Python
+  casefolds (`ß` becomes `ss`).
+- **Payload indexes.** Startup validates every configured collection
+  read-only and fails on a missing index. Adding a field to
+  `PAYLOAD_INDEX_FIELDS` therefore needs `apply` run against production
+  before the deploy. Collection builders (the ignored `embedders/` tree)
+  must write every field of `buildNormalizedIdPayload`.
+- `HfEmbeddingClient` gives the hf-inference task-discovery GET the whole
+  remaining outbound budget on purpose; keep that exception and its test.
+
+## Frontend
+
+Pages render with `renderToStaticMarkup`; interactive parts are islands.
+`<Island name props>` (`src/web/islands/render-island.tsx`) renders a
+component inside a host with `data-island`, `data-island-version` and
+`data-island-props`. `app/assets/ts/site.tsx`, the one client entry,
+hydrates every host whose name and version `ISLANDS`
+(`src/web/islands/registry.ts`) knows.
+
+- Cloudflare serves HTML up to a day old to browsers running the newest
+  `site.js`. Bump an island's `version` on any props or markup change that
+  old HTML would not hydrate under.
+- The first render depends on props alone. Read the URL, storage or time in
+  an effect.
+- `site.js` is one file: the `check-bundle` plugin in `vite.config.ts` fails
+  the build if it imports a chunk, which would have no `?v=`.
+- `src/web/client-boundary.spec.ts` fails when `site.tsx` reaches a
+  server-only module, a file the Dockerfile frontend stage does not copy, or
+  a `.tsx` file Tailwind does not scan.
+- Tailwind scans only `app/assets/ts` and `src/web` (`input.css`), comments
+  and specs included: a word like `truncate` anywhere there adds a rule.
+  Compare `styles.css` with `cmp` after a change to comments or tests. Markup
+  in a new directory needs a `@source` line and a `COPY` in the frontend
+  stage.
+- `app/static/js/*.js` and `app/static/css/styles.css` are build outputs;
+  never edit them.
+- Islands reach the browser only through `useServices()`. Tests hydrate them
+  with fakes (`app/assets/ts/test/islands.tsx`) and assert zero hydration
+  errors first.
+- `app/assets/ts/services/auth.ts` owns Clerk and injects its scripts.
+  Islands read `useAuth()`; only the API client calls `authorization()`.
+  Clerk refreshes its token itself.
+
+The classifier island (`src/web/classifier/`):
+
+- `classifier-machine.ts` and the nested `paywall-machine.ts` decide;
+  `createInterpreter` in the island is the only code that runs their
+  commands. Keep effects there.
+- Form fields are uncontrolled: React would reset a prefilled textarea on
+  hydration. `captureEdits` reports what a visitor typed before `site.js`
+  ran.
+- Every lookup goes through `ApiClient.results`. A description whose URL
+  would exceed the server's URL guard (`fitsUrlLimit`) gets "too long"
+  without a request.
+- History entries live under `history.state.classifast`. A results entry
+  replays with no request.
+- Checkout recovery keeps its state in sessionStorage
+  (`classifast:upgrade-intent`, `classifast:checkout-recovery`) and needs a
+  signed-in visitor.
+
+## Local browser checks
+
+Production Clerk rejects localhost. On `127.0.0.1`, `Clerk.load` fails and
+the header shows fallback `Sign In` links after about 1.5 s; those prove
+nothing about sign-in. A signed-in flow needs a stand-in `window.Clerk`.
+Pages also load Google Analytics, which may send traffic. Page links are
+absolute, so match them by accessible name or pathname.
+
+## Other gotchas
+
+- `data/`, `embedders/` and `mapping/` are gitignored; ripgrep skips them
+  silently. Ignore patterns for root-only directories must start with `/`: an
+  unanchored `mapping/` once hid `src/mapping/` from git.
+- Git rerere may stage an old conflict resolution. Inspect every conflicted
+  file even without markers.
+- The app assumes one Node process: the JWKS cache, asset versions, crawler
+  ranges and queue are process-local.
+- `/health` needs the embedding and Qdrant clients and probes Qdrant only.
+  The app refuses to boot when Qdrant is unreachable or a collection fails
+  validation.
+- No test proves live Qdrant, Redis or Hugging Face connectivity.
+- `src/auth/clerk.ts` refetches Clerk's JWKS for an unknown key at most once
+  per 30 seconds, so a newly rotated key can be refused briefly. This is
+  deliberate.
+- Checkout is rate limited per IP with a Redis counter that fails closed
+  (503); it needs Redis 7 for `EXPIRE NX`. Checkout grace is granted only by
+  the signed Polar webhook.
+- The Polar webhook (`src/payments/`) mirrors Python's `polar.v2026_10` SDK:
+  it needs `api_version` and complete subscription fields, answers 403 to a
+  bad signature and 400 to a malformed payload, and acknowledges unknown
+  verified events without acting. `payments.json` holds 83 recorded cases.
+- The Qdrant JS client pins an `undici` with advisories, so `package.json`
+  overrides it. Drop the override once the client pins 7.30.1 or later.
+- `src/rapidapi/` serves the RapidAPI endpoints. Leave it alone unless asked;
+  `rapidapi-query.json` pins FastAPI's 422 bodies and lax `top_k` parsing.

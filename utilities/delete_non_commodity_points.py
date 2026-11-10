@@ -6,7 +6,7 @@ load_dotenv()
 QDRANT_REMOTE_URL = os.getenv("QDRANT_URL")
 QDRANT_REMOTE_API_KEY = os.getenv("QDRANT_API_KEY")
 
-# Same client setup as qdrant_config.py
+# Connects to the Qdrant in QDRANT_URL and QDRANT_API_KEY.
 client = QdrantClient(
     host=QDRANT_REMOTE_URL,
     port=443,
@@ -16,7 +16,7 @@ client = QdrantClient(
     timeout=60,
 )
 
-# Same collection name as in qdrant_config.py
+# Deletes points from this collection; check the name before running.
 COLLECTION_NAME = "UNSPSC_UNv260801-1-eng_new001-3072_v1"
 
 

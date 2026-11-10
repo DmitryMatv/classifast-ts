@@ -457,94 +457,91 @@ function inlineScriptsOutsidePolicy(
 }
 
 describe("pages match the FastAPI app (parity)", () => {
-  it.each(pageCases.map(nestCase))(
-    "$method $path -> $status",
-    async (page) => {
-      const response = await send(page);
-      expect(response.status).toBe(page.status);
-      if (page.calls !== undefined) expect(fake.calls).toEqual(page.calls);
-      if (page.events !== undefined) expect(fake.events).toEqual(page.events);
-      expect(response.headers["set-cookie"]).toBeUndefined();
+  it.each(pageCases.map(nestCase))("$method $path -> $status", async (page) => {
+    const response = await send(page);
+    expect(response.status).toBe(page.status);
+    if (page.calls !== undefined) expect(fake.calls).toEqual(page.calls);
+    if (page.events !== undefined) expect(fake.events).toEqual(page.events);
+    expect(response.headers["set-cookie"]).toBeUndefined();
 
-      for (const [name, value] of Object.entries(page.headers)) {
-        if (IGNORED_HEADERS.has(name)) continue;
-        if (name === "vary") {
-          expect(varyTokens(response.headers[name]), name).toEqual(
-            varyTokens(value),
-          );
-        } else {
-          expect(response.headers[name], name).toBe(value);
-        }
-      }
-      for (const name of [
-        "cache-tag",
-        "content-disposition",
-        "hx-push-url",
-        "link",
-        "location",
-        "retry-after",
-        "x-ratelimit-limit",
-        "x-ratelimit-remaining",
-      ]) {
-        if (!(name in page.headers)) {
-          expect(response.headers[name], name).toBeUndefined();
-        }
-      }
-
-      const body = Buffer.isBuffer(response.body)
-        ? response.body
-        : Buffer.alloc(0);
-      switch (page.body.kind) {
-        case "empty":
-          expect(body.length).toBe(0);
-          break;
-        case "html":
-          expect(normalizeHtml(withoutIslandProps(body.toString("utf8")))).toBe(
-            normalizeHtml(
-              expectedPage(page.body.file, readFixtureHtml(page.body.file)),
-            ),
-          );
-          break;
-        case "json":
-          expect(JSON.parse(body.toString("utf8"))).toEqual(page.body.value);
-          break;
-        case "regions":
-          expect(
-            normalizeRegions(
-              pageRegions(
-                withoutIslandProps(body.toString("utf8")),
-                page.body.groups,
-              ),
-            ),
-          ).toEqual(
-            normalizeRegions(
-              page.body.regions.map((index) =>
-                expectedRegion(golden.regions[index]!),
-              ),
-            ),
-          );
-          break;
-        case "sha256":
-          expect(createHash("sha256").update(body).digest("hex")).toBe(
-            page.body.value,
-          );
-          break;
-        case "fragment":
-          throw new Error("fragment cases run against the results API");
-      }
-      expect(
-        inlineScriptsOutsidePolicy(
-          body.toString("utf8"),
-          response.headers["content-security-policy"],
-        ),
-      ).toEqual([]);
-      if (body.includes(" data-island=")) {
-        expect(body.toString("utf8"), "islands need site.js").toContain(
-          '<script type="module" src="/static/js/site.js?v=fixture">',
+    for (const [name, value] of Object.entries(page.headers)) {
+      if (IGNORED_HEADERS.has(name)) continue;
+      if (name === "vary") {
+        expect(varyTokens(response.headers[name]), name).toEqual(
+          varyTokens(value),
         );
+      } else {
+        expect(response.headers[name], name).toBe(value);
       }
-    },
-  );
+    }
+    for (const name of [
+      "cache-tag",
+      "content-disposition",
+      "hx-push-url",
+      "link",
+      "location",
+      "retry-after",
+      "x-ratelimit-limit",
+      "x-ratelimit-remaining",
+    ]) {
+      if (!(name in page.headers)) {
+        expect(response.headers[name], name).toBeUndefined();
+      }
+    }
+
+    const body = Buffer.isBuffer(response.body)
+      ? response.body
+      : Buffer.alloc(0);
+    switch (page.body.kind) {
+      case "empty":
+        expect(body.length).toBe(0);
+        break;
+      case "html":
+        expect(normalizeHtml(withoutIslandProps(body.toString("utf8")))).toBe(
+          normalizeHtml(
+            expectedPage(page.body.file, readFixtureHtml(page.body.file)),
+          ),
+        );
+        break;
+      case "json":
+        expect(JSON.parse(body.toString("utf8"))).toEqual(page.body.value);
+        break;
+      case "regions":
+        expect(
+          normalizeRegions(
+            pageRegions(
+              withoutIslandProps(body.toString("utf8")),
+              page.body.groups,
+            ),
+          ),
+        ).toEqual(
+          normalizeRegions(
+            page.body.regions.map((index) =>
+              expectedRegion(golden.regions[index]!),
+            ),
+          ),
+        );
+        break;
+      case "sha256":
+        expect(createHash("sha256").update(body).digest("hex")).toBe(
+          page.body.value,
+        );
+        break;
+      case "fragment":
+        throw new Error("fragment cases run against the results API");
+    }
+    expect(
+      inlineScriptsOutsidePolicy(
+        body.toString("utf8"),
+        response.headers["content-security-policy"],
+      ),
+    ).toEqual([]);
+    if (body.includes(" data-island=")) {
+      expect(body.toString("utf8"), "islands need site.js").toContain(
+        '<script type="module" src="/static/js/site.js?v=fixture">',
+      );
+    }
+  });
 });
 
 describe("every golden classifier page hydrates", () => {
@@ -584,7 +581,11 @@ describe("every golden classifier page hydrates", () => {
  */
 type ApiExpectation =
   | { readonly status: 200; readonly kind: "results" }
-  | { readonly status: 402; readonly kind: "paywall"; readonly signedIn: boolean }
+  | {
+      readonly status: 402;
+      readonly kind: "paywall";
+      readonly signedIn: boolean;
+    }
   | { readonly status: 503; readonly kind: "busy" }
   | {
       readonly status: number;
@@ -815,7 +816,6 @@ describe("classifier page lifecycle", () => {
       }
     },
   );
-
 });
 
 describe("sitemap query pages (decided divergence from Python)", () => {
